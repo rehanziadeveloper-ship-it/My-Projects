@@ -1,0 +1,224 @@
+{
+    "settings":  {
+                     "executionOrder":  "v1",
+                     "binaryMode":  "separate"
+                 },
+    "name":  "Day 1 - AI Dental Clinic Receptionist \u0026 Call Triage (Vapi + n8n)",
+    "connections":  {
+                        "Process End-of-Call Summary":  {
+                                                            "main":  [
+                                                                         [
+                                                                             {
+                                                                                 "index":  0,
+                                                                                 "node":  "Acknowledge Vapi Summary",
+                                                                                 "type":  "main"
+                                                                             }
+                                                                         ]
+                                                                     ]
+                                                        },
+                        "Route Event Type":  {
+                                                 "main":  [
+                                                              [
+                                                                  {
+                                                                      "index":  0,
+                                                                      "node":  "Triage \u0026 Parse Lead",
+                                                                      "type":  "main"
+                                                                  }
+                                                              ],
+                                                              [
+                                                                  {
+                                                                      "index":  0,
+                                                                      "node":  "Process End-of-Call Summary",
+                                                                      "type":  "main"
+                                                                  }
+                                                              ],
+                                                              [
+                                                                  {
+                                                                      "index":  0,
+                                                                      "node":  "Acknowledge Other Events",
+                                                                      "type":  "main"
+                                                                  }
+                                                              ]
+                                                          ]
+                                             },
+                        "Triage \u0026 Parse Lead":  {
+                                                         "main":  [
+                                                                      [
+                                                                          {
+                                                                              "index":  0,
+                                                                              "node":  "Respond to Vapi Voicebot",
+                                                                              "type":  "main"
+                                                                          },
+                                                                          {
+                                                                              "index":  0,
+                                                                              "node":  "Append to Google Sheets",
+                                                                              "type":  "main"
+                                                                          }
+                                                                      ]
+                                                                  ]
+                                                     },
+                        "Vapi Webhook Receiver":  {
+                                                      "main":  [
+                                                                   [
+                                                                       {
+                                                                           "index":  0,
+                                                                           "node":  "Route Event Type",
+                                                                           "type":  "main"
+                                                                       }
+                                                                   ]
+                                                               ]
+                                                  }
+                    },
+    "nodes":  [
+                  {
+                      "id":  "d9e03f56-6f81-42cb-b70d-f215bfd4193b",
+                      "name":  "Vapi Webhook Receiver",
+                      "webhookId":  "a5b4ffba-c75f-4d7d-bd8a-24251d9ec7fd",
+                      "type":  "n8n-nodes-base.webhook",
+                      "typeVersion":  2,
+                      "position":  [
+                                       240,
+                                       300
+                                   ],
+                      "parameters":  {
+                                         "httpMethod":  "POST",
+                                         "options":  {
+
+                                                     },
+                                         "path":  "vapi-dental-triage",
+                                         "responseMode":  "responseNode"
+                                     }
+                  },
+                  {
+                      "id":  "4c2b9f2e-5034-4b53-9bb6-32d169e06ab7",
+                      "name":  "Route Event Type",
+                      "type":  "n8n-nodes-base.switch",
+                      "typeVersion":  3.2,
+                      "position":  [
+                                       480,
+                                       300
+                                   ],
+                      "parameters":  {
+                                         "mode":  "expression",
+                                         "output":  "={{ $json.body?.message?.type === \u0027tool-calls\u0027 ? 0 : ($json.body?.message?.type === \u0027end-of-call-report\u0027 ? 1 : 2) }}"
+                                     }
+                  },
+                  {
+                      "id":  "7b9d9d2a-c9a1-4ee2-b34e-0a1cb3647192",
+                      "name":  "Triage \u0026 Parse Lead",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       720,
+                                       240
+                                   ],
+                      "parameters":  {
+                                         "jsCode":  "const body = $input.first().json.body || {};\nconst message = body.message || {};\nconst toolCall = (message.toolCalls \u0026\u0026 message.toolCalls[0]) || {};\nlet args = (toolCall.function \u0026\u0026 toolCall.function.arguments) || {};\n\nif (typeof args === \u0027string\u0027) {\n  try {\n    args = JSON.parse(args);\n  } catch (e) {\n    args = {};\n  }\n}\n\n// Extract ONLY USER messages (never system prompt or assistant messages)\nlet userMsgs = [];\nif (Array.isArray(message.conversation)) {\n  userMsgs = message.conversation.filter(m =\u003e m.role === \u0027user\u0027).map(m =\u003e m.content || m.message || \u0027\u0027);\n} else if (message.artifact \u0026\u0026 Array.isArray(message.artifact.messages)) {\n  userMsgs = message.artifact.messages.filter(m =\u003e m.role === \u0027user\u0027).map(m =\u003e m.message || m.content || \u0027\u0027);\n}\nconst userText = userMsgs.join(\u0027 \u0027);\n\n// 1. Patient Name: prioritize args, then user dialogue\nlet patientName = args.patientName || args.name || \u0027\u0027;\nif (!patientName \u0026\u0026 userText) {\n  const nameMatch = userText.match(/(?:my name is|name is|call me|i\u0027m|this is)\\s+([a-zA-Z]+)/i);\n  if (nameMatch) {\n    patientName = nameMatch[1].trim();\n  }\n}\npatientName = patientName || \u0027Patient\u0027;\n\n// 2. Phone Number: prioritize args, then user dialogue\nlet phone = args.phone || args.phoneNumber || \u0027\u0027;\nif (!phone \u0026\u0026 userText) {\n  const phoneMatch = userText.match(/(?:phone(?: number)?(?: is)?|number(?: is)?)\\s*[:\\s]*([\\d\\s.-]{7,25})/i);\n  if (phoneMatch) {\n    phone = phoneMatch[1].replace(/[\\s.-]/g, \u0027\u0027);\n  } else {\n    const digitsMatch = userText.match(/(?:\\+?\\d[\\d\\s.-]{6,20})/);\n    if (digitsMatch) {\n      phone = digitsMatch[0].replace(/[\\s.-]/g, \u0027\u0027);\n    }\n  }\n}\nphone = phone || \u0027Not provided\u0027;\n\n// 3. Time: prioritize args, then detect from user speech\nlet preferredDate = args.preferredDate || args.date || \u0027\u0027;\nlet preferredTime = args.preferredTime || args.time || \u0027\u0027;\nif (!preferredTime \u0026\u0026 userText) {\n  if (/afternoon/i.test(userText)) preferredTime = \u0027Afternoon\u0027;\n  else if (/morning/i.test(userText)) preferredTime = \u0027Morning\u0027;\n  else if (/evening/i.test(userText)) preferredTime = \u0027Evening\u0027;\n  else preferredTime = \u0027Flexible\u0027;\n}\nif (!preferredDate) {\n  if (/tomorrow/i.test(userText)) preferredDate = \u0027Tomorrow\u0027;\n  else if (/today/i.test(userText)) preferredDate = \u0027Today\u0027;\n  else preferredDate = \u0027Earliest Available\u0027;\n}\n\n// 4. Service \u0026 Emergency Triage\nconst isEmergency = /pain|emergency|bleeding|swelling|broken|ache|severe|trauma/i.test(userText + \u0027 \u0027 + (args.service || \u0027\u0027) + \u0027 \u0027 + (args.notes || \u0027\u0027));\nlet service = args.service || args.reason || \u0027\u0027;\nif (!service) {\n  if (isEmergency) service = \u0027Emergency Toothache / Care\u0027;\n  else if (/cleaning|whitening/i.test(userText)) service = \u0027Routine Cleaning \u0026 Whitening\u0027;\n  else service = \u0027Routine Consultation / Checkup\u0027;\n}\n\nconst triageStatus = isEmergency ? \u0027HIGH PRIORITY / EMERGENCY\u0027 : \u0027STANDARD / ROUTINE\u0027;\nconst notes = args.notes || (isEmergency ? \u0027Reported tooth pain during call\u0027 : \u0027Normal routine checkup\u0027);\n\nconst safePhone = String(phone).startsWith(\u0027+\u0027) ? `\u0027${phone}` : String(phone);\n\nreturn {\n  json: {\n    \u0027TIMESTAMP\u0027: new Date().toLocaleString(),\n    \u0027PATIENT NAME\u0027: patientName,\n    \u0027PHONE NUMBER\u0027: safePhone,\n    \u0027SERVICE / REASON\u0027: service,\n    \u0027PREFERRED TIME\u0027: `${preferredDate} ${preferredTime}`.trim(),\n    \u0027TRIAGE STATUS\u0027: triageStatus,\n    \u0027NOTES\u0027: notes\n  }\n};"
+                                     }
+                  },
+                  {
+                      "id":  "a8b1c2d3-e4f5-4a6b-8c9d-0e1f2a3b4c5d",
+                      "name":  "Respond to Vapi Voicebot",
+                      "type":  "n8n-nodes-base.respondToWebhook",
+                      "typeVersion":  1.5,
+                      "position":  [
+                                       980,
+                                       160
+                                   ],
+                      "parameters":  {
+                                         "options":  {
+
+                                                     },
+                                         "respondWith":  "json",
+                                         "responseBody":  "={{ JSON.stringify({ results: [ { toolCallId: $(\u0027Vapi Webhook Receiver\u0027).item.json.body.message.toolCalls[0].id, result: \"Appointment request logged for \" + $json[\u0027PATIENT NAME\u0027] + \" on \" + $json[\u0027PREFERRED TIME\u0027] + \" for \" + $json[\u0027SERVICE / REASON\u0027] + \". Triage: \" + $json[\u0027TRIAGE STATUS\u0027] + \". Please reassure the patient that our front desk is notified.\" } ] }) }}"
+                                     }
+                  },
+                  {
+                      "id":  "b7e1c2d3-4567-4890-a1b2-c3d4e5f60718",
+                      "name":  "Append to Google Sheets",
+                      "type":  "n8n-nodes-base.googleSheets",
+                      "typeVersion":  4.5,
+                      "onError":  "continueRegularOutput",
+                      "position":  [
+                                       980,
+                                       300
+                                   ],
+                      "parameters":  {
+                                         "authentication":  "serviceAccount",
+                                         "columns":  {
+                                                         "mappingMode":  "autoMapInputData",
+                                                         "value":  {
+
+                                                                   }
+                                                     },
+                                         "documentId":  {
+                                                            "__rl":  true,
+                                                            "mode":  "id",
+                                                            "value":  "1Rpb9XQsymoDDSEl0n1EChgi8KY7BgmajFXctwreAMjo"
+                                                        },
+                                         "operation":  "append",
+                                         "options":  {
+                                                         "valueInputMode":  "USER_ENTERED"
+                                                     },
+                                         "sheetName":  {
+                                                           "__rl":  true,
+                                                           "mode":  "name",
+                                                           "value":  "Sheet1"
+                                                       }
+                                     },
+                      "credentials":  {
+                                          "googleApi":  {
+                                                            "id":  "AqyKDLuwANoDYrEw",
+                                                            "name":  "Google Service Account"
+                                                        }
+                                      }
+                  },
+                  {
+                      "id":  "f1e2d3c4-b5a6-4978-8765-4321fedcba98",
+                      "name":  "Process End-of-Call Summary",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       720,
+                                       440
+                                   ],
+                      "parameters":  {
+                                         "jsCode":  "const body = $input.first().json.body || {};\nconst message = body.message || {};\n\nreturn {\n  json: {\n    callId: message.call?.id || \u0027unknown\u0027,\n    endedReason: message.endedReason || \u0027normal\u0027,\n    durationSeconds: message.durationSeconds || message.duration || 0,\n    cost: message.cost || 0,\n    summary: message.summary || \u0027No summary provided\u0027,\n    transcript: message.transcript || \u0027No transcript\u0027,\n    recordingUrl: message.recordingUrl || message.stereoRecordingUrl || null,\n    receivedAt: new Date().toISOString()\n  }\n};"
+                                     }
+                  },
+                  {
+                      "id":  "33445566-7788-4499-aabb-ccddeeff0011",
+                      "name":  "Acknowledge Vapi Summary",
+                      "type":  "n8n-nodes-base.respondToWebhook",
+                      "typeVersion":  1.5,
+                      "position":  [
+                                       980,
+                                       440
+                                   ],
+                      "parameters":  {
+                                         "options":  {
+
+                                                     },
+                                         "respondWith":  "json",
+                                         "responseBody":  "={{ JSON.stringify({ status: \"success\", message: \"Call summary logged successfully\" }) }}"
+                                     }
+                  },
+                  {
+                      "id":  "88776655-4433-2211-00aa-bbccddeeff99",
+                      "name":  "Acknowledge Other Events",
+                      "type":  "n8n-nodes-base.respondToWebhook",
+                      "typeVersion":  1.5,
+                      "position":  [
+                                       720,
+                                       600
+                                   ],
+                      "parameters":  {
+                                         "options":  {
+
+                                                     },
+                                         "respondWith":  "json",
+                                         "responseBody":  "={\"status\": \"event_received\"}"
+                                     }
+                  }
+              ]
+}
