@@ -1,0 +1,69 @@
+{
+    "voice":  {
+                  "voiceId":  "248be419-c632-4f23-adf1-5324ed7dbf10",
+                  "provider":  "cartesia"
+              },
+    "transcriber":  {
+                        "provider":  "deepgram",
+                        "language":  "en",
+                        "model":  "nova-2"
+                    },
+    "name":  "Apex Dental AI Receptionist",
+    "model":  {
+                  "tools":  [
+                                {
+                                    "function":  {
+                                                     "description":  "Logs patient appointment details and triages dental emergencies.",
+                                                     "name":  "bookDentalAppointment",
+                                                     "parameters":  {
+                                                                        "properties":  {
+                                                                                           "patientName":  {
+                                                                                                               "type":  "string",
+                                                                                                               "description":  "Full name of the patient"
+                                                                                                           },
+                                                                                           "service":  {
+                                                                                                           "type":  "string",
+                                                                                                           "description":  "Type of dental treatment or reason for call"
+                                                                                                       },
+                                                                                           "preferredDate":  {
+                                                                                                                 "type":  "string",
+                                                                                                                 "description":  "Preferred date or day of the week"
+                                                                                                             },
+                                                                                           "phone":  {
+                                                                                                         "type":  "string",
+                                                                                                         "description":  "Patient callback phone number"
+                                                                                                     },
+                                                                                           "preferredTime":  {
+                                                                                                                 "type":  "string",
+                                                                                                                 "description":  "Preferred time of day"
+                                                                                                             },
+                                                                                           "notes":  {
+                                                                                                         "type":  "string",
+                                                                                                         "description":  "Symptoms, pain severity, or special requests"
+                                                                                                     }
+                                                                                       },
+                                                                        "type":  "object",
+                                                                        "required":  [
+                                                                                         "patientName",
+                                                                                         "phone",
+                                                                                         "service"
+                                                                                     ]
+                                                                    }
+                                                 },
+                                    "server":  {
+                                                   "url":  "https://n8n.srv1767318.hstgr.cloud/webhook/vapi-dental-triage"
+                                               },
+                                    "type":  "function"
+                                }
+                            ],
+                  "provider":  "openai",
+                  "model":  "gpt-4o-mini",
+                  "messages":  [
+                                   {
+                                       "content":  "CRITICAL IDENTITY:\\nYou are Sarah, the human front-desk receptionist physically sitting at Apex Dental Clinic.\\n- NEVER say \u0027I cannot book directly\u0027 or \u0027I am an AI\u0027.\\n- NEVER ask the caller for their city or tell them to search for a local dentist. Apex Dental Clinic IS their dentist!\\n\\nHOW TO HANDLE CALLERS IN PAIN / EMERGENCIES:\\nWhen a caller mentions pain, toothache, or an emergency, say:\\n\u0027I am so sorry to hear you\u0027re in pain! We can definitely get you in for an emergency appointment today. May I please have your full name and the best phone number to reach you?\u0027\\n\\nHOW TO HANDLE ROUTINE APPOINTMENTS / CHECKUPS:\\nWhen a caller wants a checkup, cleaning, or general appointment, say:\\n\u0027I\u0027d be glad to help you book an appointment! May I please have your full name and best callback number, and do you prefer morning or afternoon?\u0027\\n\\nTOOL CALLING RULE (CRITICAL):\\nAs soon as the caller provides their name, phone number, and preferred time, call the \u0027bookDentalAppointment\u0027 tool immediately.\\nYou MUST pass the parameters into the tool arguments:\\n- patientName: The caller\u0027s name\\n- phone: The caller\u0027s phone number\\n- preferredDate: Today or Tomorrow or specific day\\n- preferredTime: Morning or Afternoon or specific time\\n- service: \u0027Emergency Toothache\u0027 or \u0027Routine Consultation / Checkup\u0027\\n- notes: Any symptoms or notes mentioned\\nNEVER call bookDentalAppointment with empty arguments.\\n\\nOnce the tool responds, say: \u0027Thank you [Name], you\u0027re all booked in for the [Time] slot. Dr. Smith is expecting you!\u0027",
+                                       "role":  "system"
+                                   }
+                               ]
+              },
+    "firstMessage":  "Thank you for calling Apex Dental Clinic! My name is Sarah. Are you calling to book an appointment, or do you have a dental emergency today?"
+}
