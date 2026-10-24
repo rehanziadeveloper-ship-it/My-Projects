@@ -111,12 +111,16 @@ async function connectToWhatsApp() {
 
     if (connection === 'close') {
       const statusCode = (lastDisconnect?.error)?.output?.statusCode;
-      const shouldReconnect = statusCode !== DisconnectReason.loggedOut;
-      console.log(`\n[WhatsApp Gateway] Connection closed (code: ${statusCode}). Reconnecting: ${shouldReconnect}`);
-      if (shouldReconnect) {
-        setTimeout(connectToWhatsApp, 3000);
+      const isLoggedOut = statusCode === DisconnectReason.loggedOut || statusCode === 401;
+      console.log(`\n[WhatsApp Gateway] Connection closed (code: ${statusCode}). Logged out: ${isLoggedOut}`);
+      if (isLoggedOut) {
+        console.log('🔄 Session expired or unlinked from phone. Automatically clearing auth cache to generate a fresh QR code...');
+        try {
+          fs.rmSync(AUTH_DIR, { recursive: true, force: true });
+        } catch (e) {}
+        setTimeout(connectToWhatsApp, 1500);
       } else {
-        console.log('[WhatsApp Gateway] Logged out. Delete auth_info_baileys folder and restart to re-scan.');
+        setTimeout(connectToWhatsApp, 3000);
       }
     } else if (connection === 'open') {
       console.log('\n======================================================');
