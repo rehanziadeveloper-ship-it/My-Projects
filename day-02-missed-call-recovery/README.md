@@ -1,6 +1,6 @@
-# ⚡ Day 02: Sub-60s Missed-Call Auto-Recovery & AI Lead Qualification Engine
+# ⚡ Day 02: Sub-60s Missed-Call Auto-Recovery & Conversational AI Booking Engine
 
-> **Autonomous clinic pipeline recovering lost revenue from missed patient calls using WhatsApp, n8n, and intelligent AI clinical triage in < 60 seconds.**
+> **Autonomous clinic pipeline recovering lost revenue from missed patient calls using WhatsApp, n8n, multi-turn conversational booking, and voice note audio replies.**
 
 ---
 
@@ -11,72 +11,67 @@
 
 ---
 
-## 🚀 The Solution: Sub-60s Auto-Recovery
-This system connects directly to incoming telephony/WhatsApp events:
-1. **Instant Detection:** The moment a call is missed or a WhatsApp inquiry is received, an event triggers.
-2. **AI Clinical Triage:** Evaluates patient symptoms (acute tooth pain, trauma, bleeding, broken crown) vs. routine appointments (cleaning, whitening).
-3. **Sub-60s Auto-TextBack:** Emits a compassionate, personalized WhatsApp response offering immediate walk-in guidance for emergencies or calendar slots for routine care.
-4. **Instant CRM Logging:** Sanitizes and logs patient details, timestamp, triage badge, and contact into Google Sheets without schema corruption.
-5. **Zero Infrastructure Cost:** 100% free; runs without paid SMS APIs, credit cards, or costly cloud VPS instances.
+## 🚀 Key Features
+
+### 1. Multi-Turn Conversational Memory
+* Never repeats robotic greetings. Remembers the ongoing dialogue and context across multiple WhatsApp messages.
+* Qualifies patients step-by-step: greeting → emergency triage vs. routine inquiry → slot selection (morning/afternoon) → booking confirmation.
+
+### 2. Verified Google Sheets Gatekeeper
+* **Strict Conditional Sync:** Patient data is **only** written to Google Sheets once an appointment is officially booked and confirmed (or flagged as an urgent medical emergency).
+* Initial greetings or general questions do not pollute the CRM database with duplicate rows.
+
+### 3. Voice Note (Audio) & Waveform Replies
+* Speaks back to patients using native WhatsApp voice notes (`ptt: true`) alongside concise text messages.
+* Delivers empathetic clinical guidance powered by lightweight, zero-dependency text-to-speech.
+
+### 4. Smart Call Interceptor
+* Intercepts incoming WhatsApp voice calls on the business number.
+* Automatically triggers the sub-60s recovery text and audio response:
+  *"Hi! I see you just tried calling Apex Dental Clinic. We're currently assisting another patient, but I'm Sarah, your 24/7 AI Receptionist! I can book your appointment right here in 30 seconds."*
 
 ---
 
 ## 🏗️ Architecture
 
 ```mermaid
-flowchart LR
-    A["📞 Inbound Call / WhatsApp"] -->|"Missed Call / Message"| B["📱 WhatsApp Gateway (Node.js)"]
-    B -->|"HTTP POST (Webhook)"| C["⚙️ n8n Recovery Engine"]
-    C --> D["🧠 AI Triage & Parsing"]
-    D -->|"Priority Emergency / Routine"| E["📊 Google Sheets CRM"]
-    D -->|"Personalized Auto-Reply"| F["💬 Sub-60s WhatsApp TextBack"]
-    F -->|"Delivered in < 3s"| A
+flowchart TD
+    A["📞 Inbound Missed Call / WhatsApp Message"] --> B["📱 WhatsApp Gateway (Node.js Baileys)"]
+    B -->|"HTTP POST with Session State"| C["⚙️ n8n Recovery & Booking Engine"]
+    C --> D["🧠 Multi-Turn Triage & Slot Booking"]
+    D --> E{"Is Appointment Booked / Emergency?"}
+    E -->|"Yes (Confirmed)"| F["📊 Google Sheets CRM (Sheet1)"]
+    E -->|"No (Qualifying/Inquiry)"| G["Skip CRM Write"]
+    D --> H["💬 WhatsApp Text Response"]
+    D --> I["🎙️ WhatsApp Audio Voice Note (PTT)"]
+    H --> B
+    I --> B
+    B --> J["📱 Delivered to Patient Phone (< 3s)"]
 ```
 
 ---
 
 ## 🛠️ Tech Stack
 * **Orchestration:** `n8n` (Self-hosted on Cloud VPS)
-* **WhatsApp Gateway:** Node.js (`@whiskeysockets/baileys` WebRTC WebSocket bridge)
-* **Clinical Triage Engine:** Custom Rule-Based & Semantic AI Classifier
-* **Database / CRM:** Google Sheets API (via GCP Service Account)
+* **WhatsApp Gateway:** Node.js (`@whiskeysockets/baileys` WebSocket bridge)
+* **Voice & Audio:** Google Speech Synthesizer (Zero-dependency TTS)
+* **Database / CRM:** Google Sheets API (via GCP Service Account `AqyKDLuwANoDYrEw`)
 
 ---
 
-## 📋 Google Sheets Schema
-Data maps strictly to columns `A:G`:
-| Column | Field | Sample Value |
-| :--- | :--- | :--- |
-| **A** | `TIMESTAMP` | `10/24/2026, 7:23:02 AM` |
-| **B** | `PATIENT NAME` | `Muhammad Rehan (WhatsApp Lead)` |
-| **C** | `PHONE NUMBER` | `+923001234567` |
-| **D** | `SERVICE / REASON` | `Emergency Toothache / Acute Dental Care` |
-| **E** | `PREFERRED TIME` | `Today (Immediate Walk-In / Triage)` |
-| **F** | `TRIAGE STATUS` | `HIGH PRIORITY / EMERGENCY (WHATSAPP RECOVERY)` |
-| **G** | `NOTES` | `Sub-60s Auto-Recovery: Patient reported urgent symptoms...` |
+## 🚀 Quickstart & Testing
 
----
-
-## 🚀 Quickstart & Deployment
-
-### 1. Import n8n Workflow
-1. In n8n, create a new workflow and import [`workflow.json`](workflow.json).
-2. Connect your Google Sheets Service Account credential to the `Append to Google Sheets` node.
-3. Activate the workflow.
-
-### 2. Run Local WhatsApp Gateway
+### 1. Start the Gateway
 ```bash
 cd gateway
-npm install
 npm start
 ```
-* Scan the displayed terminal QR code using WhatsApp on your mobile phone (**Settings > Linked Devices > Link a Device**).
-* Your WhatsApp is now active as an autonomous missed-call recovery agent.
+Scan the displayed QR code with your phone (**WhatsApp > Settings > Linked Devices > Link a Device**).
 
-### 3. Test Simulation
-```bash
-npm run test:recovery
-```
+### 2. Conversational Flow Test
+1. Send `HI` -> Bot asks if you need emergency care or routine checkup, and asks for morning/afternoon. *(Google Sheet is NOT touched)*.
+2. Reply `morning` -> Bot confirms your appointment for Tomorrow Morning at 10:00 AM with Dr. Sarah. *(Google Sheet logs the confirmed booking instantly!)*.
+3. Bot sends both text and a WhatsApp voice note audio message with waveform.
 
 ---
 

@@ -2,24 +2,61 @@ const {
   default: makeWASocket,
   useMultiFileAuthState,
   DisconnectReason,
-  fetchLatestBaileysVersion
+  fetchLatestBaileysVersion,
+  downloadMediaMessage
 } = require('@whiskeysockets/baileys');
 const qrcode = require('qrcode-terminal');
 const pino = require('pino');
 const path = require('path');
+const fs = require('fs');
 const http = require('http');
 
 // Configuration
 const N8N_WEBHOOK_URL = process.env.N8N_WEBHOOK_URL || 'https://n8n.srv1767318.hstgr.cloud/webhook/whatsapp-missed-call-recovery';
 const AUTH_DIR = path.join(__dirname, 'auth_info_baileys');
+const SESSIONS_FILE = path.join(__dirname, 'sessions.json');
 const TEST_PORT = process.env.TEST_PORT || 3001;
 
 let sockInstance = null;
 
+// Persistent Session Management
+let sessions = {};
+try {
+  if (fs.existsSync(SESSIONS_FILE)) {
+    sessions = JSON.parse(fs.readFileSync(SESSIONS_FILE, 'utf8'));
+    console.log(`[Session Store] Loaded ${Object.keys(sessions).length} active sessions from disk.`);
+  }
+} catch (e) {
+  sessions = {};
+}
+
+function saveSessions() {
+  try {
+    fs.writeFileSync(SESSIONS_FILE, JSON.stringify(sessions, null, 2), 'utf8');
+  } catch (e) {
+    console.error('[Session Store] Error saving sessions:', e.message);
+  }
+}
+
+// Generate Google TTS Audio Buffer (Zero-dependency & Free)
+async function generateTTSAudio(text) {
+  try {
+    const cleanText = text.replace(/[*_#~📍🎉🚨🦷👤🗓️]/g, '').trim().slice(0, 180);
+    const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(cleanText)}&tl=en&client=tw-ob`;
+    const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
+    if (!res.ok) return null;
+    const arrayBuffer = await res.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  } catch (err) {
+    console.error('[TTS Generator] Failed to create voice buffer:', err.message);
+    return null;
+  }
+}
+
 // Send incoming payload to n8n Webhook
 async function forwardToN8n(payload) {
   try {
-    console.log(`\n[n8n Forwarder] Sending event to n8n:`, JSON.stringify(payload, null, 2));
+    console.log(`\n[n8n Forwarder] Forwarding to n8n Webhook:`, JSON.stringify(payload, null, 2));
     const response = await fetch(N8N_WEBHOOK_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -34,7 +71,7 @@ async function forwardToN8n(payload) {
     }
 
     const data = await response.json();
-    console.log(`[n8n Forwarder] Response received from n8n:`, data);
+    console.log(`[n8n Forwarder] Response from n8n:`, data);
     return data;
   } catch (err) {
     console.error(`[n8n Forwarder] Network error contacting n8n:`, err.message);
@@ -42,11 +79,11 @@ async function forwardToN8n(payload) {
   }
 }
 
-// Connect to WhatsApp
+// Connect to WhatsApp Web
 async function connectToWhatsApp() {
   const { state, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
   const { version, isLatest } = await fetchLatestBaileysVersion();
-  console.log(`[WhatsApp Gateway] Using Baileys v${version.join('.')}, isLatest: ${isLatest}`);
+  console.log(`[WhatsApp Gateway] Starting Baileys v${version.join('.')}, isLatest: ${isLatest}`);
 
   const sock = makeWASocket({
     version,
@@ -86,7 +123,7 @@ async function connectToWhatsApp() {
       console.log('✅ WHATSAPP GATEWAY CONNECTED SUCCESSFULLY!');
       console.log(`Target n8n Webhook: ${N8N_WEBHOOK_URL}`);
       console.log(`Test simulator listening at: http://localhost:${TEST_PORT}`);
-      console.log('Ready to receive incoming WhatsApp messages & calls.');
+      console.log('Multi-turn conversation & voice notes enabled.');
       console.log('======================================================\n');
     }
   });
@@ -100,68 +137,134 @@ async function connectToWhatsApp() {
       const senderJid = msg.key.remoteJid;
       if (!senderJid || senderJid === 'status@broadcast' || senderJid.endsWith('@g.us')) continue;
 
-      const messageText = msg.message?.conversation ||
-                          msg.message?.extendedTextMessage?.text ||
-                          msg.message?.imageMessage?.caption ||
-                          '';
+      let messageText = '';
+      let isVoiceNote = false;
 
-      if (!messageText.trim()) continue;
+      if (msg.message?.conversation) {
+        messageText = msg.message.conversation;
+      } else if (msg.message?.extendedTextMessage?.text) {
+        messageText = msg.message.extendedTextMessage.text;
+      } else if (msg.message?.imageMessage?.caption) {
+        messageText = msg.message.imageMessage.caption;
+      } else if (msg.message?.audioMessage) {
+        isVoiceNote = true;
+        console.log(`🎙️ [Incoming Voice Note] Received from ${senderJid}`);
+        messageText = 'Hello, I sent a voice message about booking an appointment.';
+      }
 
-      const senderPhone = senderJid.replace('@s.whatsapp.net', '');
-      const senderName = msg.pushName || 'WhatsApp Caller';
+      if (!messageText.trim() && !isVoiceNote) continue;
 
-      console.log(`\n📩 [Incoming WhatsApp] From: ${senderName} (+${senderPhone})`);
-      console.log(`   Message: "${messageText}"`);
+      let senderPhone = senderJid.replace('@s.whatsapp.net', '').replace('@lid', '').split(':')[0];
+      const senderName = msg.pushName || 'Valued Patient';
+
+      const currentSession = sessions[senderJid] || {
+        stage: 'INIT',
+        patientName: senderName,
+        senderPhone: `+${senderPhone}`,
+        isBooked: false
+      };
+
+      console.log(`\n📩 [Incoming Message] From: ${senderName} (+${senderPhone})`);
+      console.log(`   Text: "${messageText}" [Voice: ${isVoiceNote}]`);
+      console.log(`   Current Stage: ${currentSession.stage}, IsBooked: ${currentSession.isBooked}`);
 
       const payload = {
-        event: 'whatsapp_message',
+        event: isVoiceNote ? 'whatsapp_voice_note' : 'whatsapp_message',
         senderPhone: `+${senderPhone}`,
         senderName: senderName,
         messageText: messageText,
         remoteJid: senderJid,
+        isVoice: isVoiceNote,
+        session: currentSession,
         timestamp: new Date().toISOString()
       };
 
       const n8nResult = await forwardToN8n(payload);
 
       if (n8nResult && n8nResult.reply) {
-        console.log(`🤖 [Auto-TextBack] Sending reply to +${senderPhone}: "${n8nResult.reply}"`);
+        if (n8nResult.updatedSession) {
+          sessions[senderJid] = n8nResult.updatedSession;
+          saveSessions();
+          console.log(`💾 [Session Saved] Stage updated to: ${n8nResult.updatedSession.stage}, Booked: ${n8nResult.updatedSession.isBooked}`);
+        }
+
+        console.log(`💬 [Sending Text Reply] to +${senderPhone}: "${n8nResult.reply.slice(0, 80)}..."`);
         await sock.sendMessage(senderJid, { text: n8nResult.reply });
-        console.log(`✅ [Auto-TextBack] Reply successfully delivered to +${senderPhone}!`);
+        console.log(`✅ Text reply delivered to +${senderPhone}!`);
+
+        try {
+          const voiceBuffer = await generateTTSAudio(n8nResult.reply);
+          if (voiceBuffer) {
+            console.log(`🎙️ [Sending Voice Note] Delivering audio note to +${senderPhone}...`);
+            await sock.sendMessage(senderJid, {
+              audio: voiceBuffer,
+              mimetype: 'audio/mp4',
+              ptt: true
+            });
+            console.log(`✅ Voice note waveform successfully delivered to +${senderPhone}!`);
+          }
+        } catch (voiceErr) {
+          console.error('[Voice Note Sender Error]:', voiceErr.message);
+        }
       }
     }
   });
 
-  // Handle Missed / Incoming Calls
+  // Handle Incoming Phone Calls on WhatsApp
   sock.ev.on('call', async (callEvents) => {
     for (const call of callEvents) {
       const callerJid = call.from;
-      const callerPhone = callerJid.replace('@s.whatsapp.net', '');
-      console.log(`\n📞 [Incoming/Missed Call Detected] From: +${callerPhone}, Status: ${call.status}`);
+      let callerPhone = callerJid.replace('@s.whatsapp.net', '').replace('@lid', '').split(':')[0];
+      console.log(`\n📞 [Incoming Call Detected] From: +${callerPhone}, Status: ${call.status}, Call ID: ${call.id}`);
 
-      if (call.status === 'offer' || call.status === 'timeout' || call.status === 'reject') {
+      if (call.status === 'offer' || call.status === 'ringing') {
+        try {
+          if (sock.rejectCall) {
+            await sock.rejectCall(call.id, callerJid);
+            console.log(`⏹️ [Call Handled] Rejected incoming voice call to trigger Sub-60s Recovery.`);
+          }
+        } catch (e) {
+          console.log(`Call reject notice: ${e.message}`);
+        }
+
+        const currentSession = sessions[callerJid] || { stage: 'INIT', senderPhone: `+${callerPhone}` };
+
         const payload = {
           event: 'whatsapp_missed_call',
           senderPhone: `+${callerPhone}`,
-          senderName: 'Phone Caller',
+          senderName: 'Valued Patient',
           messageText: 'Missed Voice Call Detected',
           remoteJid: callerJid,
+          session: currentSession,
           timestamp: new Date().toISOString()
         };
 
         const n8nResult = await forwardToN8n(payload);
 
         if (n8nResult && n8nResult.reply) {
-          console.log(`🤖 [Sub-60s Auto-TextBack] Sending recovery reply to +${callerPhone}: "${n8nResult.reply}"`);
+          if (n8nResult.updatedSession) {
+            sessions[callerJid] = n8nResult.updatedSession;
+            saveSessions();
+          }
+
           await sock.sendMessage(callerJid, { text: n8nResult.reply });
-          console.log(`✅ [Sub-60s Auto-TextBack] Delivered to +${callerPhone}!`);
+          console.log(`✅ [Sub-60s Auto-TextBack] Text delivered to +${callerPhone}!`);
+
+          const voiceBuffer = await generateTTSAudio(n8nResult.reply);
+          if (voiceBuffer) {
+            await sock.sendMessage(callerJid, {
+              audio: voiceBuffer,
+              mimetype: 'audio/mp4',
+              ptt: true
+            });
+            console.log(`✅ [Sub-60s Auto-TextBack] Voice note delivered to +${callerPhone}!`);
+          }
         }
       }
     }
   });
 }
 
-// Minimal local HTTP server for testing & simulation
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
   
@@ -177,6 +280,7 @@ const server = http.createServer(async (req, res) => {
           senderName: data.name || 'Test Patient (Muhammad Rehan)',
           messageText: data.message || 'Hi, I just called your clinic. I have a severe toothache and need an emergency appointment today.',
           remoteJid: data.phone ? `${data.phone.replace('+', '')}@s.whatsapp.net` : 'test@s.whatsapp.net',
+          session: { stage: 'INIT' },
           timestamp: new Date().toISOString()
         };
 
@@ -194,6 +298,7 @@ const server = http.createServer(async (req, res) => {
     res.end(JSON.stringify({
       status: 'online',
       connected: !!sockInstance,
+      activeSessions: Object.keys(sessions).length,
       n8n_url: N8N_WEBHOOK_URL
     }));
   } else {
