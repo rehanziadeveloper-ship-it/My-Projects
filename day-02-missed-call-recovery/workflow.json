@@ -1,0 +1,134 @@
+{
+  "name": "Day 2 - Sub-60s Missed-Call Auto-Recovery & AI Lead Qualification",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whatsapp-missed-call-recovery",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "e1a2b3c4-d5e6-47a8-b9c0-112233445566",
+      "name": "WhatsApp Webhook Receiver",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json || {};\nconst messageText = body.messageText || body.message || '';\nconst senderPhone = body.senderPhone || body.phone || 'Unknown';\nconst senderName = body.senderName || body.name || 'Valued Patient';\n\n// 1. Name Extraction / Sanitization\nlet patientName = senderName;\nconst nameMatch = messageText.match(/(?:my name is|i am|this is|call me)\\s+([a-zA-Z\\s]{2,25})/i);\nif (nameMatch && nameMatch[1]) {\n  patientName = nameMatch[1].trim();\n}\n\n// 2. Emergency & Pain Detection\nconst isEmergency = /pain|emergency|bleeding|swelling|broken|ache|severe|trauma|urgent|infection|fell|cracked/i.test(messageText);\n\n// 3. Service / Reason\nlet service = 'General Consultation / Dental Checkup';\nif (isEmergency) {\n  service = 'Emergency Toothache / Acute Dental Care';\n} else if (/clean|whitening|hygiene|scale/i.test(messageText)) {\n  service = 'Routine Cleaning & Preventative Care';\n} else if (/filling|cavity|crown|implant/i.test(messageText)) {\n  service = 'Restorative Dentistry / Filling & Crown';\n} else if (/brace|aligner|invisalign/i.test(messageText)) {\n  service = 'Orthodontics & Teeth Alignment';\n}\n\n// 4. Preferred Time / Scheduling\nlet preferredTime = 'Earliest Available Slot';\nif (/today|urgent|now|asap/i.test(messageText)) {\n  preferredTime = 'Today (Immediate Walk-In / Triage)';\n} else if (/tomorrow/i.test(messageText)) {\n  preferredTime = 'Tomorrow';\n} else if (/morning/i.test(messageText)) {\n  preferredTime = 'Morning Slot';\n} else if (/afternoon/i.test(messageText)) {\n  preferredTime = 'Afternoon Slot';\n}\n\n// 5. Triage Status & Notes\nconst triageStatus = isEmergency ? 'HIGH PRIORITY / EMERGENCY (WHATSAPP RECOVERY)' : 'STANDARD / ROUTINE (WHATSAPP RECOVERY)';\nconst notes = isEmergency \n  ? `Sub-60s Auto-Recovery: Patient reported urgent symptoms: \"${messageText.slice(0, 100)}...\"` \n  : `Sub-60s Auto-Recovery: WhatsApp inquiry for ${service}.`;\n\n// 6. Safe Phone formatting for Google Sheets\nconst safePhone = String(senderPhone).startsWith('+') ? `'${senderPhone}` : String(senderPhone);\n\n// 7. Formulate AI Auto-TextBack Message\nlet autoReply = '';\nif (isEmergency) {\n  autoReply = `Hi ${patientName}! This is Sarah from Apex Dental Clinic. I see we missed your call — so sorry about that! I noticed you are dealing with urgent dental pain. Our clinical triage has flagged this as HIGH PRIORITY. Our on-duty dentist is being alerted now, or you can walk in immediately to our emergency clinic at 123 Healthcare Blvd. We're here to help!`;\n} else {\n  autoReply = `Hi ${patientName}! This is Sarah from Apex Dental Clinic. We noticed we just missed your call — sorry for the inconvenience! We'd love to help you get booked for ${service}. We have openings available this week. Would morning or afternoon suit you best?`;\n}\n\nreturn {\n  json: {\n    'TIMESTAMP': new Date().toLocaleString(),\n    'PATIENT NAME': patientName,\n    'PHONE NUMBER': safePhone,\n    'SERVICE / REASON': service,\n    'PREFERRED TIME': preferredTime,\n    'TRIAGE STATUS': triageStatus,\n    'NOTES': notes,\n    'reply': autoReply\n  }\n};"
+      },
+      "id": "a2b3c4d5-e6f7-48a9-b0c1-223344556677",
+      "name": "Triage & Lead Qualification",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        520,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nreturn {\n  json: {\n    'TIMESTAMP': item['TIMESTAMP'],\n    'PATIENT NAME': item['PATIENT NAME'],\n    'PHONE NUMBER': item['PHONE NUMBER'],\n    'SERVICE / REASON': item['SERVICE / REASON'],\n    'PREFERRED TIME': item['PREFERRED TIME'],\n    'TRIAGE STATUS': item['TRIAGE STATUS'],\n    'NOTES': item['NOTES']\n  }\n};"
+      },
+      "id": "b3c4d5e6-f7a8-49b0-c1d2-334455667788",
+      "name": "Sanitize for Google Sheets",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        780,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID_HERE",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Sheet1",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {}
+        },
+        "options": {
+          "valueInputMode": "USER_ENTERED"
+        }
+      },
+      "id": "c4d5e6f7-a8b9-40c1-d2e3-445566778899",
+      "name": "Append to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1040,
+        200
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: \"success\", reply: $json.reply, triage: $json['TRIAGE STATUS'], patient: $json['PATIENT NAME'], service: $json['SERVICE / REASON'], preferredTime: $json['PREFERRED TIME'] }) }}",
+        "options": {}
+      },
+      "id": "d5e6f7a8-b9c0-41d2-e3f4-556677889900",
+      "name": "Respond with AI Text-Back",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        780,
+        400
+      ]
+    }
+  ],
+  "connections": {
+    "WhatsApp Webhook Receiver": {
+      "main": [
+        [
+          {
+            "node": "Triage & Lead Qualification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Triage & Lead Qualification": {
+      "main": [
+        [
+          {
+            "node": "Sanitize for Google Sheets",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Respond with AI Text-Back",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sanitize for Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Append to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
