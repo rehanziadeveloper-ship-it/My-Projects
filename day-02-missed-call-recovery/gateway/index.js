@@ -2,8 +2,7 @@ const {
   default: makeWASocket,
   useMultiFileAuthState,
   DisconnectReason,
-  fetchLatestBaileysVersion,
-  downloadMediaMessage
+  fetchLatestBaileysVersion
 } = require('@whiskeysockets/baileys');
 const qrcode = require('qrcode-terminal');
 const pino = require('pino');
@@ -35,21 +34,6 @@ function saveSessions() {
     fs.writeFileSync(SESSIONS_FILE, JSON.stringify(sessions, null, 2), 'utf8');
   } catch (e) {
     console.error('[Session Store] Error saving sessions:', e.message);
-  }
-}
-
-// Generate Google TTS Audio Buffer (Zero-dependency & Free)
-async function generateTTSAudio(text) {
-  try {
-    const cleanText = text.replace(/[*_#~📍🎉🚨🦷👤🗓️]/g, '').trim().slice(0, 180);
-    const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(cleanText)}&tl=en&client=tw-ob`;
-    const res = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } });
-    if (!res.ok) return null;
-    const arrayBuffer = await res.arrayBuffer();
-    return Buffer.from(arrayBuffer);
-  } catch (err) {
-    console.error('[TTS Generator] Failed to create voice buffer:', err.message);
-    return null;
   }
 }
 
@@ -127,7 +111,7 @@ async function connectToWhatsApp() {
       console.log('✅ WHATSAPP GATEWAY CONNECTED SUCCESSFULLY!');
       console.log(`Target n8n Webhook: ${N8N_WEBHOOK_URL}`);
       console.log(`Test simulator listening at: http://localhost:${TEST_PORT}`);
-      console.log('Multi-turn conversation & voice notes enabled.');
+      console.log('Multi-turn conversation & appointment booking active.');
       console.log('======================================================\n');
     }
   });
@@ -142,7 +126,6 @@ async function connectToWhatsApp() {
       if (!senderJid || senderJid === 'status@broadcast' || senderJid.endsWith('@g.us')) continue;
 
       let messageText = '';
-      let isVoiceNote = false;
 
       if (msg.message?.conversation) {
         messageText = msg.message.conversation;
@@ -151,16 +134,16 @@ async function connectToWhatsApp() {
       } else if (msg.message?.imageMessage?.caption) {
         messageText = msg.message.imageMessage.caption;
       } else if (msg.message?.audioMessage) {
-        isVoiceNote = true;
         console.log(`🎙️ [Incoming Voice Note] Received from ${senderJid}`);
-        messageText = 'Hello, I sent a voice message about booking an appointment.';
+        messageText = 'Hello, I sent a voice note inquiring about booking an appointment.';
       }
 
-      if (!messageText.trim() && !isVoiceNote) continue;
+      if (!messageText.trim()) continue;
 
       let senderPhone = senderJid.replace('@s.whatsapp.net', '').replace('@lid', '').split(':')[0];
       const senderName = msg.pushName || 'Valued Patient';
 
+      // Load previous multi-turn session
       const currentSession = sessions[senderJid] || {
         stage: 'INIT',
         patientName: senderName,
@@ -169,47 +152,34 @@ async function connectToWhatsApp() {
       };
 
       console.log(`\n📩 [Incoming Message] From: ${senderName} (+${senderPhone})`);
-      console.log(`   Text: "${messageText}" [Voice: ${isVoiceNote}]`);
+      console.log(`   Text: "${messageText}"`);
       console.log(`   Current Stage: ${currentSession.stage}, IsBooked: ${currentSession.isBooked}`);
 
       const payload = {
-        event: isVoiceNote ? 'whatsapp_voice_note' : 'whatsapp_message',
+        event: 'whatsapp_message',
         senderPhone: `+${senderPhone}`,
         senderName: senderName,
         messageText: messageText,
         remoteJid: senderJid,
-        isVoice: isVoiceNote,
         session: currentSession,
         timestamp: new Date().toISOString()
       };
 
+      // Forward to n8n Engine
       const n8nResult = await forwardToN8n(payload);
 
       if (n8nResult && n8nResult.reply) {
+        // 1. Update Session Memory
         if (n8nResult.updatedSession) {
           sessions[senderJid] = n8nResult.updatedSession;
           saveSessions();
-          console.log(`💾 [Session Saved] Stage updated to: ${n8nResult.updatedSession.stage}, Booked: ${n8nResult.updatedSession.isBooked}`);
+          console.log(`💾 [Session Saved] Stage: ${n8nResult.updatedSession.stage}, Booked: ${n8nResult.updatedSession.isBooked}`);
         }
 
+        // 2. Send Clean Text Reply (Single, fast, perfectly formatted)
         console.log(`💬 [Sending Text Reply] to +${senderPhone}: "${n8nResult.reply.slice(0, 80)}..."`);
         await sock.sendMessage(senderJid, { text: n8nResult.reply });
-        console.log(`✅ Text reply delivered to +${senderPhone}!`);
-
-        try {
-          const voiceBuffer = await generateTTSAudio(n8nResult.reply);
-          if (voiceBuffer) {
-            console.log(`🎙️ [Sending Voice Note] Delivering audio note to +${senderPhone}...`);
-            await sock.sendMessage(senderJid, {
-              audio: voiceBuffer,
-              mimetype: 'audio/mp4',
-              ptt: true
-            });
-            console.log(`✅ Voice note waveform successfully delivered to +${senderPhone}!`);
-          }
-        } catch (voiceErr) {
-          console.error('[Voice Note Sender Error]:', voiceErr.message);
-        }
+        console.log(`✅ Reply delivered to +${senderPhone}!`);
       }
     }
   });
@@ -253,16 +223,6 @@ async function connectToWhatsApp() {
 
           await sock.sendMessage(callerJid, { text: n8nResult.reply });
           console.log(`✅ [Sub-60s Auto-TextBack] Text delivered to +${callerPhone}!`);
-
-          const voiceBuffer = await generateTTSAudio(n8nResult.reply);
-          if (voiceBuffer) {
-            await sock.sendMessage(callerJid, {
-              audio: voiceBuffer,
-              mimetype: 'audio/mp4',
-              ptt: true
-            });
-            console.log(`✅ [Sub-60s Auto-TextBack] Voice note delivered to +${callerPhone}!`);
-          }
         }
       }
     }
