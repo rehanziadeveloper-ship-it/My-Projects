@@ -1,0 +1,12 @@
+{
+  "name": "day-03-calendar-voicebot",
+  "version": "1.0.0",
+  "description": "Day 3 - Dental & Med-Spa Real-Time Voice Appointment Booking Agent with Google Calendar",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": ["voice-ai", "vapi", "n8n", "google-calendar", "dental-booking"],
+  "author": "Muhammad Rehan",
+  "license": "ISC"
+}
