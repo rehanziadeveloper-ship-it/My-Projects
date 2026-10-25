@@ -229,6 +229,7 @@ async function connectToWhatsApp() {
   });
 }
 
+// Minimal local HTTP server for testing & simulation
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
   

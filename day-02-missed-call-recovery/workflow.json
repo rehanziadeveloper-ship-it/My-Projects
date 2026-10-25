@@ -1,31 +1,35 @@
 {
+  "id": "zjz40CrvMHs7MyuL",
   "name": "Day 2 - Sub-60s Missed-Call Auto-Recovery & AI Lead Qualification",
+  "description": null,
+  "active": true,
+  "activeVersionId": "ba3a088e-a61f-4f27-9494-b251ce7ae2f3",
+  "createdAt": "2026-10-24T07:22:23.829Z",
+  "updatedAt": "2026-10-24T14:04:42.502Z",
+  "isArchived": false,
+  "versionId": "ba3a088e-a61f-4f27-9494-b251ce7ae2f3",
+  "versionCounter": 11,
+  "sourceWorkflowId": null,
+  "triggerCount": 1,
   "nodes": [
     {
-      "parameters": {
-        "httpMethod": "POST",
-        "path": "whatsapp-missed-call-recovery",
-        "responseMode": "responseNode",
-        "options": {}
-      },
       "id": "e1a2b3c4-d5e6-47a8-b9c0-112233445566",
       "name": "WhatsApp Webhook Receiver",
+      "webhookId": "84bce143-b7b1-4f40-bc87-1baffa77d70d",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
         240,
         300
-      ]
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "options": {},
+        "path": "whatsapp-missed-call-recovery",
+        "responseMode": "responseNode"
+      }
     },
     {
-      "parameters": {
-        "jsCode": "const body = $input.first().json.body || $input.first().json || {};\nconst messageText = (body.messageText || body.message || '').trim();\nconst senderPhone = body.senderPhone || body.phone || 'Unknown';\nconst senderName = body.senderName || body.name || 'Valued Patient';\nconst eventType = body.event || 'whatsapp_message';\nconst session = body.session || {};\n\nconst lower = messageText.toLowerCase();\n\n// 1. Patient Name Extraction\nlet patientName = session.patientName || senderName;\nconst nameMatch = messageText.match(/(?:my name is|i am|this is|call me)\\s+([a-zA-Z\\s]{2,25})/i);\nif (nameMatch && nameMatch[1]) {\n  patientName = nameMatch[1].trim();\n}\n\n// 2. Fee / Pricing Inquiry Detection\nconst isFeeQuestion = /fee|cost|price|charge|rate|how much|extra/i.test(lower);\nconst isEmergencyFeeQuestion = isFeeQuestion && /emergency/i.test(lower);\n\n// 3. Real Acute Emergency Detection (Only physical pain/symptoms, NOT questions)\nconst hasPainOrSymptoms = /severe\\s*(?:tooth\\s*)?pain|toothache|bleeding|swelling|broken\\s*tooth|infection|extreme\\s*pain/i.test(lower) || (/emergency|urgent/i.test(lower) && !isFeeQuestion);\nconst isEmergency = hasPainOrSymptoms && !isFeeQuestion;\n\n// 4. Service Detection\nlet currentService = session.service || 'General Dental Consultation & Checkup';\nif (isEmergency) {\n  currentService = 'Emergency Toothache / Acute Dental Care';\n} else if (/clean|hygiene|scale/i.test(lower)) {\n  currentService = 'Routine Cleaning & Preventative Care';\n} else if (/whiten/i.test(lower)) {\n  currentService = 'Professional Teeth Whitening';\n} else if (/filling|cavity|crown|implant/i.test(lower)) {\n  currentService = 'Restorative Dentistry / Filling & Crown';\n} else if (/brace|aligner|invisalign/i.test(lower)) {\n  currentService = 'Orthodontics & Teeth Alignment';\n}\n\nlet currentTime = session.preferredTime || '';\nlet stage = session.stage || 'INIT';\nlet isBooked = false;\nlet reply = '';\n\n// Check if user just sent a basic greeting\nconst isGreetingOnly = /^(hi|hello|hey|salam|assalam|aoa|good morning|good afternoon|good evening)[\\s!.]*$/i.test(lower);\n\nif (isEmergency) {\n  isBooked = true;\n  stage = 'EMERGENCY_CONFIRMED';\n  currentTime = 'Today (Immediate Walk-In / Triage)';\n  reply = [\n    '🚨 *URGENT CARE NOTICE*',\n    '',\n    `Hi ${patientName}, your case is flagged as *HIGH PRIORITY / EMERGENCY*.`,\n    '',\n    '📍 *Action Steps:*',\n    '• Head directly to our clinic: *123 Healthcare Blvd*',\n    '• Our on-duty dentist is being alerted right now',\n    '• Emergency walk-in triage is open and ready for you',\n    '',\n    '📞 If you are on your way, our doors are open!'\n  ].join('\\n');\n\n} else if (isEmergencyFeeQuestion) {\n  isBooked = false;\n  reply = [\n    '💵 *Emergency Pricing Policy*',\n    '',\n    '• *No Extra Surcharge:* We do NOT charge extra emergency fees!',\n    '• *Standard Triage Fee:* $50 / Rs. 1,500 (covers digital exam & pain-relief assessment)',\n    '• *Treatment:* Any required procedure is explained transparently upfront',\n    '',\n    currentTime ? `🗓️ Your appointment is currently reserved for *${currentTime}*.` : '👉 Are you currently in pain, or would you like to schedule a routine appointment?'\n  ].join('\\n');\n\n} else if (isFeeQuestion) {\n  isBooked = false;\n  reply = [\n    '💵 *Apex Dental Fees & Pricing*',\n    '',\n    '• 🦷 *General Exam & Consultation:* $50 / Rs. 1,500',\n    '• 🪥 *Routine Cleaning & Scaling:* $80 / Rs. 2,500',\n    '• ✨ *Teeth Whitening:* $150 / Rs. 5,000',\n    '• 🚨 *Emergency Pain Relief:* Standard $50 fee (No emergency surcharge)',\n    '',\n    currentTime ? `🗓️ Your appointment is currently reserved for *${currentTime}*.` : '👉 Would morning or afternoon suit you best for a booking?'\n  ].join('\\n');\n\n} else if (/where|location|address|map|place/i.test(lower)) {\n  isBooked = false;\n  reply = [\n    '📍 *Clinic Location & Hours*',\n    '',\n    '• *Address:* 123 Healthcare Blvd, Medical District',\n    '• *Hours:* Monday – Saturday, 9:00 AM – 6:00 PM',\n    '• *Parking:* Free patient parking on-site',\n    '',\n    currentTime ? `🗓️ We look forward to seeing you at *${currentTime}*!` : '👉 Would morning or afternoon work best for your visit?'\n  ].join('\\n');\n\n} else {\n  let parsedHour = null;\n  let isAm = false;\n  let isPm = false;\n\n  const timeMatch = lower.match(/(?:at|on|with|time)?\\s*(\\d{1,2})(?::|\\s+)?(\\d{2})?\\s*(am|pm)?/i);\n  if (timeMatch && !/^\\d{7,}$/.test(messageText.replace(/\\D/g, ''))) {\n    const rawH = parseInt(timeMatch[1], 10);\n    const ampm = timeMatch[3] ? timeMatch[3].toLowerCase() : '';\n    if (rawH >= 1 && rawH <= 12) {\n      parsedHour = rawH;\n      if (ampm === 'am') isAm = true;\n      if (ampm === 'pm') isPm = true;\n      if (!ampm) {\n        if (rawH >= 8 && rawH <= 11) isAm = true;\n        else if (rawH >= 1 && rawH <= 7) isPm = true;\n      }\n    }\n  }\n\n  const isNightOrEarly = isAm && (parsedHour === 12 || (parsedHour >= 1 && parsedHour <= 7));\n  const isLateNight = isPm && (parsedHour >= 8 && parsedHour <= 11);\n\n  if (isNightOrEarly || isLateNight || /night|midnight/i.test(lower)) {\n    isBooked = false;\n    const requestedStr = parsedHour ? `${parsedHour}:00 AM` : 'that hour';\n    const recommendedPm = (parsedHour && parsedHour >= 1 && parsedHour <= 6) ? `${parsedHour}:00 PM` : '4:00 PM';\n    reply = [\n      '⏰ *Clinic Operating Hours*',\n      '',\n      `Our clinic is open *Monday to Saturday, 9:00 AM – 6:00 PM* (Closed at ${requestedStr}).`,\n      '',\n      '✨ *Recommended Available Slots:*',\n      '• ☀️ Tomorrow Morning: 10:00 AM',\n      `• 🌤️ Tomorrow Afternoon: ${recommendedPm}`,\n      '',\n      `👉 Would *${recommendedPm}* work for you?`\n    ].join('\\n');\n    currentTime = `Pending (Recommended ${recommendedPm})`;\n    stage = 'AWAITING_TIME';\n\n  } else if (/change.*(?:morning\s+to\s+afternoon|to\s+afternoon)|switch.*afternoon/i.test(lower) || (lower.includes('afternoon') && lower.includes('change'))) {\n    isBooked = false;\n    currentTime = 'Tomorrow Afternoon';\n    stage = 'AWAITING_TIME';\n    reply = [
-      '🔄 *Switching to Afternoon*',\n      '',\n      'We have the following open slots tomorrow:',\n      '• 🕐 2:00 PM',\n      '• 🕝 3:30 PM',\n      '• 🕓 4:00 PM',\n      '• 🕔 5:00 PM',\n      '',\n      '👉 Reply with your preferred time to confirm!'\n    ].join('\\n');\n\n  } else if (parsedHour) {\n    isBooked = true;\n    const period = isPm ? 'PM' : 'AM';\n    currentTime = `Tomorrow at ${parsedHour}:00 ${period}`;\n    stage = 'BOOKED';\n    reply = [\n      '🎉 *APPOINTMENT CONFIRMED*',\n      '',\n      `👤 *Patient:* ${patientName}`,\n      `🗓️ *Date & Time:* ${currentTime}`,\n      `🦷 *Service:* ${currentService}`,\n      '👨‍⚕️ *Provider:* Dr. Sarah (Lead Dental Specialist)',\n      '📍 *Location:* 123 Healthcare Blvd, Medical District',\n      '💵 *Fee:* $50 / Rs. 1,500 (Includes Digital Exam)',\n      '',\n      '📌 *Quick Reminders:*',\n      '• Please arrive 5 minutes before your slot',\n      '• Free dedicated parking available on-site',\n      '• Need to reschedule? Simply reply here anytime!'\n    ].join('\\n');\n\n  } else if (lower.includes('afternoon')) {\n    isBooked = true;\n    currentTime = 'Tomorrow Afternoon (2:30 PM)';\n    stage = 'BOOKED';\n    reply = [\n      '🎉 *APPOINTMENT CONFIRMED*',\n      '',\n      `👤 *Patient:* ${patientName}`,\n      `🗓️ *Date & Time:* ${currentTime}`,\n      `🦷 *Service:* ${currentService}`,\n      '👨‍⚕️ *Provider:* Dr. Sarah (Lead Dental Specialist)',\n      '📍 *Location:* 123 Healthcare Blvd, Medical District',\n      '💵 *Fee:* $50 / Rs. 1,500 (Includes Digital Exam)',\n      '',\n      '📌 *Quick Reminders:*',\n      '• Please arrive 5 minutes before your slot',\n      '• Free dedicated parking available on-site',\n      '• Need to reschedule? Simply reply here anytime!'\n    ].join('\\n');\n\n  } else if (lower.includes('morning')) {\n    isBooked = true;\n    currentTime = 'Tomorrow Morning (10:00 AM)';\n    stage = 'BOOKED';\n    reply = [\n      '🎉 *APPOINTMENT CONFIRMED*',\n      '',\n      `👤 *Patient:* ${patientName}`,\n      `🗓️ *Date & Time:* ${currentTime}`,\n      `🦷 *Service:* ${currentService}`,\n      '👨‍⚕️ *Provider:* Dr. Sarah (Lead Dental Specialist)',\n      '📍 *Location:* 123 Healthcare Blvd, Medical District',\n      '💵 *Fee:* $50 / Rs. 1,500 (Includes Digital Exam)',\n      '',\n      '📌 *Quick Reminders:*',\n      '• Please arrive 5 minutes before your slot',\n      '• Free dedicated parking available on-site',\n      '• Need to reschedule? Simply reply here anytime!'\n    ].join('\\n');\n\n  } else if (isGreetingOnly || stage === 'INIT' || eventType === 'whatsapp_missed_call') {\n    isBooked = false;\n    stage = 'AWAITING_TIME';\n    reply = [\n      `👋 *Hi ${patientName}!*`,\n      'Welcome to *Apex Dental Clinic*. We noticed we missed your call!',\n      '',\n      '✨ *How can we help you today?*',\n      '• 🚨 *Emergency:* Severe toothache or acute pain',\n      '• 🪥 *Routine:* Teeth cleaning, whitening, or checkup',\n      '',\n      '🗓️ *Available Slots Tomorrow:*',\n      '• ☀️ Morning: 9:30 AM | 10:00 AM | 11:30 AM',\n      '• 🌤️ Afternoon: 2:00 PM | 3:30 PM | 4:00 PM',\n      '',\n      '👉 Which time works best for you?'\n    ].join('\\n');\n\n  } else {\n    isBooked = false;\n    stage = 'AWAITING_TIME';\n    reply = [\n      `👋 *Got it, ${patientName}!*`,\n      `We can certainly take care of your *${currentService}*.`,\n      '',\n      '🗓️ *Available Slots Tomorrow:*',\n      '• ☀️ Morning: 10:00 AM',\n      '• 🌤️ Afternoon: 2:00 PM | 4:00 PM',\n      '',\n      '👉 Which slot would you prefer?'\n    ].join('\\n');\n  }\n}\n\n// 5. Packaging Payload\nconst triageStatus = isEmergency 
-  ? 'HIGH PRIORITY / EMERGENCY (WHATSAPP RECOVERY)' 
-  : (isBooked ? 'CONFIRMED BOOKING (WHATSAPP)' : 'INQUIRY / QUALIFYING');\n\nconst notes = isEmergency 
-  ? `Sub-60s Auto-Recovery: Urgent dental emergency reported: \"${messageText.slice(0, 100)}\"` 
-  : `WhatsApp Booking: Confirmed ${currentService} for ${currentTime || 'Tomorrow'}.`;\n\nconst safePhone = String(senderPhone).startsWith('+') ? `'${senderPhone}` : String(senderPhone);\n\nconst updatedSession = {\n  patientName: patientName,\n  senderPhone: senderPhone,\n  service: currentService,\n  preferredTime: currentTime,\n  stage: stage,\n  isBooked: isBooked,\n  isEmergency: isEmergency,\n  lastUpdated: new Date().toISOString()\n};\n\nreturn {\n  json: {\n    'TIMESTAMP': new Date().toLocaleString(),\n    'PATIENT NAME': patientName,\n    'PHONE NUMBER': safePhone,\n    'SERVICE / REASON': currentService,\n    'PREFERRED TIME': currentTime || 'Pending Confirmation',\n    'TRIAGE STATUS': triageStatus,\n    'NOTES': notes,\n    'reply': reply,\n    'isBooked': isBooked,\n    'isEmergency': isEmergency,\n    'updatedSession': updatedSession\n  }\n};"
-      },
       "id": "a2b3c4d5-e6f7-48a9-b0c1-223344556677",
       "name": "Conversational Clinical Booking Engine",
       "type": "n8n-nodes-base.code",
@@ -33,20 +37,31 @@
       "position": [
         520,
         300
-      ]
+      ],
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json || {};\nconst messageText = (body.messageText || body.message || '').trim();\nconst senderPhone = body.senderPhone || body.phone || 'Unknown';\nconst senderName = body.senderName || body.name || 'Valued Patient';\nconst eventType = body.event || 'whatsapp_message';\n\n// Load or initialize multi-turn session\nlet s = Object.assign({\n  step: 0,\n  service: null,\n  patientName: null,\n  patientPhone: null,\n  preferredTime: null,\n  askedAboutFee: false,\n  quotedFee: '$50-$100',\n  reaskCount: 0,\n  lastBotMessage: '',\n  isBooked: false,\n  isEmergency: false,\n  subStage: null\n}, body.session || {});\n\nconst lower = messageText.toLowerCase();\n\n// Smart time extraction helper\nfunction extractCleanTime(text, existingTime) {\n  const clean = text.trim();\n  const l = clean.toLowerCase();\n\n  // 1. Detect day\n  let day = '';\n  const dayMatch = l.match(/\\b(tomorrow|today|tonight|monday|tuesday|wednesday|thursday|friday|saturday|sunday)\\b/i);\n  if (dayMatch) {\n    day = dayMatch[1].charAt(0).toUpperCase() + dayMatch[1].slice(1).toLowerCase();\n  }\n\n  // 2. Detect slot or hour\n  let slotOrHour = '';\n  const hourMatch = l.match(/\\b(\\d{1,2})(?::(\\d{2}))?\\s*(am|pm)\\b/i);\n  if (hourMatch) {\n    const h = hourMatch[1];\n    const m = hourMatch[2] ? `:${hourMatch[2]}` : ':00';\n    const ampm = hourMatch[3].toUpperCase();\n    slotOrHour = `${h}${m} ${ampm}`;\n  } else if (/morning/i.test(l)) {\n    slotOrHour = 'Morning';\n  } else if (/afternoon/i.test(l)) {\n    slotOrHour = 'Afternoon';\n  } else if (/evening/i.test(l)) {\n    slotOrHour = 'Evening';\n  }\n\n  if (day && slotOrHour) {\n    return `${day} ${slotOrHour}`;\n  } else if (slotOrHour) {\n    const existingDayMatch = (existingTime || '').match(/\\b(Tomorrow|Today|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)\\b/i);\n    if (existingDayMatch) {\n      return `${existingDayMatch[1]} ${slotOrHour}`;\n    }\n    return slotOrHour;\n  } else if (day) {\n    return day;\n  }\n\n  return clean\n    .replace(/^(?:yeah|yes|no|actually|please|ok|okay|sure|hey|hi)[\\s,]+/i, '')\n    .replace(/^(?:i\\s+(?:will|want\\s+to|would\\s+like\\s+to|need\\s+to)\\s+)?(?:change|switch|make|reschedule|move)\\s+(?:it\\s+)?(?:to|into|for)?\\s+/i, '')\n    .trim() || clean;\n}\n\n// 1. Strict Rule 5: Fee Inquiry Detection\nconst isFeeQuestion = /fee|cost|price|charge|rate|how much|pricing/i.test(lower);\nlet feeExplanation = '';\nif (isFeeQuestion) {\n  s.askedAboutFee = true;\n  s.quotedFee = '$50-$100';\n  if (/emergency/i.test(lower)) {\n    feeExplanation = 'Our standard consultation fee is $50–$100 depending on the case, with no extra emergency surcharges.';\n  } else {\n    feeExplanation = 'Our standard consultation fee is $50–$100 depending on the case.';\n  }\n}\n\n// 2. Strict Rule 4: Formatting Summary Generator (Exact Template)\nfunction formatSummary(state) {\n  const feeLine = state.askedAboutFee ? `\\n- Estimated Fee: ${state.quotedFee}` : '';\n  return [\n    'Great, I have your details. Here is the summary of your appointment:',\n    `- Name: ${state.patientName || 'Valued Patient'}`,\n    `- Phone: ${state.patientPhone || senderPhone}`,\n    `- Service: ${state.service || 'Routine'}`,\n    `- Date & Time: ${state.preferredTime || 'Tomorrow Afternoon'}${feeLine}`,\n    '',\n    'Does this look correct, or do you need to change the date and time?'\n  ].join('\\n');\n}\n\nlet reply = '';\nlet syncAction = 'NONE'; // 'APPEND', 'UPDATE', 'NONE'\n\n// Handling post-completion restarts\nif (s.step === 'COMPLETED') {\n  if (/^(hi|hello|hey|start|book|new|rebook|appointment)/i.test(lower)) {\n    s.step = 0;\n    s.service = null;\n    s.patientName = null;\n    s.patientPhone = null;\n    s.preferredTime = null;\n    s.subStage = null;\n    s.askedAboutFee = false;\n  } else {\n    reply = \"You're very welcome! If you need anything else or wish to make further changes, just message us. We look forward to seeing you at Apex Dental Clinic!\";\n    return {\n      json: {\n        reply,\n        syncAction,\n        isBooked: false,\n        isEmergency: s.isEmergency,\n        updatedSession: s\n      }\n    };\n  }\n}\n\n// STEP 0 / STEP 1: Greeting & Service Type\nif (s.step === 0 || s.step === 1) {\n  const isEmergIntent = !isFeeQuestion && /emergency|urgent|severe\\s*pain|toothache|broken\\s*tooth|bleeding|swelling/i.test(lower);\n  const isRoutineIntent = !isFeeQuestion && /routine|check-?up|cleaning|regular|consult|exam|whitening|normal/i.test(lower);\n\n  if (s.step === 0 && !isEmergIntent && !isRoutineIntent) {\n    s.step = 1;\n    const greetingQ = \"Hello! I am the receptionist for Apex Dental Clinic. Are you looking for an emergency visit or a normal routine check-up?\";\n    reply = feeExplanation ? `${feeExplanation}\\n\\n${greetingQ}` : greetingQ;\n    s.lastBotMessage = reply;\n  } else if (isEmergIntent) {\n    s.service = 'Emergency';\n    s.isEmergency = true;\n    s.step = 2;\n    s.reaskCount = 0;\n    const nameQ = \"Could you please provide your full name?\";\n    reply = feeExplanation ? `${feeExplanation}\\n\\nThank you. ${nameQ}` : `Thank you. ${nameQ}`;\n    s.lastBotMessage = reply;\n  } else if (isRoutineIntent) {\n    s.service = 'Routine';\n    s.isEmergency = false;\n    s.step = 2;\n    s.reaskCount = 0;\n    const nameQ = \"Could you please provide your full name?\";\n    reply = feeExplanation ? `${feeExplanation}\\n\\nThank you. ${nameQ}` : `Thank you. ${nameQ}`;\n    s.lastBotMessage = reply;\n  } else {\n    // Clarify / Re-ask (Strict Rule 2 & 3)\n    s.step = 1;\n    s.reaskCount = (s.reaskCount || 0) + 1;\n    const reasks = [\n      \"Are you looking for an emergency visit or a normal routine check-up?\",\n      \"To get you scheduled properly at Apex Dental Clinic, is this visit for an emergency or a normal routine check-up?\",\n      \"Could you please clarify whether you need urgent emergency care or a normal routine check-up?\"\n    ];\n    const q = reasks[s.reaskCount % reasks.length];\n    reply = feeExplanation ? `${feeExplanation}\\n\\n${q}` : (isFeeQuestion ? q : `I'd be happy to help with that later, but first, let's get your appointment scheduled. ${q}`);\n    s.lastBotMessage = reply;\n  }\n\n} else if (s.step === 2) {\n  // STEP 2: Collect Name\n  if (isFeeQuestion && !/[a-z]{2,}\\s+[a-z]{2,}/i.test(messageText)) {\n    reply = `${feeExplanation}\\n\\nCould you please provide your full name?`;\n    s.lastBotMessage = reply;\n  } else {\n    let cleanName = messageText\n      .replace(/^(my name is|i am|this is|call me|name is|it's|it is)\\s+/i, '')\n      .replace(/[!?,;]+$/, '')\n      .trim();\n\n    const isOffTopic = /weather|joke|football|cricket|who are you|what is your name|where are you/i.test(cleanName);\n    const hasLetters = /[a-zA-Z]{2,}/.test(cleanName);\n\n    if (!cleanName || !hasLetters || isOffTopic) {\n      s.reaskCount = (s.reaskCount || 0) + 1;\n      const reasks = [\n        \"I'd be happy to help with that later, but first, let's get your appointment scheduled. Could you please provide your full name?\",\n        \"May I have your first and last name for our clinic records?\",\n        \"Please provide your full name so we can proceed with your booking.\"\n      ];\n      reply = reasks[s.reaskCount % reasks.length];\n      s.lastBotMessage = reply;\n    } else {\n      s.patientName = cleanName;\n      s.step = 3;\n      s.reaskCount = 0;\n      const phoneQ = `Thank you, ${s.patientName}. What is your phone number?`;\n      reply = feeExplanation ? `${feeExplanation}\\n\\n${phoneQ}` : phoneQ;\n      s.lastBotMessage = reply;\n    }\n  }\n\n} else if (s.step === 3) {\n  // STEP 3: Collect Phone Number\n  if (isFeeQuestion && !/\\d{6,}/.test(messageText)) {\n    reply = `${feeExplanation}\\n\\nWhat is your phone number?`;\n    s.lastBotMessage = reply;\n  } else {\n    let rawDigits = messageText.replace(/[^0-9]/g, '');\n    if (/this number|same|my whatsapp|current number/i.test(lower)) {\n      rawDigits = senderPhone.replace(/[^0-9]/g, '');\n    }\n\n    if (!rawDigits || rawDigits.length < 7) {\n      s.reaskCount = (s.reaskCount || 0) + 1;\n      const reasks = [\n        \"I'd be happy to help with that later, but first, let's get your appointment scheduled. What is your phone number?\",\n        \"Please provide the best contact phone number so our clinical team can reach you.\",\n        \"Could you please share a valid direct phone number for the booking?\"\n      ];\n      reply = reasks[s.reaskCount % reasks.length];\n      s.lastBotMessage = reply;\n    } else {\n      // Store clean phone for user display\n      s.patientPhone = messageText.trim().startsWith('+') ? `+${rawDigits}` : (rawDigits.startsWith('0') ? rawDigits : `0${rawDigits}`);\n      s.step = 4;\n      s.reaskCount = 0;\n      const timeQ = \"What is your preferred day, and whether you prefer a morning or afternoon appointment?\";\n      reply = feeExplanation ? `${feeExplanation}\\n\\nGot it. ${timeQ}` : `Got it. ${timeQ}`;\n      s.lastBotMessage = reply;\n    }\n  }\n\n} else if (s.step === 4) {\n  // STEP 4: Collect Preferred Time -> STEP 5: SAVE NEW ROW & Send Summary\n  if (isFeeQuestion && !/morning|afternoon|pm|am|tomorrow|today|monday|tuesday|wednesday|thursday|friday|saturday|sunday|\\d/i.test(lower)) {\n    reply = `${feeExplanation}\\n\\nWhat is your preferred day, and whether you prefer a morning or afternoon appointment?`;\n    s.lastBotMessage = reply;\n  } else {\n    const hasTimeContext = /morning|afternoon|pm|am|tomorrow|today|tonight|monday|tuesday|wednesday|thursday|friday|saturday|sunday|at\\s+\\d|\\d{1,2}:\\d{2}|\\d{1,2}\\s*(?:am|pm)/i.test(lower);\n    if (!hasTimeContext) {\n      s.reaskCount = (s.reaskCount || 0) + 1;\n      const reasks = [\n        \"I'd be happy to help with that later, but first, let's get your appointment scheduled. What is your preferred day, and whether you prefer a morning or afternoon appointment?\",\n        \"Which day works best for you, and would you prefer a morning or afternoon appointment?\",\n        \"Please let me know your preferred day and whether morning or afternoon works better for you.\"\n      ];\n      reply = reasks[s.reaskCount % reasks.length];\n      s.lastBotMessage = reply;\n    } else {\n      s.preferredTime = extractCleanTime(messageText, '');\n      s.step = 5;\n      s.isBooked = true;\n      syncAction = 'APPEND'; // Step 5: SAVE NEW ROW in Google Sheet\n\n      reply = formatSummary(s);\n      s.lastBotMessage = reply;\n    }\n  }\n\n} else if (s.step === 5 || s.step === 6) {\n  // STEP 5 & STEP 6: Confirmation & Modifications\n  if (s.subStage === 'AWAITING_NEW_TIME') {\n    s.preferredTime = extractCleanTime(messageText, s.preferredTime);\n    s.subStage = null;\n    s.step = 6;\n    s.isBooked = true;\n    syncAction = 'UPDATE'; // Step 6: UPDATE THAT SPECIFIC ROW in Google Sheet\n    reply = formatSummary(s);\n    s.lastBotMessage = reply;\n  } else {\n    // Check if user confirmed\n    const isConfirmation = /^(yes|yeah|yep|sure|correct|looks good|confirm|confirmed|that's right|perfect|all good|ok|okay)[!.]*$/i.test(lower) ||\n      /looks good|is correct|please confirm|sounds good/i.test(lower);\n\n    if (isConfirmation) {\n      s.step = 'COMPLETED';\n      s.subStage = null;\n      s.isBooked = false;\n      syncAction = 'NONE';\n      reply = \"Perfect, your appointment is booked. We look forward to seeing you at Apex Dental Clinic!\";\n      s.lastBotMessage = reply;\n    } else {\n      // Check if user wants to change date and time\n      const wantsChange = /change|reschedule|switch|different (?:day|time|date)|another (?:day|time|date)|not (?:tomorrow|morning|afternoon)|update/i.test(lower);\n      const hasNewTime = /morning|afternoon|pm|am|tomorrow|today|monday|tuesday|wednesday|thursday|friday|saturday|sunday|\\d{1,2}:\\d{2}|\\d{1,2}\\s*(?:am|pm)/i.test(lower);\n\n      if (wantsChange && hasNewTime) {\n        s.preferredTime = extractCleanTime(messageText, s.preferredTime);\n        s.step = 6;\n        s.subStage = null;\n        s.isBooked = true;\n        syncAction = 'UPDATE'; // UPDATE THAT SPECIFIC ROW\n        reply = formatSummary(s);\n        s.lastBotMessage = reply;\n      } else if (wantsChange) {\n        s.step = 6;\n        s.subStage = 'AWAITING_NEW_TIME';\n        s.isBooked = false;\n        syncAction = 'NONE';\n        s.reaskCount = (s.reaskCount || 0) + 1;\n        const reasks = [\n          \"What is your new preferred date and time?\",\n          \"Which day and time would you like to reschedule your appointment to?\",\n          \"Please tell me the new preferred date and time you would like.\"\n        ];\n        reply = reasks[s.reaskCount % reasks.length];\n        s.lastBotMessage = reply;\n      } else if (isFeeQuestion) {\n        reply = `${feeExplanation}\\n\\nDoes this look correct, or do you need to change the date and time?`;\n        s.lastBotMessage = reply;\n      } else {\n        s.reaskCount = (s.reaskCount || 0) + 1;\n        const reasks = [\n          \"I'd be happy to help with that later, but first, let's get your appointment scheduled. Does this look correct, or do you need to change the date and time?\",\n          \"Please let me know if your appointment details look correct, or if you need to change the date and time.\"\n        ];\n        reply = reasks[s.reaskCount % reasks.length];\n        s.lastBotMessage = reply;\n      }\n    }\n  }\n}\n\n// 3. Clinical Triage Status & Notes (Clean & Direct)\nconst isEmergCase = s.service === 'Emergency';\nconst triageStatus = isEmergCase ? 'Emergency Case' : 'Standard';\nconst notes = isEmergCase\n  ? 'Emergency Case - Apex Dental Clinic'\n  : 'Standard Appointment - Apex Dental Clinic';\n\n// Format phone for Google Sheets matching:\n// Strip leading 0 so it matches Google Sheets numeric cell representation (e.g. 03471098310 -> 3471098310)\nconst displayPhone = s.patientPhone || senderPhone;\nconst rawDigits = String(displayPhone).replace(/\\D/g, '');\nconst safePhone = rawDigits.replace(/^0+/, ''); // 3471098310\n\nreturn {\n  json: {\n    'TIMESTAMP': new Date().toLocaleString(),\n    'PATIENT NAME': s.patientName || senderName,\n    'PHONE NUMBER': safePhone,\n    'SERVICE / REASON': s.service || 'Routine',\n    'PREFERRED TIME': s.preferredTime || 'Pending Confirmation',\n    'TRIAGE STATUS': triageStatus,\n    'NOTES': notes,\n    'reply': reply,\n    'syncAction': syncAction,\n    'isBooked': s.isBooked,\n    'isEmergency': isEmergCase,\n    'updatedSession': s\n  }\n};"
+      }
     },
     {
+      "id": "77889900-1122-3344-5566-778899aabbcc",
+      "name": "Is Appointment Booked?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        800,
+        200
+      ],
       "parameters": {
         "conditions": {
           "conditions": [
             {
-              "id": "cond_booked",
-              "leftValue": "={{ $json.isBooked }}",
+              "id": "cond_sync_action",
+              "leftValue": "={{ $json.syncAction }}",
               "operator": {
-                "operation": "true",
-                "type": "boolean"
+                "operation": "notEquals",
+                "type": "string"
               },
-              "rightValue": true
+              "rightValue": "NONE"
             }
           ],
           "options": {
@@ -56,20 +71,9 @@
             "version": 1
           }
         }
-      },
-      "id": "77889900-1122-3344-5566-778899aabbcc",
-      "name": "Is Appointment Booked?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        800,
-        200
-      ]
+      }
     },
     {
-      "parameters": {
-        "jsCode": "const item = $input.first().json;\nreturn {\n  json: {\n    'TIMESTAMP': item['TIMESTAMP'],\n    'PATIENT NAME': item['PATIENT NAME'],\n    'PHONE NUMBER': item['PHONE NUMBER'],\n    'SERVICE / REASON': item['SERVICE / REASON'],\n    'PREFERRED TIME': item['PREFERRED TIME'],\n    'TRIAGE STATUS': item['TRIAGE STATUS'],\n    'NOTES': item['NOTES']\n  }\n};"
-      },
       "id": "b3c4d5e6-f7a8-49b0-c1d2-334455667788",
       "name": "Sanitize for Google Sheets",
       "type": "n8n-nodes-base.code",
@@ -77,46 +81,118 @@
       "position": [
         1040,
         160
-      ]
+      ],
+      "parameters": {
+        "jsCode": "const item = $input.first().json;\nreturn {\n  json: {\n    'TIMESTAMP': item['TIMESTAMP'],\n    'PATIENT NAME': item['PATIENT NAME'],\n    'PHONE NUMBER': item['PHONE NUMBER'],\n    'SERVICE / REASON': item['SERVICE / REASON'],\n    'PREFERRED TIME': item['PREFERRED TIME'],\n    'TRIAGE STATUS': item['TRIAGE STATUS'],\n    'NOTES': item['NOTES']\n  }\n};"
+      }
     },
     {
-      "parameters": {
-        "authentication": "serviceAccount",
-        "operation": "append",
-        "documentId": {
-          "__rl": true,
-          "value": "YOUR_GOOGLE_SHEET_ID_HERE",
-          "mode": "id"
-        },
-        "sheetName": {
-          "__rl": true,
-          "value": "Sheet1",
-          "mode": "name"
-        },
-        "columns": {
-          "mappingMode": "autoMapInputData",
-          "value": {}
-        },
-        "options": {
-          "valueInputMode": "USER_ENTERED"
-        }
-      },
       "id": "c4d5e6f7-a8b9-40c1-d2e3-445566778899",
       "name": "Append to Google Sheets",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
+      "onError": "continueRegularOutput",
       "position": [
         1280,
         160
       ],
-      "onError": "continueRegularOutput"
+      "parameters": {
+        "authentication": "serviceAccount",
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "matchingColumns": [
+            "PHONE NUMBER"
+          ],
+          "schema": [
+            {
+              "id": "TIMESTAMP",
+              "displayName": "TIMESTAMP",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": false,
+              "display": true,
+              "type": "string"
+            },
+            {
+              "id": "PATIENT NAME",
+              "displayName": "PATIENT NAME",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": false,
+              "display": true,
+              "type": "string"
+            },
+            {
+              "id": "PHONE NUMBER",
+              "displayName": "PHONE NUMBER",
+              "required": false,
+              "defaultMatch": true,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string"
+            },
+            {
+              "id": "SERVICE / REASON",
+              "displayName": "SERVICE / REASON",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": false,
+              "display": true,
+              "type": "string"
+            },
+            {
+              "id": "PREFERRED TIME",
+              "displayName": "PREFERRED TIME",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": false,
+              "display": true,
+              "type": "string"
+            },
+            {
+              "id": "TRIAGE STATUS",
+              "displayName": "TRIAGE STATUS",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": false,
+              "display": true,
+              "type": "string"
+            },
+            {
+              "id": "NOTES",
+              "displayName": "NOTES",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": false,
+              "display": true,
+              "type": "string"
+            }
+          ],
+          "value": {}
+        },
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "1Rpb9XQsymoDDSEl0n1EChgi8KY7BgmajFXctwreAMjo"
+        },
+        "operation": "appendOrUpdate",
+        "options": {
+          "valueInputMode": "USER_ENTERED"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Sheet1"
+        }
+      },
+      "credentials": {
+        "googleApi": {
+          "id": "AqyKDLuwANoDYrEw",
+          "name": "Google Service Account"
+        }
+      }
     },
     {
-      "parameters": {
-        "respondWith": "json",
-        "responseBody": "={{ JSON.stringify({ status: \"success\", reply: $json.reply, isBooked: $json.isBooked, isEmergency: $json.isEmergency, triage: $json['TRIAGE STATUS'], patient: $json['PATIENT NAME'], service: $json['SERVICE / REASON'], preferredTime: $json['PREFERRED TIME'], updatedSession: $json.updatedSession }) }}",
-        "options": {}
-      },
       "id": "d5e6f7a8-b9c0-41d2-e3f4-556677889900",
       "name": "Respond with AI Text-Back",
       "type": "n8n-nodes-base.respondToWebhook",
@@ -124,33 +200,30 @@
       "position": [
         800,
         420
-      ]
+      ],
+      "parameters": {
+        "options": {},
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: \"success\", reply: $json.reply, isBooked: $json.isBooked, isEmergency: $json.isEmergency, syncAction: $json.syncAction, triage: $json['TRIAGE STATUS'], patient: $json['PATIENT NAME'], service: $json['SERVICE / REASON'], preferredTime: $json['PREFERRED TIME'], updatedSession: $json.updatedSession }) }}"
+      }
     }
   ],
   "connections": {
-    "WhatsApp Webhook Receiver": {
-      "main": [
-        [
-          {
-            "node": "Conversational Clinical Booking Engine",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
+    "Append to Google Sheets": {
+      "main": []
     },
     "Conversational Clinical Booking Engine": {
       "main": [
         [
           {
+            "index": 0,
             "node": "Is Appointment Booked?",
-            "type": "main",
-            "index": 0
+            "type": "main"
           },
           {
+            "index": 0,
             "node": "Respond with AI Text-Back",
-            "type": "main",
-            "index": 0
+            "type": "main"
           }
         ]
       ]
@@ -159,9 +232,9 @@
       "main": [
         [
           {
+            "index": 0,
             "node": "Sanitize for Google Sheets",
-            "type": "main",
-            "index": 0
+            "type": "main"
           }
         ],
         []
@@ -171,12 +244,31 @@
       "main": [
         [
           {
+            "index": 0,
             "node": "Append to Google Sheets",
-            "type": "main",
-            "index": 0
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "WhatsApp Webhook Receiver": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Conversational Clinical Booking Engine",
+            "type": "main"
           }
         ]
       ]
     }
+  },
+  "nodeGroups": [],
+  "settings": {
+    "saveExecutionProgress": true,
+    "saveManualExecutions": true,
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "executionOrder": "v1"
   }
 }
