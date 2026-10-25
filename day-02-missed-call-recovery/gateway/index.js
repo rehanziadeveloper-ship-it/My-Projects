@@ -143,13 +143,48 @@ async function connectToWhatsApp() {
       let senderPhone = senderJid.replace('@s.whatsapp.net', '').replace('@lid', '').split(':')[0];
       const senderName = msg.pushName || 'Valued Patient';
 
-      // Load previous multi-turn session
-      const currentSession = sessions[senderJid] || {
-        stage: 'INIT',
-        patientName: senderName,
-        senderPhone: `+${senderPhone}`,
-        isBooked: false
-      };
+      // Load previous multi-turn session with TTL & Reset checks
+      let currentSession = sessions[senderJid];
+      const now = Date.now();
+      const SESSION_TTL_MS = 30 * 60 * 1000; // 30 minutes TTL
+
+      // 1. Expire stale sessions older than 30 minutes
+      if (currentSession && currentSession.lastUpdated) {
+        const age = now - new Date(currentSession.lastUpdated).getTime();
+        if (age > SESSION_TTL_MS) {
+          console.log(`⏱️ [Session Expired] ${senderJid} idle for ${Math.round(age / 60000)}m. Resetting.`);
+          delete sessions[senderJid];
+          currentSession = null;
+        }
+      }
+
+      // 2. Explicit reset command from user
+      const isExplicitReset = /^(reset|restart|start\s*over|clear)$/i.test(messageText.trim());
+      if (isExplicitReset) {
+        console.log(`🔄 [Manual Reset] Requested by ${senderJid}. Clearing session.`);
+        delete sessions[senderJid];
+        currentSession = null;
+      }
+
+      // 3. Auto-reset on fresh greeting, missed-call trigger, or new booking intent if session was finished or awaiting confirmation
+      const isFreshIntent = /missed\s*(?:a\s*)?call/i.test(messageText) || 
+                            /^(hi|hello|hey|good\s*(?:morning|afternoon|evening))\b/i.test(messageText.trim()) || 
+                            /(?:want\s+to\s+|need\s+to\s+)?book(?:\s+an?)?\s+appointment/i.test(messageText);
+      if (isFreshIntent && currentSession && (currentSession.step === 'COMPLETED' || currentSession.step === 5 || currentSession.step === 6)) {
+        console.log(`🔄 [Fresh Conversation Trigger] Resetting stale stage for ${senderJid}`);
+        delete sessions[senderJid];
+        currentSession = null;
+      }
+
+      if (!currentSession) {
+        currentSession = {
+          step: 0,
+          stage: 'INIT',
+          patientName: senderName,
+          senderPhone: `+${senderPhone}`,
+          isBooked: false
+        };
+      }
 
       console.log(`\n📩 [Incoming Message] From: ${senderName} (+${senderPhone})`);
       console.log(`   Text: "${messageText}"`);
