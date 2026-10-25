@@ -35,7 +35,7 @@
 
     header {
       text-align: center;
-      margin-bottom: 2.5rem;
+      margin-bottom: 2rem;
     }
 
     .badge {
@@ -49,11 +49,11 @@
       font-weight: 600;
       letter-spacing: 0.05em;
       text-transform: uppercase;
-      margin-bottom: 1rem;
+      margin-bottom: 0.75rem;
     }
 
     h1 {
-      font-size: 2.5rem;
+      font-size: 2.25rem;
       font-weight: 800;
       margin-bottom: 0.5rem;
       background: linear-gradient(135deg, #ffffff 0%, #94a3b8 100%);
@@ -63,7 +63,7 @@
 
     p.subtitle {
       color: var(--text-muted);
-      font-size: 1.1rem;
+      font-size: 1rem;
       max-width: 650px;
       margin: 0 auto;
     }
@@ -82,18 +82,18 @@
       background: var(--card-bg);
       border: 1px solid var(--border);
       border-radius: 1.25rem;
-      padding: 2rem;
+      padding: 1.75rem;
       backdrop-filter: blur(12px);
       box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
     }
 
     .card-title {
-      font-size: 1.25rem;
+      font-size: 1.2rem;
       font-weight: 700;
-      margin-bottom: 1.5rem;
+      margin-bottom: 1.25rem;
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      justify-content: space-between;
     }
 
     /* Voice Call Interface */
@@ -102,28 +102,28 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 2.5rem 1rem;
+      padding: 1.75rem 1rem;
       border: 1px dashed rgba(255, 255, 255, 0.15);
       border-radius: 1rem;
       background: rgba(15, 23, 42, 0.5);
-      margin-bottom: 1.5rem;
+      margin-bottom: 1.25rem;
     }
 
     .mic-button {
-      width: 90px;
-      height: 90px;
+      width: 80px;
+      height: 80px;
       border-radius: 50%;
       background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
       border: none;
       color: white;
-      font-size: 2.2rem;
+      font-size: 2rem;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
       transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       box-shadow: 0 0 0 0 rgba(2, 132, 199, 0.7);
-      margin-bottom: 1rem;
+      margin-bottom: 0.75rem;
     }
 
     .mic-button:hover {
@@ -144,19 +144,19 @@
 
     .status-text {
       font-size: 1rem;
-      font-weight: 600;
+      font-weight: 700;
       color: var(--text);
       margin-bottom: 0.25rem;
     }
 
     .status-sub {
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       color: var(--text-muted);
     }
 
     /* Live Transcript Feed */
     .transcript-box {
-      height: 180px;
+      height: 240px;
       overflow-y: auto;
       background: rgba(15, 23, 42, 0.6);
       border-radius: 0.75rem;
@@ -164,18 +164,87 @@
       border: 1px solid rgba(255, 255, 255, 0.05);
       font-size: 0.9rem;
       line-height: 1.5;
+      margin-bottom: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
     }
 
-    .msg { margin-bottom: 0.75rem; }
-    .msg.bot { color: #38bdf8; }
-    .msg.user { color: #a7f3d0; text-align: right; }
+    .msg {
+      max-width: 85%;
+      padding: 0.65rem 0.9rem;
+      border-radius: 0.75rem;
+      white-space: pre-line;
+      word-break: break-word;
+    }
+
+    .msg.bot {
+      background: rgba(2, 132, 199, 0.15);
+      border-left: 3px solid #38bdf8;
+      color: #e0f2fe;
+      align-self: flex-start;
+    }
+
+    .msg.user {
+      background: rgba(16, 185, 129, 0.15);
+      border-right: 3px solid #34d399;
+      color: #d1fae5;
+      align-self: flex-end;
+    }
+
+    .msg-sender {
+      font-weight: 700;
+      font-size: 0.75rem;
+      margin-bottom: 0.25rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .msg.bot .msg-sender { color: #38bdf8; }
+    .msg.user .msg-sender { color: #34d399; text-align: right; }
+
+    /* Text Input Bar */
+    .chat-input-bar {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .chat-input {
+      flex: 1;
+      padding: 0.75rem 1rem;
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      color: var(--text);
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .chat-input:focus { border-color: var(--primary); }
+
+    .btn {
+      padding: 0.65rem 1rem;
+      border-radius: 0.5rem;
+      font-weight: 600;
+      font-size: 0.85rem;
+      border: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+    .btn:hover { background: rgba(255, 255, 255, 0.1); }
+    .btn-primary { background: var(--primary); border-color: var(--primary); }
+    .btn-primary:hover { background: var(--primary-hover); }
 
     /* Calendar Events List */
     .events-list {
       display: flex;
       flex-direction: column;
       gap: 0.75rem;
-      max-height: 400px;
+      max-height: 430px;
       overflow-y: auto;
     }
 
@@ -208,29 +277,6 @@
       color: #f87171;
     }
 
-    .test-actions {
-      display: flex;
-      gap: 0.5rem;
-      margin-top: 1rem;
-    }
-
-    .btn {
-      flex: 1;
-      padding: 0.65rem 1rem;
-      border-radius: 0.5rem;
-      font-weight: 600;
-      font-size: 0.85rem;
-      border: 1px solid var(--border);
-      background: rgba(255, 255, 255, 0.05);
-      color: var(--text);
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-
-    .btn:hover { background: rgba(255, 255, 255, 0.1); }
-    .btn-primary { background: var(--primary); border-color: var(--primary); }
-    .btn-primary:hover { background: var(--primary-hover); }
-
     .gcal-link {
       display: inline-block;
       margin-top: 1rem;
@@ -246,42 +292,47 @@
 
   <div class="container">
     <header>
-      <div class="badge">🚀 Day 3 Build Sprint • Voice AI & Calendar Sync</div>
+      <div class="badge">🚀 Day 3 Build Sprint • Voice AI & Google Calendar Sync</div>
       <h1>Apex Dental Clinic Voice Receptionist</h1>
-      <p class="subtitle">Conversational Voicebot checking live doctor availability via Google Calendar FreeBusy and confirming appointments in under 60 seconds.</p>
+      <p class="subtitle">Conversational Voicebot checking doctor availability via Google Calendar FreeBusy and updating appointments in place with zero duplicates.</p>
     </header>
 
     <div class="grid">
-      <!-- Left Column: Voice Dialer -->
+      <!-- Left Column: Voice Dialer & Chat -->
       <div class="card">
-        <div class="card-title">🎙️ Live Voice Receptionist Dialer</div>
+        <div class="card-title">
+          <span>🎙️ Live Voice Receptionist (Dr. Sarah)</span>
+          <button class="btn" onclick="resetCall()">🔄 Reset Call</button>
+        </div>
         
         <div class="call-box">
           <button id="callBtn" class="mic-button" onclick="toggleCall()">📞</button>
-          <div id="statusText" class="status-text">Click to Start Voice Call</div>
-          <div id="statusSub" class="status-sub">Speaks directly to Dr. Sarah's AI Assistant via WebRTC</div>
+          <div id="statusText" class="status-text">Click to Start Live Voice Call</div>
+          <div id="statusSub" class="status-sub">Speak naturally into your microphone or type below</div>
         </div>
 
-        <div class="card-title" style="font-size: 1rem; margin-bottom: 0.5rem;">💬 Live Call Transcript</div>
         <div id="transcriptBox" class="transcript-box">
-          <div class="msg bot"><strong>Sarah (AI):</strong> "Hello! Thank you for calling Apex Dental Clinic. My name is Sarah. Are you looking to schedule a routine appointment or an emergency visit?"</div>
+          <div class="msg bot">
+            <div class="msg-sender">Sarah (AI Receptionist)</div>
+            Hello! Thank you for calling Apex Dental Clinic. My name is Sarah. Are you looking to schedule a routine appointment or an emergency visit?
+          </div>
         </div>
 
-        <div class="test-actions">
-          <button class="btn" onclick="simulateTestCall('check')">⚡ Test Free/Busy Check</button>
-          <button class="btn btn-primary" onclick="simulateTestCall('book')">📅 Test Live Booking</button>
-        </div>
+        <form class="chat-input-bar" onsubmit="handleTextSubmit(event)">
+          <input type="text" id="chatInput" class="chat-input" placeholder="Type your message here (or speak aloud)..." autocomplete="off">
+          <button type="submit" class="btn btn-primary">Send</button>
+        </form>
       </div>
 
       <!-- Right Column: Live Google Calendar -->
       <div class="card">
         <div class="card-title">
           <span>📅 Real-Time Google Calendar Feed</span>
-          <button class="btn" style="flex: 0; padding: 0.35rem 0.75rem;" onclick="loadEvents()">🔄 Refresh</button>
+          <button class="btn" onclick="loadEvents()">🔄 Refresh</button>
         </div>
 
         <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 1rem;">
-          Direct synchronization with <strong>Apex Dental Appointments</strong> Google Calendar. New bookings appear instantly.
+          Direct synchronization with <strong>Apex Dental Appointments</strong> Google Calendar. New bookings and in-place reschedules appear live.
         </p>
 
         <div id="eventsList" class="events-list">
@@ -294,11 +345,12 @@
   </div>
 
   <script>
+    const sessionId = 'session_' + Math.floor(Math.random() * 1000000);
     let isCalling = false;
     let recognition = null;
     let synthesis = window.speechSynthesis;
 
-    // Load upcoming events on start
+    // Load upcoming events
     async function loadEvents() {
       const container = document.getElementById('eventsList');
       try {
@@ -321,7 +373,7 @@
             `;
           }).join('');
         } else {
-          container.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 2rem;">No upcoming appointments. Schedule one via voice!</div>`;
+          container.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 2.5rem;">Calendar is clean. Start a call to schedule an appointment!</div>`;
         }
       } catch (e) {
         container.innerHTML = `<div style="color: var(--danger); text-align: center;">Error loading events: ${e.message}</div>`;
@@ -339,18 +391,35 @@
         btn.classList.add('active');
         btn.innerHTML = '⏹️';
         statusText.innerText = 'Call Active (Listening...)';
-        statusSub.innerText = 'Speak naturally into your microphone';
-        speak("Hello! Thank you for calling Apex Dental Clinic. My name is Sarah. How can I help you today?");
+        statusSub.innerText = 'Speak naturally into your microphone or type below';
+        speak("Hello! Thank you for calling Apex Dental Clinic. My name is Sarah. Are you looking to schedule a routine appointment or an emergency visit?");
         startListening();
       } else {
         isCalling = false;
         btn.classList.remove('active');
         btn.innerHTML = '📞';
         statusText.innerText = 'Call Ended';
-        statusSub.innerText = 'Click to Start Voice Call';
+        statusSub.innerText = 'Click to Start Live Voice Call';
         if (recognition) recognition.stop();
-        synthesis.cancel();
+        if (synthesis) synthesis.cancel();
       }
+    }
+
+    function resetCall() {
+      if (isCalling) toggleCall();
+      const box = document.getElementById('transcriptBox');
+      box.innerHTML = `
+        <div class="msg bot">
+          <div class="msg-sender">Sarah (AI Receptionist)</div>
+          Hello! Thank you for calling Apex Dental Clinic. My name is Sarah. Are you looking to schedule a routine appointment or an emergency visit?
+        </div>
+      `;
+      fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId, messageText: 'reset' })
+      });
+      loadEvents();
     }
 
     function speak(text) {
@@ -360,9 +429,8 @@
       utterance.rate = 1.05;
       utterance.pitch = 1.0;
       
-      // Select natural English voice if available
       const voices = synthesis.getVoices();
-      const naturalVoice = voices.find(v => (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Samantha') || v.name.includes('Female')) && v.lang.startsWith('en'));
+      const naturalVoice = voices.find(v => (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Samantha') || v.name.includes('Zira') || v.name.includes('Female')) && v.lang.startsWith('en'));
       if (naturalVoice) utterance.voice = naturalVoice;
 
       synthesis.speak(utterance);
@@ -372,17 +440,52 @@
       const box = document.getElementById('transcriptBox');
       const msg = document.createElement('div');
       msg.className = `msg ${isBot ? 'bot' : 'user'}`;
-      msg.innerHTML = `<strong>${sender}:</strong> "${text}"`;
+      msg.innerHTML = `<div class="msg-sender">${sender}</div>${text}`;
       box.appendChild(msg);
       box.scrollTop = box.scrollHeight;
     }
 
+    // Send Message to Server Engine
+    async function sendMessage(text) {
+      if (!text || !text.trim()) return;
+      appendMessage('Caller', text, false);
+
+      try {
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId, messageText: text })
+        });
+        const data = await res.json();
+        
+        if (data.reply) {
+          appendMessage('Sarah (AI Receptionist)', data.reply, true);
+          speak(data.reply);
+        }
+
+        // Auto-refresh calendar if appointment was booked or rescheduled
+        if (data.isBooked) {
+          setTimeout(loadEvents, 500);
+        }
+      } catch (err) {
+        appendMessage('System Error', 'Could not reach booking engine: ' + err.message, true);
+      }
+    }
+
+    // Handle Text Input Form Submit
+    function handleTextSubmit(e) {
+      e.preventDefault();
+      const input = document.getElementById('chatInput');
+      const val = input.value.trim();
+      if (!val) return;
+      input.value = '';
+      sendMessage(val);
+    }
+
+    // Speech Recognition
     function startListening() {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SpeechRecognition) {
-        alert("Web Speech Recognition not supported in this browser. Please use Google Chrome.");
-        return;
-      }
+      if (!SpeechRecognition) return;
 
       recognition = new SpeechRecognition();
       recognition.continuous = true;
@@ -392,86 +495,22 @@
       recognition.onresult = async (event) => {
         const last = event.results.length - 1;
         const text = event.results[last][0].transcript.trim();
-        appendMessage('Caller', text, false);
-
-        // Process Speech Intent via Local AI Server
-        if (/availability|free|open|slot|schedule/i.test(text)) {
-          appendMessage('Sarah (AI)', "Checking Dr. Sarah's live schedule in Google Calendar...", true);
-          const res = await fetch('/api/check-availability', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ date: 'Tomorrow', time: '3:00 PM' })
-          });
-          const data = await res.json();
-          let reply = data.isAvailable
-            ? `Yes! Tomorrow at 3:00 PM is completely open with Dr. Sarah. Would you like me to book it for you?`
-            : `Dr. Sarah is booked at 3:00 PM tomorrow, but she is free at 4:30 PM. Would that work?`;
-          appendMessage('Sarah (AI)', reply, true);
-          speak(reply);
-
-        } else if (/yes|book|confirm|sure/i.test(text)) {
-          appendMessage('Sarah (AI)', "Reserving your appointment in Google Calendar...", true);
-          const res = await fetch('/api/book-appointment', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              patientName: 'Muhammad Rehan',
-              phone: '03471098310',
-              service: 'Dental Cleaning',
-              date: 'Tomorrow',
-              time: '4:30 PM'
-            })
-          });
-          const data = await res.json();
-          const reply = "Perfect! Your appointment is locked in for tomorrow at 4:30 PM with Dr. Sarah. I've synced it with our clinic calendar.";
-          appendMessage('Sarah (AI)', reply, true);
-          speak(reply);
-          loadEvents(); // Reload calendar events live!
-
-        } else {
-          const reply = "I would be happy to help with that. What day and time work best for your dental consultation?";
-          appendMessage('Sarah (AI)', reply, true);
-          speak(reply);
+        if (text) {
+          sendMessage(text);
         }
       };
 
-      recognition.start();
-    }
+      recognition.onerror = (e) => {
+        console.warn('Speech recognition error:', e.error);
+      };
 
-    // Quick Simulation Buttons
-    async function simulateTestCall(type) {
-      if (type === 'check') {
-        appendMessage('Caller (Test)', 'Can I see Dr. Sarah tomorrow afternoon at 3:00 PM?', false);
-        const res = await fetch('/api/check-availability', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ date: 'Tomorrow', time: '3:00 PM' })
-        });
-        const data = await res.json();
-        const reply = data.isAvailable
-          ? `Yes, ${data.slot.formattedDate} at ${data.slot.formattedTime} is open. Should I reserve it?`
-          : `That slot has a conflict. Would 45 minutes later work?`;
-        appendMessage('Sarah (AI)', reply, true);
-        speak(reply);
-      } else if (type === 'book') {
-        appendMessage('Caller (Test)', 'Yes, please book me in for emergency toothache tomorrow at 4:00 PM.', false);
-        const res = await fetch('/api/book-appointment', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            patientName: 'Zubair Khan',
-            phone: '03421353348',
-            service: 'Emergency Tooth Pain',
-            date: 'Tomorrow',
-            time: '4:00 PM'
-          })
-        });
-        const data = await res.json();
-        const reply = `Confirmed! Appointment booked in Google Calendar. Event ID: ${data.eventId}`;
-        appendMessage('Sarah (AI)', reply, true);
-        speak("Confirmed! Appointment booked in Google Calendar.");
-        loadEvents();
-      }
+      recognition.onend = () => {
+        if (isCalling) {
+          try { recognition.start(); } catch (err) {}
+        }
+      };
+
+      try { recognition.start(); } catch (e) {}
     }
 
     // Initial Load
