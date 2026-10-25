@@ -64,44 +64,67 @@ async function getGoogleAccessToken() {
 }
 
 // Helper: Parse natural language date/time into start & end ISO strings
-function parseSlotToIso(dateStr, timeStr) {
-  const d = (dateStr || 'tomorrow').toLowerCase();
-  const t = (timeStr || '10:00 AM').toLowerCase();
+function parseSlotToIso(dateStr, timeStr, baseDateIso = null) {
+  const d = (dateStr || '').toLowerCase();
+  const t = (timeStr || '').toLowerCase();
 
-  let targetDate = new Date();
+  let targetDate = baseDateIso ? new Date(baseDateIso) : new Date();
 
-  if (d.includes('tomorrow')) {
-    targetDate.setDate(targetDate.getDate() + 1);
-  } else if (d.includes('day after tomorrow')) {
-    targetDate.setDate(targetDate.getDate() + 2);
-  } else if (d.includes('today')) {
-    // today
-  } else {
-    const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-    const currentDay = targetDate.getDay();
-    const targetDay = days.findIndex(day => d.includes(day));
-    if (targetDay !== -1) {
-      let diff = targetDay - currentDay;
-      if (diff <= 0) diff += 7;
-      targetDate.setDate(targetDate.getDate() + diff);
+  // If explicit day keywords are present, or if no baseDate was provided:
+  const hasExplicitDate = /tomorrow|day after tomorrow|today|sunday|monday|tuesday|wednesday|thursday|friday|saturday/i.test(d + ' ' + t);
+
+  if (hasExplicitDate || !baseDateIso) {
+    targetDate = new Date(); // start from now
+    if (d.includes('day after tomorrow') || t.includes('day after tomorrow')) {
+      targetDate.setDate(targetDate.getDate() + 2);
+    } else if (d.includes('tomorrow') || t.includes('tomorrow')) {
+      targetDate.setDate(targetDate.getDate() + 1);
+    } else if (d.includes('today') || t.includes('today')) {
+      // today
+    } else {
+      const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+      const currentDay = targetDate.getDay();
+      const combined = `${d} ${t}`;
+      const targetDay = days.findIndex(day => combined.includes(day));
+      if (targetDay !== -1) {
+        let diff = targetDay - currentDay;
+        if (diff <= 0) diff += 7;
+        targetDate.setDate(targetDate.getDate() + diff);
+      } else if (!baseDateIso) {
+        // default to tomorrow if no date specified initially
+        targetDate.setDate(targetDate.getDate() + 1);
+      }
     }
   }
 
   let hour = 10;
   let minute = 0;
-  const timeMatch = t.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i);
+
+  // Check for transition expressions like "morning into afternoon" or "morning to afternoon"
+  let effectiveTime = t;
+  if (/(?:into|to|switch to|prefer)\s+afternoon/i.test(t)) {
+    effectiveTime = 'afternoon';
+  } else if (/(?:into|to|switch to|prefer)\s+morning/i.test(t)) {
+    effectiveTime = 'morning';
+  }
+
+  // Support patterns: "12 00 am", "12 00 pm", "12 00", "12:00 am", "12:00 pm", "10 am", "2 pm", "3:30", "12"
+  const timeMatch = effectiveTime.match(/(\d{1,2})(?:[:\s](\d{2}))?\s*(am|pm)?/i);
   if (timeMatch) {
     hour = parseInt(timeMatch[1], 10);
     minute = timeMatch[2] ? parseInt(timeMatch[2], 10) : 0;
     const ampm = (timeMatch[3] || '').toUpperCase();
+    
+    // In dental clinics, 12 AM is treated as 12:00 PM (noon)
     if (ampm === 'PM' && hour < 12) hour += 12;
-    if (ampm === 'AM' && hour === 12) hour = 0;
-  } else if (/morning/i.test(t)) {
-    hour = 10; minute = 0;
-  } else if (/afternoon/i.test(t)) {
+    if (ampm === 'AM' && hour === 12) hour = 12; // dental clinic daytime noon
+    if (!ampm && hour >= 1 && hour <= 6) hour += 12; // 1-6 assumed afternoon PM
+  } else if (/afternoon/i.test(effectiveTime)) {
     hour = 14; minute = 0;
-  } else if (/evening/i.test(t)) {
+  } else if (/evening/i.test(effectiveTime)) {
     hour = 17; minute = 0;
+  } else if (/morning/i.test(effectiveTime)) {
+    hour = 10; minute = 0;
   }
 
   targetDate.setHours(hour, minute, 0, 0);
@@ -233,9 +256,11 @@ function getOrCreateSession(sessionId) {
       patientName: null,
       patientPhone: null,
       preferredTime: null,
+      slotIso: null,
       calendarEventId: null,
       isEmergency: false,
       triage: 'Standard',
+      subStage: null,
       lastBotMessage: ''
     };
   }
@@ -344,6 +369,7 @@ async function processChatMessage(sessionId, messageText) {
     // Parse day & time
     const slot = parseSlotToIso(text, text);
     s.preferredTime = `${slot.formattedDate} at ${slot.formattedTime}`;
+    s.slotIso = slot.startIso;
 
     // Check Live Google Calendar FreeBusy
     console.log(`Checking Google Calendar FreeBusy for: ${slot.startIso} to ${slot.endIso}`);
@@ -402,27 +428,47 @@ async function processChatMessage(sessionId, messageText) {
     };
   }
 
-  // STEP 5 & STEP 6: Handling Confirmations and In-Place Rescheduling
-  if (s.step === 5 || s.step === 6) {
-    const isConfirm = /^(yes|yeah|yep|sure|correct|looks good|confirm|confirmed|that's right|perfect|all good|ok|okay)[!.]*$/i.test(lower) ||
-                      /looks good|is correct|sounds good/i.test(lower);
+  // STEP 5, STEP 6 & COMPLETED: Handling Confirmations, Rescheduling and Sub-Stages
+  if (s.step === 5 || s.step === 6 || s.step === 'COMPLETED') {
+    // Check if caller wants to change / reschedule or if already awaiting new time
+    const hasChangeIntent = /change|cahnge|chagne|reschedule|switch|different|another|make it|move|modify|adjust|instead|rather/i.test(lower) ||
+                            /\bbut\b/i.test(lower);
+    const hasTimeContext = /morning|afternoon|evening|pm|am|tomorrow|today|tonight|monday|tuesday|wednesday|thursday|friday|saturday|sunday|\b\d{1,2}(?:[:\s]\d{2})?\b/i.test(lower);
+
+    // Confirmation check: NEVER confirm if hasChangeIntent is true or if awaiting new time!
+    const isConfirm = !hasChangeIntent && s.subStage !== 'AWAITING_NEW_TIME' && (
+      /^(yes|yeah|yep|sure|correct|looks good|confirm|confirmed|that's right|perfect|all good|ok|okay)[!.]*$/i.test(lower) ||
+      /(looks good|sounds good|is correct|that is correct|that's correct|no change|keep it)/i.test(lower)
+    );
 
     if (isConfirm) {
       s.step = 'COMPLETED';
+      s.subStage = null;
       return {
-        reply: "Perfect, your appointment is booked. We look forward to seeing you at Apex Dental Clinic!",
+        reply: "Perfect, your appointment is booked and confirmed. We look forward to seeing you at Apex Dental Clinic!",
         step: 'COMPLETED',
-        isBooked: true
+        isBooked: true,
+        calendarEventId: s.calendarEventId
       };
     }
 
-    // User wants to change / reschedule
-    const wantsChange = /change|reschedule|switch|different|another|make it|move to|update/i.test(lower);
-    const hasTimeContext = /morning|afternoon|pm|am|tomorrow|today|monday|tuesday|wednesday|thursday|friday|saturday|sunday|\d/i.test(lower);
+    // If caller wants to change or is in AWAITING_NEW_TIME or mentions a new time:
+    if (hasChangeIntent || s.subStage === 'AWAITING_NEW_TIME' || (hasTimeContext && (s.step === 5 || s.step === 6))) {
+      // If caller said they want to change, but didn't specify the time yet:
+      if (!hasTimeContext) {
+        s.step = 6;
+        s.subStage = 'AWAITING_NEW_TIME';
+        return {
+          reply: "Understood! What date and time would you like to change your appointment to?",
+          step: 6
+        };
+      }
 
-    if (wantsChange || hasTimeContext) {
-      const slot = parseSlotToIso(text, text);
+      // Time context provided! Parse slot using previous appointment day if no new date was given
+      const slot = parseSlotToIso(text, text, s.slotIso);
       s.preferredTime = `${slot.formattedDate} at ${slot.formattedTime}`;
+      s.slotIso = slot.startIso;
+      s.subStage = null;
 
       // 1. Update Existing Google Calendar Event in Place!
       if (s.calendarEventId) {
@@ -472,20 +518,27 @@ async function processChatMessage(sessionId, messageText) {
       };
     }
 
+    // If caller is in COMPLETED state and sends thanks or greeting
+    if (s.step === 'COMPLETED') {
+      if (/hi|hello|hey|book|appointment|new/i.test(lower)) {
+        sessions[sessionId] = null;
+        return processChatMessage(sessionId, text);
+      }
+      if (/thank|thanks|great|bye|goodbye|see you/i.test(lower)) {
+        return {
+          reply: "You're very welcome! Have a wonderful day, and we look forward to seeing you at Apex Dental Clinic.",
+          step: 'COMPLETED'
+        };
+      }
+      return {
+        reply: "Your appointment is confirmed. If you need any further changes or assistance, just let me know. We look forward to seeing you at Apex Dental Clinic!",
+        step: 'COMPLETED'
+      };
+    }
+
     return {
       reply: "Please let me know if your appointment details look correct, or if you need to change the date and time.",
-      step: 5
-    };
-  }
-
-  if (s.step === 'COMPLETED') {
-    if (/hi|hello|hey|book|appointment|new/i.test(lower)) {
-      sessions[sessionId] = null;
-      return processChatMessage(sessionId, text);
-    }
-    return {
-      reply: "Your appointment is confirmed. If you need any further changes or assistance, just let me know. We look forward to seeing you at Apex Dental Clinic!",
-      step: 'COMPLETED'
+      step: s.step
     };
   }
 }

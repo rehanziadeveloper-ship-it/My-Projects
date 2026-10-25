@@ -11,6 +11,7 @@
       --primary-hover: #0369a1;
       --primary-light: #e0f2fe;
       --success: #10b981;
+      --warning: #f59e0b;
       --danger: #ef4444;
       --bg: #0f172a;
       --card-bg: rgba(30, 41, 59, 0.7);
@@ -102,16 +103,17 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 1.75rem 1rem;
+      padding: 1.5rem 1rem;
       border: 1px dashed rgba(255, 255, 255, 0.15);
       border-radius: 1rem;
       background: rgba(15, 23, 42, 0.5);
       margin-bottom: 1.25rem;
+      position: relative;
     }
 
     .mic-button {
-      width: 80px;
-      height: 80px;
+      width: 76px;
+      height: 76px;
       border-radius: 50%;
       background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
       border: none;
@@ -142,21 +144,63 @@
       100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
     }
 
-    .status-text {
-      font-size: 1rem;
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.35rem 0.85rem;
+      border-radius: 9999px;
+      font-size: 0.85rem;
       font-weight: 700;
-      color: var(--text);
-      margin-bottom: 0.25rem;
+      margin-bottom: 0.5rem;
+      transition: all 0.2s ease;
+    }
+    .status-pill.idle { background: rgba(148, 163, 184, 0.15); color: #94a3b8; border: 1px solid rgba(148, 163, 184, 0.3); }
+    .status-pill.listening { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4); animation: glowGreen 1.5s infinite alternate; }
+    .status-pill.speaking { background: rgba(2, 132, 199, 0.2); color: #38bdf8; border: 1px solid rgba(2, 132, 199, 0.4); }
+    .status-pill.processing { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.4); }
+
+    @keyframes glowGreen {
+      from { box-shadow: 0 0 5px rgba(16, 185, 129, 0.2); }
+      to { box-shadow: 0 0 15px rgba(16, 185, 129, 0.6); }
     }
 
     .status-sub {
       font-size: 0.8rem;
       color: var(--text-muted);
+      margin-bottom: 0.5rem;
+      text-align: center;
+    }
+
+    /* Live Audio Level Visualizer */
+    .visualizer-box {
+      width: 100%;
+      max-width: 280px;
+      height: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 0.25rem;
+    }
+
+    canvas#audioVisualizer {
+      width: 100%;
+      height: 100%;
+      border-radius: 6px;
+    }
+
+    .interim-preview {
+      font-size: 0.85rem;
+      font-style: italic;
+      color: #38bdf8;
+      min-height: 1.25rem;
+      margin-top: 0.35rem;
+      text-align: center;
     }
 
     /* Live Transcript Feed */
     .transcript-box {
-      height: 240px;
+      height: 220px;
       overflow-y: auto;
       background: rgba(15, 23, 42, 0.6);
       border-radius: 0.75rem;
@@ -307,8 +351,19 @@
         
         <div class="call-box">
           <button id="callBtn" class="mic-button" onclick="toggleCall()">📞</button>
-          <div id="statusText" class="status-text">Click to Start Live Voice Call</div>
-          <div id="statusSub" class="status-sub">Speak naturally into your microphone or type below</div>
+          
+          <div id="statusPill" class="status-pill idle">
+            <span id="statusDot">⚪</span>
+            <span id="statusLabel">Click Call to Speak with Sarah</span>
+          </div>
+
+          <div id="statusSub" class="status-sub">Voice AI checks Google Calendar in real time</div>
+
+          <div class="visualizer-box">
+            <canvas id="audioVisualizer" width="280" height="36"></canvas>
+          </div>
+
+          <div id="interimPreview" class="interim-preview"></div>
         </div>
 
         <div id="transcriptBox" class="transcript-box">
@@ -347,8 +402,75 @@
   <script>
     const sessionId = 'session_' + Math.floor(Math.random() * 1000000);
     let isCalling = false;
+    let isAgentSpeaking = false;
     let recognition = null;
     let synthesis = window.speechSynthesis;
+
+    // Web Audio API for Live Microphone Level Visualization
+    let audioCtx = null;
+    let analyser = null;
+    let audioStream = null;
+    let animFrameId = null;
+
+    function setStatus(state, label, sub) {
+      const pill = document.getElementById('statusPill');
+      const dot = document.getElementById('statusDot');
+      const lbl = document.getElementById('statusLabel');
+      const subEl = document.getElementById('statusSub');
+
+      pill.className = `status-pill ${state}`;
+      lbl.innerText = label;
+      if (sub) subEl.innerText = sub;
+
+      if (state === 'listening') dot.innerText = '🟢';
+      else if (state === 'speaking') dot.innerText = '🗣️';
+      else if (state === 'processing') dot.innerText = '⚡';
+      else dot.innerText = '⚪';
+    }
+
+    // Audio Visualizer Canvas Renderer
+    function initVisualizer(stream) {
+      try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 64;
+        const source = audioCtx.createMediaStreamSource(stream);
+        source.connect(analyser);
+
+        const canvas = document.getElementById('audioVisualizer');
+        const ctx = canvas.getContext('2d');
+        const bufferLength = analyser.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+
+        function draw() {
+          animFrameId = requestAnimationFrame(draw);
+          analyser.getByteFrequencyData(dataArray);
+
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+          const barWidth = (canvas.width / bufferLength) * 1.8;
+          let x = 0;
+
+          for (let i = 0; i < bufferLength; i++) {
+            const barHeight = (dataArray[i] / 255) * canvas.height;
+
+            if (isAgentSpeaking) {
+              ctx.fillStyle = '#38bdf8'; // Blue while Sarah speaks
+            } else if (isCalling) {
+              ctx.fillStyle = barHeight > 10 ? '#10b981' : 'rgba(16, 185, 129, 0.3)'; // Green when user speaks
+            } else {
+              ctx.fillStyle = 'rgba(148, 163, 184, 0.2)';
+            }
+
+            ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
+            x += barWidth + 2;
+          }
+        }
+        draw();
+      } catch (err) {
+        console.warn('Audio Visualizer setup error:', err);
+      }
+    }
 
     // Load upcoming events
     async function loadEvents() {
@@ -381,26 +503,38 @@
     }
 
     // Toggle Voice Call
-    function toggleCall() {
+    async function toggleCall() {
       const btn = document.getElementById('callBtn');
-      const statusText = document.getElementById('statusText');
-      const statusSub = document.getElementById('statusSub');
 
       if (!isCalling) {
+        // Request Microphone Permission and start Audio Visualizer
+        try {
+          if (!audioStream) {
+            audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            initVisualizer(audioStream);
+          }
+        } catch (err) {
+          alert('Please allow microphone permissions to speak with Dr. Sarah.');
+          console.error('Microphone error:', err);
+          return;
+        }
+
         isCalling = true;
         btn.classList.add('active');
         btn.innerHTML = '⏹️';
-        statusText.innerText = 'Call Active (Listening...)';
-        statusSub.innerText = 'Speak naturally into your microphone or type below';
+
         speak("Hello! Thank you for calling Apex Dental Clinic. My name is Sarah. Are you looking to schedule a routine appointment or an emergency visit?");
-        startListening();
       } else {
         isCalling = false;
+        isAgentSpeaking = false;
         btn.classList.remove('active');
         btn.innerHTML = '📞';
-        statusText.innerText = 'Call Ended';
-        statusSub.innerText = 'Click to Start Live Voice Call';
-        if (recognition) recognition.stop();
+        setStatus('idle', 'Call Ended', 'Click Call to Start Voice Booking');
+        document.getElementById('interimPreview').innerText = '';
+
+        if (recognition) {
+          try { recognition.abort(); } catch (e) {}
+        }
         if (synthesis) synthesis.cancel();
       }
     }
@@ -414,6 +548,7 @@
           Hello! Thank you for calling Apex Dental Clinic. My name is Sarah. Are you looking to schedule a routine appointment or an emergency visit?
         </div>
       `;
+      document.getElementById('interimPreview').innerText = '';
       fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -422,9 +557,19 @@
       loadEvents();
     }
 
+    // Speech Synthesis (Dr. Sarah speaks)
     function speak(text) {
       if (!synthesis) return;
       synthesis.cancel();
+
+      // IMPORTANT: Mute mic while Sarah is speaking so she doesn't hear herself!
+      isAgentSpeaking = true;
+      setStatus('speaking', 'Sarah is speaking...', 'Listening will resume when Sarah finishes speaking');
+      
+      if (recognition) {
+        try { recognition.abort(); } catch (e) {}
+      }
+
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.rate = 1.05;
       utterance.pitch = 1.0;
@@ -432,6 +577,22 @@
       const voices = synthesis.getVoices();
       const naturalVoice = voices.find(v => (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('Samantha') || v.name.includes('Zira') || v.name.includes('Female')) && v.lang.startsWith('en'));
       if (naturalVoice) utterance.voice = naturalVoice;
+
+      utterance.onend = () => {
+        isAgentSpeaking = false;
+        if (isCalling) {
+          setStatus('listening', 'Listening... (Speak now)', 'Speak clearly into your microphone');
+          startListening();
+        }
+      };
+
+      utterance.onerror = () => {
+        isAgentSpeaking = false;
+        if (isCalling) {
+          setStatus('listening', 'Listening... (Speak now)', 'Speak clearly into your microphone');
+          startListening();
+        }
+      };
 
       synthesis.speak(utterance);
     }
@@ -448,7 +609,10 @@
     // Send Message to Server Engine
     async function sendMessage(text) {
       if (!text || !text.trim()) return;
+      document.getElementById('interimPreview').innerText = '';
       appendMessage('Caller', text, false);
+
+      setStatus('processing', 'Processing your request...', 'Checking availability & clinical triage');
 
       try {
         const res = await fetch('/api/chat', {
@@ -469,6 +633,10 @@
         }
       } catch (err) {
         appendMessage('System Error', 'Could not reach booking engine: ' + err.message, true);
+        if (isCalling) {
+          setStatus('listening', 'Listening... (Speak now)', 'Speak clearly into your microphone');
+          startListening();
+        }
       }
     }
 
@@ -482,35 +650,84 @@
       sendMessage(val);
     }
 
-    // Speech Recognition
+    // Speech Recognition Lifecycle
     function startListening() {
+      if (!isCalling || isAgentSpeaking) return;
+
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SpeechRecognition) return;
+      if (!SpeechRecognition) {
+        alert('Web Speech Recognition API is not supported in this browser. Please use Chrome or Edge.');
+        return;
+      }
 
-      recognition = new SpeechRecognition();
-      recognition.continuous = true;
-      recognition.interimResults = false;
-      recognition.lang = 'en-US';
-
-      recognition.onresult = async (event) => {
-        const last = event.results.length - 1;
-        const text = event.results[last][0].transcript.trim();
-        if (text) {
-          sendMessage(text);
+      try {
+        if (recognition) {
+          try { recognition.abort(); } catch (e) {}
         }
-      };
 
-      recognition.onerror = (e) => {
-        console.warn('Speech recognition error:', e.error);
-      };
+        recognition = new SpeechRecognition();
+        recognition.continuous = false; // Single utterance mode prevents frozen listeners in Windows Chrome
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
 
-      recognition.onend = () => {
-        if (isCalling) {
-          try { recognition.start(); } catch (err) {}
+        recognition.onstart = () => {
+          if (!isAgentSpeaking && isCalling) {
+            setStatus('listening', 'Listening... (Speak now)', 'Microphone active — say your response');
+          }
+        };
+
+        recognition.onresult = (event) => {
+          if (isAgentSpeaking) return; // Discard any speaker bleed
+
+          let interim = '';
+          let final = '';
+
+          for (let i = 0; i < event.results.length; i++) {
+            const transcript = event.results[i][0].transcript;
+            if (event.results[i].isFinal) {
+              final += transcript;
+            } else {
+              interim += transcript;
+            }
+          }
+
+          if (interim) {
+            document.getElementById('interimPreview').innerText = `🎙️ "${interim}"...`;
+          }
+
+          if (final && final.trim()) {
+            document.getElementById('interimPreview').innerText = '';
+            sendMessage(final.trim());
+          }
+        };
+
+        recognition.onerror = (e) => {
+          if (e.error === 'no-speech') {
+            // Normal pause in speech, ignore error
+            return;
+          }
+          if (e.error === 'not-allowed') {
+            alert('Microphone access was denied. Please allow microphone permissions in Chrome.');
+            toggleCall();
+            return;
+          }
+          console.warn('Speech recognition event:', e.error);
+        };
+
+        recognition.onend = () => {
+          // If still on call and Sarah isn't speaking, immediately resume listening
+          if (isCalling && !isAgentSpeaking) {
+            setTimeout(startListening, 150);
+          }
+        };
+
+        recognition.start();
+      } catch (err) {
+        console.warn('Recognition start exception:', err);
+        if (isCalling && !isAgentSpeaking) {
+          setTimeout(startListening, 300);
         }
-      };
-
-      try { recognition.start(); } catch (e) {}
+      }
     }
 
     // Initial Load
