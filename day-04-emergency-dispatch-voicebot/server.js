@@ -8,6 +8,7 @@ const PORT = process.env.PORT || 3004;
 const KEY_PATH = path.join(__dirname, '..', 'valiant-epsilon-501913-g2-8231aeffe623.json');
 const SPREADSHEET_ID = '1Rpb9XQsymoDDSEl0n1EChgi8KY7BgmajFXctwreAMjo';
 const SHEET_TAB = 'Emergency_Dispatch_Day4';
+const CAL_ID = 'dc16a29b27611448569f6f342e1e982aa44e6c6bfa3b3ca7d2fe180c4231748b@group.calendar.google.com';
 const N8N_WEBHOOK_URL = process.env.N8N_WEBHOOK_URL || 'https://n8n.srv1767318.hstgr.cloud/webhook/home-services-emergency-dispatch';
 
 let serviceAccount = null;
@@ -34,7 +35,7 @@ async function getGoogleAccessToken() {
   const header = { alg: 'RS256', typ: 'JWT' };
   const claim = {
     iss: serviceAccount.client_email,
-    scope: 'https://www.googleapis.com/auth/spreadsheets',
+    scope: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.events',
     aud: 'https://oauth2.googleapis.com/token',
     exp,
     iat
@@ -62,6 +63,95 @@ async function getGoogleAccessToken() {
     return cachedToken;
   }
   throw new Error(`Failed to obtain Google token: ${JSON.stringify(data)}`);
+}
+
+// Create Technician Arrival Dispatch in Google Calendar
+async function createDispatchCalendarEvent(ticket) {
+  try {
+    const token = await getGoogleAccessToken();
+    const now = new Date();
+    let startIso, endIso;
+
+    if (ticket.urgency.includes('CRITICAL EMERGENCY')) {
+      // Emergency: immediate 45-minute dispatch window starting right now
+      startIso = now.toISOString();
+      const end = new Date(now.getTime() + 45 * 60 * 1000);
+      endIso = end.toISOString();
+    } else {
+      // Standard daytime service scheduled for tomorrow at 10:00 AM
+      const tomorrow = new Date(now);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      tomorrow.setHours(10, 0, 0, 0);
+      startIso = tomorrow.toISOString();
+      const end = new Date(tomorrow.getTime() + 90 * 60 * 1000);
+      endIso = end.toISOString();
+    }
+
+    const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CAL_ID)}/events`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        summary: `${ticket.urgency.includes('CRITICAL') ? '🚨 EMERGENCY' : '🔧 SERVICE'}: ${ticket.customerName} (${ticket.trade})`,
+        location: ticket.address,
+        description: [
+          `Ticket ID: ${ticket.id}`,
+          `Customer: ${ticket.customerName}`,
+          `Phone: ${ticket.phone}`,
+          `Service Address: ${ticket.address}`,
+          `Issue / Incident: ${ticket.issue}`,
+          `Assigned Technician: ${ticket.assignedTech}`,
+          `Response ETA: ${ticket.eta}`,
+          `Urgency Status: ${ticket.urgency}`,
+          `Safety Guidance: ${ticket.safetyTip}`,
+          `Dispatched via: Apex 24/7 Home Services Voice AI (Day 4 Sprint)`
+        ].join('\n'),
+        start: { dateTime: startIso, timeZone: 'Asia/Karachi' },
+        end: { dateTime: endIso, timeZone: 'Asia/Karachi' },
+        reminders: {
+          useDefault: false,
+          overrides: [
+            { method: 'popup', minutes: 15 },
+            { method: 'email', minutes: 30 }
+          ]
+        }
+      })
+    });
+
+    const eventData = await res.json();
+    console.log(`📅 [Google Calendar Dispatched] Event ID: ${eventData.id}`);
+    return eventData;
+  } catch (err) {
+    console.error(`❌ [Google Calendar Error]:`, err.message);
+    return null;
+  }
+}
+
+// List Upcoming Dispatches from Google Calendar
+async function listUpcomingCalendarDispatches() {
+  try {
+    const token = await getGoogleAccessToken();
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CAL_ID)}/events?timeMin=${encodeURIComponent(now.toISOString())}&singleEvents=true&orderBy=startTime&maxResults=20`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const data = await res.json();
+    return (data.items || []).map(e => ({
+      id: e.id,
+      summary: e.summary,
+      location: e.location,
+      start: e.start?.dateTime || e.start?.date,
+      end: e.end?.dateTime || e.end?.date,
+      htmlLink: e.htmlLink,
+      description: e.description
+    }));
+  } catch (err) {
+    console.error('Calendar list error:', err.message);
+    return [];
+  }
 }
 
 // Append Ticket to Google Sheets CRM (Emergency_Dispatch_Day4)
@@ -285,6 +375,37 @@ async function processChatMessage(sessionId, messageText) {
 
   // STEP 3: Collect Service Address
   if (s.step === 3) {
+    // Check if the user is actually clarifying urgency/emergency instead of giving an address
+    const isUrgencyClarification = /emergency|urgent|burst|flood|gushing|hurry|asap|critical|severe|immediately/i.test(lower);
+    const hasAddressSigns = /\d|street|st\b|road|rd\b|ave|avenue|drive|dr\b|lane|ln\b|way|blvd|terrace|plaza|court|ct\b|suite|apt|house|block|karachi|lahore|islamabad/i.test(lower);
+
+    if (isUrgencyClarification && !hasAddressSigns) {
+      // Re-classify to Critical Emergency!
+      s.isEmergency = true;
+      s.urgency = '🔴 CRITICAL EMERGENCY';
+      s.eta = '25 - 40 Minutes (Immediate Dispatch)';
+      const matchTech = TECHNICIANS.find(t => t.trade.toLowerCase() === s.trade.toLowerCase()) || TECHNICIANS[0];
+      s.assignedTech = `${matchTech.name} (${matchTech.role})`;
+      
+      let safetyMsg = "Understood! I am escalating your ticket to a critical emergency dispatch right now.";
+      if (s.trade === 'Plumbing') {
+        s.safetyTip = 'Homeowner instructed to shut off main water shutoff valve immediately.';
+        safetyMsg += " If water is actively flowing or leaking, please locate and shut off your main water valve immediately to prevent property damage.";
+      } else if (s.trade === 'Electrical') {
+        s.safetyTip = 'Homeowner instructed to keep clear of electrical panels and standing water.';
+        safetyMsg += " Please keep everyone clear of that area and do not touch any switches or standing water.";
+      } else if (s.trade === 'HVAC') {
+        s.safetyTip = 'Heating emergency escalated for immediate freeze protection.';
+        safetyMsg += " We have paged our on-call heating technician for immediate freeze protection.";
+      }
+
+      return {
+        reply: `${safetyMsg}\n\nWhat is your complete street address (house number and street name) so we can dispatch the truck?`,
+        step: 3,
+        isEmergency: true
+      };
+    }
+
     if (text.length < 5) {
       return {
         reply: "Could you please provide your complete street address (including house number and street name)?",
@@ -359,7 +480,14 @@ async function processChatMessage(sessionId, messageText) {
     // 1. Dual-Write: Log to Google Sheets CRM Tab (Emergency_Dispatch_Day4)
     appendTicketToGoogleSheet(ticketObj);
 
-    // 2. Dual-Write: Forward to n8n Webhook for SMS Technician Alert
+    // 2. Dual-Write: Schedule Technician Arrival on Google Calendar!
+    const calEvent = await createDispatchCalendarEvent(ticketObj);
+    if (calEvent && calEvent.id) {
+      ticketObj.calendarEventId = calEvent.id;
+      ticketObj.htmlLink = calEvent.htmlLink;
+    }
+
+    // 3. Forward to n8n Webhook for SMS Technician Alert
     forwardToN8n(ticketObj);
 
     const confirmationSummary = [
@@ -433,6 +561,18 @@ const server = http.createServer(async (req, res) => {
       count: dispatchTickets.length,
       technicians: TECHNICIANS,
       tickets: dispatchTickets
+    }));
+    return;
+  }
+
+  // API Route: Get Upcoming Dispatches from Google Calendar
+  if (req.url === '/api/calendar-events' && req.method === 'GET') {
+    const events = await listUpcomingCalendarDispatches();
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({
+      success: true,
+      count: events.length,
+      events
     }));
     return;
   }

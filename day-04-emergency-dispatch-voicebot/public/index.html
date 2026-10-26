@@ -306,7 +306,7 @@
     .tech-roster {
       display: flex;
       gap: 0.5rem;
-      margin-bottom: 1.25rem;
+      margin-bottom: 1rem;
       overflow-x: auto;
       padding-bottom: 0.25rem;
     }
@@ -330,6 +330,29 @@
       box-shadow: 0 0 6px #10b981;
     }
 
+    /* Tabs */
+    .dispatch-tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+    }
+    .tab-btn {
+      padding: 0.45rem 0.9rem;
+      border-radius: 0.5rem;
+      font-size: 0.82rem;
+      font-weight: 700;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .tab-btn.active {
+      background: rgba(239, 68, 68, 0.2);
+      border-color: rgba(239, 68, 68, 0.5);
+      color: #fca5a5;
+    }
+
     /* Dispatch Tickets Feed */
     .tickets-list {
       display: flex;
@@ -337,6 +360,7 @@
       gap: 0.75rem;
       max-height: 480px;
       overflow-y: auto;
+      margin-bottom: 1rem;
     }
 
     .ticket-card {
@@ -411,9 +435,29 @@
       padding-top: 0.4rem;
     }
 
+    /* Google Calendar Cards */
+    .cal-event-card {
+      background: rgba(15, 23, 42, 0.6);
+      border-left: 4px solid var(--blue);
+      border-radius: 0.65rem;
+      padding: 0.9rem 1rem;
+      transition: transform 0.2s;
+    }
+    .cal-event-card.emergency { border-left-color: var(--primary); }
+    .cal-event-card:hover { transform: translateX(4px); }
+
+    .cal-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 0.35rem;
+    }
+    .cal-title { font-weight: 700; font-size: 0.9rem; color: #f8fafc; }
+    .cal-time { font-size: 0.8rem; color: var(--text-muted); }
+    .cal-loc { font-size: 0.78rem; color: #93c5fd; margin-top: 0.2rem; }
+
     .sheet-link {
       display: inline-block;
-      margin-top: 1rem;
       color: #f87171;
       font-size: 0.85rem;
       text-decoration: none;
@@ -428,7 +472,7 @@
     <header>
       <div class="badge-sprint">🚀 Day 4 Build Sprint • Voice AI Emergency Dispatch</div>
       <h1>Apex 24/7 Home Services Emergency Dispatch</h1>
-      <p class="subtitle">Autonomous Voice AI Coordinator triaging high-ticket emergencies (Plumbing, HVAC & Electrical), issuing property containment guidance, and paging on-call trucks in under 60 seconds.</p>
+      <p class="subtitle">Autonomous Voice AI Coordinator triaging high-ticket emergencies (Plumbing, HVAC & Electrical), issuing property containment guidance, and scheduling technician dispatches on Google Calendar.</p>
     </header>
 
     <div class="grid">
@@ -447,7 +491,7 @@
             <span id="statusLabel">Click Call to Test 24/7 Dispatch</span>
           </div>
 
-          <div id="statusSub" class="status-sub">Voice AI triages urgency and assigns on-call technicians</div>
+          <div id="statusSub" class="status-sub">Voice AI triages urgency and schedules technician arrival</div>
 
           <div class="visualizer-box">
             <canvas id="audioVisualizer" width="280" height="34"></canvas>
@@ -473,11 +517,11 @@
         </form>
       </div>
 
-      <!-- Right Column: Operations Dispatch Board -->
+      <!-- Right Column: Operations Dispatch Board & Calendar Schedule -->
       <div class="card">
         <div class="card-title">
-          <span>🚨 Live Operations Dispatch Board</span>
-          <button class="btn" onclick="loadTickets()">🔄 Refresh</button>
+          <span>🚨 Operations Dispatch & Technician Schedule</span>
+          <button class="btn" onclick="loadAll()">🔄 Refresh</button>
         </div>
 
         <div class="tech-roster">
@@ -486,11 +530,25 @@
           <div class="tech-pill"><span class="dot"></span> Marcus V. (Electrical #7)</div>
         </div>
 
+        <div class="dispatch-tabs">
+          <button id="tabTickets" class="tab-btn active" onclick="switchTab('tickets')">📋 Active Tickets (<span id="ticketCount">0</span>)</button>
+          <button id="tabCalendar" class="tab-btn" onclick="switchTab('calendar')">📅 Google Calendar (<span id="calendarCount">0</span>)</button>
+        </div>
+
+        <!-- Tab 1: Dispatch Tickets List -->
         <div id="ticketsList" class="tickets-list">
           <div style="text-align: center; color: var(--text-muted); padding: 3rem;">No active dispatch tickets yet. Start a call to simulate an incoming emergency!</div>
         </div>
 
-        <a class="sheet-link" href="https://docs.google.com/spreadsheets/d/1Rpb9XQsymoDDSEl0n1EChgi8KY7BgmajFXctwreAMjo" target="_blank">↗ Open Google Sheets CRM (Emergency_Dispatch_Day4 Tab)</a>
+        <!-- Tab 2: Live Google Calendar Feed -->
+        <div id="calendarList" class="tickets-list" style="display: none;">
+          <div style="text-align: center; color: var(--text-muted); padding: 3rem;">Loading Google Calendar schedule...</div>
+        </div>
+
+        <div style="display: flex; gap: 1rem; flex-wrap: wrap;">
+          <a class="sheet-link" href="https://docs.google.com/spreadsheets/d/1Rpb9XQsymoDDSEl0n1EChgi8KY7BgmajFXctwreAMjo" target="_blank">📊 Google Sheets CRM (Emergency_Dispatch_Day4 Tab)</a>
+          <a class="sheet-link" style="color: #60a5fa;" href="https://calendar.google.com" target="_blank">📅 Open in Google Calendar App</a>
+        </div>
       </div>
     </div>
   </div>
@@ -522,6 +580,26 @@
       else if (state === 'speaking') dot.innerText = '🗣️';
       else if (state === 'processing') dot.innerText = '⚡';
       else dot.innerText = '⚪';
+    }
+
+    // Switch between Tickets and Calendar Tabs
+    function switchTab(tab) {
+      const tabT = document.getElementById('tabTickets');
+      const tabC = document.getElementById('tabCalendar');
+      const listT = document.getElementById('ticketsList');
+      const listC = document.getElementById('calendarList');
+
+      if (tab === 'tickets') {
+        tabT.classList.add('active');
+        tabC.classList.remove('active');
+        listT.style.display = 'flex';
+        listC.style.display = 'none';
+      } else {
+        tabT.classList.remove('active');
+        tabC.classList.add('active');
+        listT.style.display = 'none';
+        listC.style.display = 'flex';
+      }
     }
 
     // Audio Visualizer Canvas Renderer
@@ -571,9 +649,11 @@
     // Load Live Dispatch Tickets
     async function loadTickets() {
       const container = document.getElementById('ticketsList');
+      const countEl = document.getElementById('ticketCount');
       try {
         const res = await fetch('/api/tickets');
         const data = await res.json();
+        countEl.innerText = data.tickets ? data.tickets.length : 0;
         if (data.tickets && data.tickets.length > 0) {
           container.innerHTML = data.tickets.map(t => {
             const isEmerg = /emergency/i.test(t.urgency);
@@ -602,6 +682,43 @@
       } catch (e) {
         container.innerHTML = `<div style="color: var(--primary); text-align: center;">Error loading dispatch board: ${e.message}</div>`;
       }
+    }
+
+    // Load Live Google Calendar Dispatches
+    async function loadCalendar() {
+      const container = document.getElementById('calendarList');
+      const countEl = document.getElementById('calendarCount');
+      try {
+        const res = await fetch('/api/calendar-events');
+        const data = await res.json();
+        countEl.innerText = data.events ? data.events.length : 0;
+        if (data.events && data.events.length > 0) {
+          container.innerHTML = data.events.map(e => {
+            const isEmerg = /emergency/i.test(e.summary);
+            const dateStr = new Date(e.start).toLocaleString('en-US', {
+              weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true
+            });
+            return `
+              <div class="cal-event-card ${isEmerg ? 'emergency' : ''}">
+                <div class="cal-top">
+                  <span class="cal-title">${e.summary}</span>
+                </div>
+                <div class="cal-time">🕒 <strong>Arrival Window:</strong> ${dateStr}</div>
+                ${e.location ? `<div class="cal-loc">📍 ${e.location}</div>` : ''}
+              </div>
+            `;
+          }).join('');
+        } else {
+          container.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 3rem;">Calendar is clear. Scheduled technician dispatches will appear here in real time.</div>`;
+        }
+      } catch (err) {
+        container.innerHTML = `<div style="color: var(--primary); text-align: center;">Error loading calendar: ${err.message}</div>`;
+      }
+    }
+
+    function loadAll() {
+      loadTickets();
+      loadCalendar();
     }
 
     // Toggle Voice Call
@@ -655,7 +772,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessionId, messageText: 'reset' })
       });
-      loadTickets();
+      loadAll();
     }
 
     // Speech Synthesis (Marcus speaks)
@@ -746,7 +863,7 @@
           const alertBox = document.getElementById('containmentAlert');
           const alertText = document.getElementById('containmentText');
           alertBox.style.display = 'block';
-          alertText.innerText = "Critical emergency detected. Immediate containment actions paged to on-call unit.";
+          alertText.innerText = "Critical emergency detected. Immediate property containment guidance paged to on-call technician.";
         }
 
         if (data.reply) {
@@ -754,9 +871,9 @@
           speak(data.reply, data.endCall);
         }
 
-        // Auto-refresh dispatch board if ticket booked
+        // Auto-refresh dispatch board & calendar if ticket booked
         if (data.isBooked) {
-          setTimeout(loadTickets, 500);
+          setTimeout(loadAll, 600);
         }
       } catch (err) {
         appendMessage('System Error', 'Could not reach dispatch engine: ' + err.message, true);
@@ -849,7 +966,7 @@
       }
     }
 
-    window.onload = loadTickets;
+    window.onload = loadAll;
   </script>
 </body>
 </html>
