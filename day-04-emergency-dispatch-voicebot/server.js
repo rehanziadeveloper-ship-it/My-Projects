@@ -65,27 +65,113 @@ async function getGoogleAccessToken() {
   throw new Error(`Failed to obtain Google token: ${JSON.stringify(data)}`);
 }
 
-// Create Technician Arrival Dispatch in Google Calendar
+// Find Next Conflict-Free Arrival Window / Appointment Slot
+function findNextAvailableSlot(existingEvents, isEmergency, trade, preferredTime = '') {
+  const now = new Date();
+
+  if (isEmergency) {
+    let proposedStart = new Date(now);
+    // Find active jobs for this trade
+    const activeEvents = existingEvents.filter(e => {
+      const eStart = new Date(e.start);
+      const eEnd = new Date(e.end);
+      const isTradeMatch = e.summary && e.summary.toLowerCase().includes(trade.toLowerCase());
+      return isTradeMatch && eEnd > now && eStart < new Date(now.getTime() + 45 * 60000);
+    });
+
+    if (activeEvents.length > 0) {
+      let latestEnd = now;
+      activeEvents.forEach(e => {
+        const endDt = new Date(e.end);
+        if (endDt > latestEnd) latestEnd = endDt;
+      });
+      proposedStart = new Date(latestEnd.getTime() + 10 * 60000); // 10 min buffer
+    }
+
+    const proposedEnd = new Date(proposedStart.getTime() + 45 * 60000);
+    const diffMins = Math.round((proposedStart.getTime() - now.getTime()) / 60000);
+    const etaStr = diffMins > 12 
+      ? `Arriving in ~${diffMins}–${diffMins + 15} Mins (Tech on active call, en route immediately after)`
+      : `25 - 40 Minutes (Immediate Dispatch)`;
+
+    return {
+      start: proposedStart,
+      end: proposedEnd,
+      slotLabel: etaStr
+    };
+  } else {
+    // Standard Daytime Slots: Mon-Sat
+    const targetDate = new Date(now);
+    targetDate.setDate(targetDate.getDate() + 1);
+    if (targetDate.getDay() === 0) targetDate.setDate(targetDate.getDate() + 1); // Skip Sunday
+
+    const standardSlots = [
+      { startH: 9, startM: 0, endH: 10, endM: 30, period: 'morning', label: '9:00 AM - 10:30 AM' },
+      { startH: 10, startM: 30, endH: 12, endM: 0, period: 'morning', label: '10:30 AM - 12:00 PM' },
+      { startH: 13, startM: 0, endH: 14, endM: 30, period: 'afternoon', label: '1:00 PM - 2:30 PM' },
+      { startH: 14, startM: 30, endH: 16, endM: 0, period: 'afternoon', label: '2:30 PM - 4:00 PM' },
+      { startH: 16, startM: 0, endH: 17, endM: 30, period: 'afternoon', label: '4:00 PM - 5:30 PM' }
+    ];
+
+    const prefLower = (preferredTime || '').toLowerCase();
+    let prioritizedSlots = [...standardSlots];
+    if (/morning|am/i.test(prefLower)) {
+      prioritizedSlots.sort((a, b) => (a.period === 'morning' ? -1 : 1));
+    } else if (/afternoon|pm/i.test(prefLower)) {
+      prioritizedSlots.sort((a, b) => (a.period === 'afternoon' ? -1 : 1));
+    }
+
+    for (let dayOffset = 0; dayOffset < 3; dayOffset++) {
+      const day = new Date(targetDate);
+      day.setDate(day.getDate() + dayOffset);
+      if (day.getDay() === 0) continue;
+
+      for (const slot of prioritizedSlots) {
+        const sTime = new Date(day);
+        sTime.setHours(slot.startH, slot.startM, 0, 0);
+        const eTime = new Date(day);
+        eTime.setHours(slot.endH, slot.endM, 0, 0);
+
+        const hasConflict = existingEvents.some(e => {
+          const eStart = new Date(e.start);
+          const eEnd = new Date(e.end);
+          return eStart < eTime && eEnd > sTime;
+        });
+
+        if (!hasConflict) {
+          const dayName = dayOffset === 0 ? 'Tomorrow' : day.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+          return {
+            start: sTime,
+            end: eTime,
+            slotLabel: `${dayName} (${slot.label})`
+          };
+        }
+      }
+    }
+
+    const fallbackStart = new Date(targetDate);
+    fallbackStart.setHours(10, 0, 0, 0);
+    const fallbackEnd = new Date(targetDate);
+    fallbackEnd.setHours(11, 30, 0, 0);
+    return {
+      start: fallbackStart,
+      end: fallbackEnd,
+      slotLabel: `Tomorrow (10:00 AM - 11:30 AM)`
+    };
+  }
+}
+
+// Create Technician Arrival Dispatch in Google Calendar (Conflict-Free)
 async function createDispatchCalendarEvent(ticket) {
   try {
     const token = await getGoogleAccessToken();
-    const now = new Date();
-    let startIso, endIso;
+    const existingEvents = await listUpcomingCalendarDispatches();
+    const isEmerg = ticket.urgency.includes('CRITICAL EMERGENCY');
+    const slot = findNextAvailableSlot(existingEvents, isEmerg, ticket.trade || 'General');
 
-    if (ticket.urgency.includes('CRITICAL EMERGENCY')) {
-      // Emergency: immediate 45-minute dispatch window starting right now
-      startIso = now.toISOString();
-      const end = new Date(now.getTime() + 45 * 60 * 1000);
-      endIso = end.toISOString();
-    } else {
-      // Standard daytime service scheduled for tomorrow at 10:00 AM
-      const tomorrow = new Date(now);
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      tomorrow.setHours(10, 0, 0, 0);
-      startIso = tomorrow.toISOString();
-      const end = new Date(tomorrow.getTime() + 90 * 60 * 1000);
-      endIso = end.toISOString();
-    }
+    const startIso = slot.start.toISOString();
+    const endIso = slot.end.toISOString();
+    ticket.eta = slot.slotLabel; // Update ticket ETA to the actual conflict-free window
 
     const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CAL_ID)}/events`, {
       method: 'POST',
@@ -103,10 +189,10 @@ async function createDispatchCalendarEvent(ticket) {
           `Service Address: ${ticket.address}`,
           `Issue / Incident: ${ticket.issue}`,
           `Assigned Technician: ${ticket.assignedTech}`,
-          `Response ETA: ${ticket.eta}`,
+          `Arrival Window: ${ticket.eta}`,
           `Urgency Status: ${ticket.urgency}`,
           `Safety Guidance: ${ticket.safetyTip}`,
-          `Dispatched via: Apex 24/7 Home Services Voice AI (Day 4 Sprint)`
+          `Dispatched via: Apex 24/7 Home Services Voice AI (Conflict-Free Engine)`
         ].join('\n'),
         start: { dateTime: startIso, timeZone: 'Asia/Karachi' },
         end: { dateTime: endIso, timeZone: 'Asia/Karachi' },
@@ -121,7 +207,7 @@ async function createDispatchCalendarEvent(ticket) {
     });
 
     const eventData = await res.json();
-    console.log(`📅 [Google Calendar Dispatched] Event ID: ${eventData.id}`);
+    console.log(`📅 [Google Calendar Dispatched - Conflict Free] Event ID: ${eventData.id} | Slot: ${ticket.eta}`);
     return eventData;
   } catch (err) {
     console.error(`❌ [Google Calendar Error]:`, err.message);
@@ -377,7 +463,7 @@ async function processChatMessage(sessionId, messageText) {
   if (s.step === 3) {
     // Check if the user is actually clarifying urgency/emergency instead of giving an address
     const isUrgencyClarification = /emergency|urgent|burst|flood|gushing|hurry|asap|critical|severe|immediately/i.test(lower);
-    const hasAddressSigns = /\d|street|st\b|road|rd\b|ave|avenue|drive|dr\b|lane|ln\b|way|blvd|terrace|plaza|court|ct\b|suite|apt|house|block|karachi|lahore|islamabad/i.test(lower);
+    const hasAddressSigns = /\d|\bstreet\b|\bst\b|\broad\b|\brd\b|\bave\b|\bavenue\b|\bdrive\b|\bdr\b|\blane\b|\bln\b|\bway\b|\bblvd\b|\bterrace\b|\bplaza\b|\bcourt\b|\bct\b|\bsuite\b|\bapt\b|\bhouse\b|\bblock\b/i.test(lower);
 
     if (isUrgencyClarification && !hasAddressSigns) {
       // Re-classify to Critical Emergency!

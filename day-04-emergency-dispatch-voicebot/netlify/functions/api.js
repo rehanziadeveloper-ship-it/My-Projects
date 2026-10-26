@@ -47,6 +47,101 @@ function getHomeServicesFaq(lower, s) {
   return null;
 }
 
+// Find Next Conflict-Free Arrival Window / Appointment Slot
+function findNextAvailableSlot(existingTickets, isEmergency, trade, preferredTime = '') {
+  const now = new Date();
+
+  if (isEmergency) {
+    let proposedStart = new Date(now);
+    const activeEvents = existingTickets.filter(t => {
+      const isTradeMatch = t.trade && t.trade.toLowerCase().includes(trade.toLowerCase());
+      const sDate = new Date(t.scheduledStart || t.timestamp);
+      const eDate = new Date(t.scheduledEnd || (new Date(t.timestamp).getTime() + 45 * 60000));
+      return isTradeMatch && eDate > now && sDate < new Date(now.getTime() + 45 * 60000);
+    });
+
+    if (activeEvents.length > 0) {
+      let latestEnd = now;
+      activeEvents.forEach(t => {
+        const endDt = new Date(t.scheduledEnd || (new Date(t.timestamp).getTime() + 45 * 60000));
+        if (endDt > latestEnd) latestEnd = endDt;
+      });
+      proposedStart = new Date(latestEnd.getTime() + 10 * 60000);
+    }
+
+    const proposedEnd = new Date(proposedStart.getTime() + 45 * 60000);
+    const diffMins = Math.round((proposedStart.getTime() - now.getTime()) / 60000);
+    const etaStr = diffMins > 12 
+      ? `Arriving in ~${diffMins}–${diffMins + 15} Mins (Tech on active call, en route immediately after)`
+      : `25 - 40 Minutes (Immediate Dispatch)`;
+
+    return {
+      start: proposedStart,
+      end: proposedEnd,
+      slotLabel: etaStr
+    };
+  } else {
+    // Standard Daytime Slots: Mon-Sat
+    const targetDate = new Date(now);
+    targetDate.setDate(targetDate.getDate() + 1);
+    if (targetDate.getDay() === 0) targetDate.setDate(targetDate.getDate() + 1); // Skip Sunday
+
+    const standardSlots = [
+      { startH: 9, startM: 0, endH: 10, endM: 30, period: 'morning', label: '9:00 AM - 10:30 AM' },
+      { startH: 10, startM: 30, endH: 12, endM: 0, period: 'morning', label: '10:30 AM - 12:00 PM' },
+      { startH: 13, startM: 0, endH: 14, endM: 30, period: 'afternoon', label: '1:00 PM - 2:30 PM' },
+      { startH: 14, startM: 30, endH: 16, endM: 0, period: 'afternoon', label: '2:30 PM - 4:00 PM' },
+      { startH: 16, startM: 0, endH: 17, endM: 30, period: 'afternoon', label: '4:00 PM - 5:30 PM' }
+    ];
+
+    const prefLower = (preferredTime || '').toLowerCase();
+    let prioritizedSlots = [...standardSlots];
+    if (/morning|am/i.test(prefLower)) {
+      prioritizedSlots.sort((a, b) => (a.period === 'morning' ? -1 : 1));
+    } else if (/afternoon|pm/i.test(prefLower)) {
+      prioritizedSlots.sort((a, b) => (a.period === 'afternoon' ? -1 : 1));
+    }
+
+    for (let dayOffset = 0; dayOffset < 3; dayOffset++) {
+      const day = new Date(targetDate);
+      day.setDate(day.getDate() + dayOffset);
+      if (day.getDay() === 0) continue;
+
+      for (const slot of prioritizedSlots) {
+        const sTime = new Date(day);
+        sTime.setHours(slot.startH, slot.startM, 0, 0);
+        const eTime = new Date(day);
+        eTime.setHours(slot.endH, slot.endM, 0, 0);
+
+        const hasConflict = existingTickets.some(t => {
+          const eStart = new Date(t.scheduledStart || t.timestamp);
+          const eEnd = new Date(t.scheduledEnd || (new Date(t.timestamp).getTime() + 90 * 60000));
+          return eStart < eTime && eEnd > sTime;
+        });
+
+        if (!hasConflict) {
+          const dayName = dayOffset === 0 ? 'Tomorrow' : day.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+          return {
+            start: sTime,
+            end: eTime,
+            slotLabel: `${dayName} (${slot.label})`
+          };
+        }
+      }
+    }
+
+    const fallbackStart = new Date(targetDate);
+    fallbackStart.setHours(10, 0, 0, 0);
+    const fallbackEnd = new Date(targetDate);
+    fallbackEnd.setHours(11, 30, 0, 0);
+    return {
+      start: fallbackStart,
+      end: fallbackEnd,
+      slotLabel: `Tomorrow (10:00 AM - 11:30 AM)`
+    };
+  }
+}
+
 async function processChatMessage(sessionId, messageText) {
   const s = getOrCreateSession(sessionId);
   const text = (messageText || '').trim();
@@ -142,7 +237,7 @@ async function processChatMessage(sessionId, messageText) {
   // STEP 3: Collect Service Address
   if (s.step === 3) {
     const isUrgencyClarification = /emergency|urgent|burst|flood|gushing|hurry|asap|critical|severe|immediately/i.test(lower);
-    const hasAddressSigns = /\d|street|st\b|road|rd\b|ave|avenue|drive|dr\b|lane|ln\b|way|blvd|terrace|plaza|court|ct\b|suite|apt|house|block/i.test(lower);
+    const hasAddressSigns = /\d|\bstreet\b|\bst\b|\broad\b|\brd\b|\bave\b|\bavenue\b|\bdrive\b|\bdr\b|\blane\b|\bln\b|\bway\b|\bblvd\b|\bterrace\b|\bplaza\b|\bcourt\b|\bct\b|\bsuite\b|\bapt\b|\bhouse\b|\bblock\b/i.test(lower);
 
     if (isUrgencyClarification && !hasAddressSigns) {
       s.isEmergency = true;
@@ -188,9 +283,15 @@ async function processChatMessage(sessionId, messageText) {
     s.ticketId = s.isEmergency ? `APX-EMG-${ticketCounter++}` : `APX-STD-${ticketCounter++}`;
     s.step = 'COMPLETED';
 
+    // Compute Next Conflict-Free Arrival Slot
+    const slot = findNextAvailableSlot(dispatchTickets, s.isEmergency, s.trade);
+    s.eta = slot.slotLabel;
+
     const ticketObj = {
       id: s.ticketId,
       timestamp: new Date().toISOString(),
+      scheduledStart: slot.start.toISOString(),
+      scheduledEnd: slot.end.toISOString(),
       customerName: s.customerName,
       phone: s.phone,
       address: s.address,
@@ -213,11 +314,11 @@ async function processChatMessage(sessionId, messageText) {
       `• Service Location: ${s.address}`,
       `• Issue: ${s.issue}`,
       `• Assigned Technician: ${s.assignedTech}`,
-      `• Estimated Response Time: ${s.eta}`,
+      `• Confirmed Arrival Window: ${s.eta}`,
       "",
       s.isEmergency
         ? "Our on-call technician has been directly paged and is rolling a truck to your location. Please keep your phone line open for their live GPS arrival call."
-        : "Your service appointment has been scheduled and logged.",
+        : `Your service appointment is locked for ${s.eta} with zero scheduling conflict.`,
       "",
       "Is there anything else you need immediate help with?"
     ].join('\n');
@@ -292,8 +393,9 @@ exports.handler = async (event) => {
           id: t.id,
           summary: `${t.urgency.includes('CRITICAL') ? '🚨 EMERGENCY' : '🔧 SERVICE'}: ${t.customerName} (${t.trade})`,
           location: t.address,
-          start: t.timestamp,
-          description: `Assigned: ${t.assignedTech}\nIssue: ${t.issue}\nStatus: ${t.status}`
+          start: t.scheduledStart || t.timestamp,
+          end: t.scheduledEnd,
+          description: `Assigned: ${t.assignedTech}\nIssue: ${t.issue}\nStatus: ${t.status}\nArrival: ${t.eta}`
         }))
       })
     };
