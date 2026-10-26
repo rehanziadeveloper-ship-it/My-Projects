@@ -558,13 +558,17 @@
     }
 
     // Speech Synthesis (Dr. Sarah speaks)
-    function speak(text) {
+    function speak(text, shouldEndCall = false) {
       if (!synthesis) return;
       synthesis.cancel();
 
       // IMPORTANT: Mute mic while Sarah is speaking so she doesn't hear herself!
       isAgentSpeaking = true;
-      setStatus('speaking', 'Sarah is speaking...', 'Listening will resume when Sarah finishes speaking');
+      if (shouldEndCall) {
+        setStatus('speaking', 'Sarah is speaking (Call Ending...)', 'Concluding your booking');
+      } else {
+        setStatus('speaking', 'Sarah is speaking...', 'Listening will resume when Sarah finishes speaking');
+      }
       
       if (recognition) {
         try { recognition.abort(); } catch (e) {}
@@ -580,6 +584,13 @@
 
       utterance.onend = () => {
         isAgentSpeaking = false;
+        if (shouldEndCall) {
+          setStatus('idle', '✅ Appointment Confirmed', 'Call Concluded • Thank you for choosing Apex Dental Clinic');
+          setTimeout(() => {
+            if (isCalling) toggleCall();
+          }, 1500);
+          return;
+        }
         if (isCalling) {
           setStatus('listening', 'Listening... (Speak now)', 'Speak clearly into your microphone');
           startListening();
@@ -588,6 +599,13 @@
 
       utterance.onerror = () => {
         isAgentSpeaking = false;
+        if (shouldEndCall) {
+          setStatus('idle', '✅ Appointment Confirmed', 'Call Concluded • Thank you for choosing Apex Dental Clinic');
+          setTimeout(() => {
+            if (isCalling) toggleCall();
+          }, 1500);
+          return;
+        }
         if (isCalling) {
           setStatus('listening', 'Listening... (Speak now)', 'Speak clearly into your microphone');
           startListening();
@@ -624,7 +642,7 @@
         
         if (data.reply) {
           appendMessage('Sarah (AI Receptionist)', data.reply, true);
-          speak(data.reply);
+          speak(data.reply, data.endCall);
         }
 
         // Auto-refresh calendar if appointment was booked or rescheduled

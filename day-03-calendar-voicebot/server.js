@@ -268,6 +268,71 @@ function getOrCreateSession(sessionId) {
 }
 
 // Conversational AI Booking Engine (Apex Dental 6-Step Clinical Flow)
+function getClinicFaqAnswer(lower, s) {
+  // 1. Fees / Charges / Pricing
+  if (/fee|fees|cost|charge|charges|price|pricing|how much|rate|rates|expensive|cheap|costing/i.test(lower)) {
+    const base = "At Apex Dental Clinic, routine consultations and preventative cleanings start at $50, and emergency dental examinations start at $90. Any specific procedure costs will be clearly detailed after Dr. Sarah evaluates your teeth.";
+    if (s.step === 'COMPLETED') {
+      return `${base} Is there anything else about our clinic I can help you with?`;
+    } else if (s.step === 5 || s.step === 6) {
+      return `${base} Does your appointment for ${s.preferredTime || 'your visit'} look good to confirm?`;
+    } else {
+      return base;
+    }
+  }
+
+  // 2. Doctor / Specialist / Dr. Sarah
+  if (/doctor|dr\b|surgeon|dentist|specialist|physician|who will see me|who is available/i.test(lower)) {
+    const doctorName = "Dr. Sarah Jenkins (Lead Dental Surgeon) and our emergency dental specialist Dr. Michael Vance";
+    const base = `For your appointment${s.preferredTime ? ` on ${s.preferredTime}` : ''}, ${doctorName} and our clinical team will be taking care of you.`;
+    if (s.step === 'COMPLETED') {
+      return `${base} Is there anything else I can help you with before your visit?`;
+    } else if (s.step === 5 || s.step === 6) {
+      return `${base} Does your appointment time look good to confirm?`;
+    } else {
+      return base;
+    }
+  }
+
+  // 3. Location / Address / Directions / Parking
+  if (/location|address|where are you|where is the clinic|direction|directions|parking|where located|where are you located/i.test(lower)) {
+    const base = "Apex Dental Clinic is located at 742 Evergreen Medical Plaza, Suite 300, downtown. We offer free dedicated parking right in front of the clinic entrance.";
+    if (s.step === 'COMPLETED') {
+      return `${base} Let me know if you need anything else before your visit!`;
+    } else if (s.step === 5 || s.step === 6) {
+      return `${base} Does your appointment for ${s.preferredTime || 'your visit'} look good to confirm?`;
+    } else {
+      return base;
+    }
+  }
+
+  // 4. Hours / Timings / Opening
+  if (/hours|timing|timings|open|close|closing|schedule/i.test(lower) && !/morning|afternoon|pm|am|\d/i.test(lower)) {
+    const base = "Apex Dental Clinic is open Monday through Saturday from 9:00 AM to 6:00 PM, with 24/7 on-call emergency dental dispatch.";
+    if (s.step === 'COMPLETED') {
+      return `${base} Is there anything else I can assist you with today?`;
+    } else if (s.step === 5 || s.step === 6) {
+      return `${base} Does your appointment for ${s.preferredTime || 'your visit'} look good to confirm?`;
+    } else {
+      return base;
+    }
+  }
+
+  // 5. Insurance / Payment Methods
+  if (/insurance|coverage|covered|hsa|fsa|financing|payment method/i.test(lower)) {
+    const base = "We accept all major PPO dental insurance plans, HSA and FSA cards, and offer zero-interest flexible payment options.";
+    if (s.step === 'COMPLETED') {
+      return `${base} Is there anything else I can assist you with today?`;
+    } else if (s.step === 5 || s.step === 6) {
+      return `${base} Does your appointment details look good to confirm?`;
+    } else {
+      return base;
+    }
+  }
+
+  return null;
+}
+
 async function processChatMessage(sessionId, messageText) {
   const s = getOrCreateSession(sessionId);
   const text = (messageText || '').trim();
@@ -283,6 +348,42 @@ async function processChatMessage(sessionId, messageText) {
       step: 1,
       isBooked: false
     };
+  }
+
+  // General Clinic FAQ handler (applicable at any stage)
+  const faqReply = getClinicFaqAnswer(lower, s);
+  if (faqReply) {
+    if (s.step === 1) {
+      return {
+        reply: `${faqReply}\n\nAre you looking to schedule a routine appointment or an emergency visit?`,
+        step: 1
+      };
+    }
+    if (s.step === 2) {
+      return {
+        reply: `${faqReply}\n\nCould you please provide your full name for our clinic records?`,
+        step: 2
+      };
+    }
+    if (s.step === 3) {
+      return {
+        reply: `${faqReply}\n\nWhat is your phone number?`,
+        step: 3
+      };
+    }
+    if (s.step === 4) {
+      return {
+        reply: `${faqReply}\n\nWhich day works best for you, and would you prefer a morning or afternoon appointment?`,
+        step: 4
+      };
+    }
+    if (s.step === 5 || s.step === 6 || s.step === 'COMPLETED') {
+      return {
+        reply: faqReply,
+        step: s.step,
+        calendarEventId: s.calendarEventId
+      };
+    }
   }
 
   // STEP 1: Service Type (Emergency vs Routine)
@@ -435,20 +536,30 @@ async function processChatMessage(sessionId, messageText) {
                             /\bbut\b/i.test(lower);
     const hasTimeContext = /morning|afternoon|evening|pm|am|tomorrow|today|tonight|monday|tuesday|wednesday|thursday|friday|saturday|sunday|\b\d{1,2}(?:[:\s]\d{2})?\b/i.test(lower);
 
-    // Confirmation check: NEVER confirm if hasChangeIntent is true or if awaiting new time!
-    const isConfirm = !hasChangeIntent && s.subStage !== 'AWAITING_NEW_TIME' && (
-      /^(yes|yeah|yep|sure|correct|looks good|confirm|confirmed|that's right|perfect|all good|ok|okay)[!.]*$/i.test(lower) ||
-      /(looks good|sounds good|is correct|that is correct|that's correct|no change|keep it)/i.test(lower)
+    // Negative confirmation check
+    const isExplicitNegative = /\b(not correct|incorrect|wrong|don't want|dont want|do not want|not good|not right|not fine)\b/i.test(lower);
+
+    // Confirmation check
+    const isConfirm = !hasChangeIntent && !isExplicitNegative && s.subStage !== 'AWAITING_NEW_TIME' && (
+      // Standalone affirmation words
+      /^(yes|yeah|yep|yup|sure|correct|perfect|done|ok|okay|fine|great|confirmed|confirm)[!.,\s]*$/i.test(lower) ||
+      // Confirmation phrases anywhere in text
+      /\b(correct|confirmed|all good|all set|sounds good|sound good|looks good|look good|looking good|quite look good|looks great|look great|that's right|thats right|that works|works for me|no change|keep it)\b/i.test(lower) ||
+      // Sentence structures
+      /(?:it'?s|that'?s|this is|is|said it'?s)\s+(?:correct|good|fine|great|perfect)/i.test(lower) ||
+      // "no, it's good" / "no it's quite look good" (meaning: no changes, it looks good)
+      /^no[,.\s]+(?:it'?s|that'?s)?\s*(?:quite\s+)?(?:look|looks|good|fine|great|all good|okay|ok)/i.test(lower)
     );
 
     if (isConfirm) {
       s.step = 'COMPLETED';
       s.subStage = null;
       return {
-        reply: "Perfect, your appointment is booked and confirmed. We look forward to seeing you at Apex Dental Clinic!",
+        reply: `Perfect, ${s.patientName || 'valued patient'}! Your appointment is fully booked and confirmed for ${s.preferredTime} at Apex Dental Clinic. Our team has reserved your slot with Dr. Sarah. Thank you for calling, and we look forward to seeing you!`,
         step: 'COMPLETED',
         isBooked: true,
-        calendarEventId: s.calendarEventId
+        calendarEventId: s.calendarEventId,
+        endCall: true
       };
     }
 
@@ -518,21 +629,26 @@ async function processChatMessage(sessionId, messageText) {
       };
     }
 
-    // If caller is in COMPLETED state and sends thanks or greeting
+    // If caller sends thanks or goodbye
+    if (/thank|thanks|bye|goodbye|see you|no that's all|thats all|i'm good|im good/i.test(lower)) {
+      return {
+        reply: "You're very welcome! Have a wonderful day, and we look forward to seeing you at Apex Dental Clinic.",
+        step: 'COMPLETED',
+        calendarEventId: s.calendarEventId,
+        endCall: true
+      };
+    }
+
+    // If caller is in COMPLETED state and sends general text without change intent
     if (s.step === 'COMPLETED') {
       if (/hi|hello|hey|book|appointment|new/i.test(lower)) {
         sessions[sessionId] = null;
         return processChatMessage(sessionId, text);
       }
-      if (/thank|thanks|great|bye|goodbye|see you/i.test(lower)) {
-        return {
-          reply: "You're very welcome! Have a wonderful day, and we look forward to seeing you at Apex Dental Clinic.",
-          step: 'COMPLETED'
-        };
-      }
       return {
-        reply: "Your appointment is confirmed. If you need any further changes or assistance, just let me know. We look forward to seeing you at Apex Dental Clinic!",
-        step: 'COMPLETED'
+        reply: `Your appointment is confirmed for ${s.preferredTime}. If you need to make any changes or have any questions about fees, doctors, or location, just let me know!`,
+        step: 'COMPLETED',
+        calendarEventId: s.calendarEventId
       };
     }
 
