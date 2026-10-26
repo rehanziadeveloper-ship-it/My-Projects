@@ -1,0 +1,21 @@
+{
+  "name": "day-04-emergency-dispatch-voicebot",
+  "version": "1.0.0",
+  "description": "24/7 Autonomous Voice AI Emergency Dispatcher for Home Services (Plumbing, HVAC, Electrical) with Tiered Triage and Live CRM Sync",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [
+    "voice-ai",
+    "emergency-dispatch",
+    "home-services",
+    "plumbing",
+    "hvac",
+    "triage",
+    "google-sheets",
+    "n8n"
+  ],
+  "author": "Muhammad Rehan",
+  "license": "MIT"
+}
