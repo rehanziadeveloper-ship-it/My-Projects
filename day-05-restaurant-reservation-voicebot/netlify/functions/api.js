@@ -2,9 +2,8 @@ const crypto = require('crypto');
 
 // Master Google Cloud & CRM Configurations
 const SPREADSHEET_ID = '1Rpb9XQsymoDDSEl0n1EChgi8KY7BgmajFXctwreAMjo';
-const SHEET_TAB = 'Restaurant_Reservations_Day5';
 const CAL_ID = 'dc16a29b27611448569f6f342e1e982aa44e6c6bfa3b3ca7d2fe180c4231748b@group.calendar.google.com';
-const N8N_WEBHOOK_URL = process.env.N8N_WEBHOOK_URL || 'https://n8n.srv1767318.hstgr.cloud/webhook/restaurant-table-reservations';
+const N8N_WEBHOOK_URL = process.env.N8N_WEBHOOK_URL || 'https://n8n.srv1767318.hstgr.cloud/webhook/restaurant-autonomous-ecosystem';
 
 // Embedded Google Service Account for Netlify Serverless Environment
 const GOOGLE_SERVICE_ACCOUNT = {
@@ -32,9 +31,60 @@ const TABLES = [
 
 let cachedToken = null;
 let tokenExpiry = 0;
+
+// In-Memory Live State
 let activeReservations = [];
-let reservationCounter = 201;
-const sessions = {};
+let activeOrders = [
+  {
+    id: 'BV-ORD-501',
+    channel: 'WHATSAPP',
+    customerName: 'Ayesha Khan',
+    phone: '03008765432',
+    items: ['Wood-Fired Pizza Regina ($24)', 'Truffle Parmesan Fries ($6)'],
+    totalAmount: '$30.00',
+    paymentMethod: 'Cash on Delivery (COD Verified)',
+    status: 'PREPARING',
+    elapsedMinutes: 8,
+    createdAt: new Date(Date.now() - 8 * 60000).toISOString()
+  },
+  {
+    id: 'BV-ORD-502',
+    channel: 'VOICE_AI',
+    customerName: 'Marcus Vance',
+    phone: '03471098310',
+    items: ['Wild Mushroom Truffle Risotto ($26)', 'Limoncello Spritz ($10)'],
+    totalAmount: '$36.00',
+    paymentMethod: 'Credit Card (Pre-Authorized)',
+    status: 'PREPARING',
+    elapsedMinutes: 4,
+    createdAt: new Date(Date.now() - 4 * 60000).toISOString()
+  }
+];
+
+let liveInventory = [
+  { sku: 'ING-001', name: 'San Marzano Tomatoes DOP', stock: 45, unit: 'Cans', threshold: 15, cost: '$8.50', status: 'IN STOCK' },
+  { sku: 'ING-002', name: 'Carnaroli Arborio Rice', stock: 32, unit: 'kg', threshold: 10, cost: '$5.20', status: 'IN STOCK' },
+  { sku: 'ING-003', name: 'White Truffle Oil', stock: 3, unit: 'Bottles', threshold: 5, cost: '$34.00', status: '⚠️ LOW STOCK' },
+  { sku: 'ING-004', name: 'Fresh Mozzarella Fior di Latte', stock: 26, unit: 'kg', threshold: 10, cost: '$9.00', status: 'IN STOCK' },
+  { sku: 'ING-005', name: 'Certified Gluten-Free Penne', stock: 18, unit: 'Boxes', threshold: 8, cost: '$3.80', status: 'IN STOCK' },
+  { sku: 'ING-006', name: 'Prime Veal Shank (Osso Buco)', stock: 12, unit: 'Portions', threshold: 6, cost: '$18.50', status: 'IN STOCK' }
+];
+
+let crmCustomers = [
+  { id: 'CUST-101', name: 'Rehan Zia', phone: '03471098310', totalOrders: 5, lifetimeSpend: '$240.00', lastOrder: '2026-10-27', favorite: 'Garden Patio 4-Top', segment: 'VIP Diners', remarketingStatus: 'ACTIVE' },
+  { id: 'CUST-102', name: 'Sara Ahmed', phone: '03215556789', totalOrders: 3, lifetimeSpend: '$115.00', lastOrder: '2026-09-12', favorite: 'Truffle Risotto', segment: 'Dormant (>30 Days)', remarketingStatus: 'READY_FOR_WINBACK' },
+  { id: 'CUST-103', name: 'David Miller', phone: '03001234567', totalOrders: 1, lifetimeSpend: '$45.00', lastOrder: '2026-10-24', favorite: 'Pizza Margherita', segment: 'New Guest', remarketingStatus: 'ACTIVE' }
+];
+
+let customerReviews = [
+  { id: 'REV-01', customerName: 'Tariq Mehmood', rating: 5, text: 'The wood-fired pizza and patio atmosphere was exquisite! Best Italian in town.', sentiment: 'POSITIVE', action: 'Posted to Google Maps', aiResponse: 'Grazie mille, Tariq! Chef Marco is thrilled you loved the pizza!' },
+  { id: 'REV-02', customerName: 'Bilal Hassan', rating: 2, text: 'Our pasta took 45 minutes to arrive and was slightly lukewarm.', sentiment: 'NEGATIVE', action: '⚠️ Intercepted to General Manager (25% VIP Voucher Sent)', aiResponse: 'Dear Bilal, we sincerely apologize for the delay during rush hour. Our GM has sent an apology voucher to your WhatsApp.' }
+];
+
+let reservationCounter = 202;
+let orderCounter = 503;
+const voiceSessions = {};
+const whatsappSessions = {};
 
 // Google OAuth Access Token Cache
 async function getGoogleAccessToken() {
@@ -77,24 +127,11 @@ async function getGoogleAccessToken() {
   throw new Error(`Failed to obtain Google token: ${JSON.stringify(data)}`);
 }
 
-// Append Reservation to Google Sheets (Restaurant_Reservations_Day5)
-async function appendReservationToGoogleSheet(reservation) {
+// Append Row to Any Google Sheets Tab
+async function appendToSheet(tabName, rowData) {
   try {
     const token = await getGoogleAccessToken();
-    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(SHEET_TAB + '!A1')}:append?valueInputOption=USER_ENTERED`;
-
-    const row = [
-      new Date().toLocaleString('en-US', { timeZone: 'Asia/Karachi' }),
-      reservation.id,
-      reservation.guestName,
-      reservation.phone,
-      reservation.slotLabel,
-      `${reservation.partySize} Guests`,
-      reservation.seatingPreference,
-      reservation.occasionNotes,
-      reservation.tableAssigned,
-      'CONFIRMED'
-    ];
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SPREADSHEET_ID}/values/${encodeURIComponent(tabName + '!A1')}:append?valueInputOption=USER_ENTERED`;
 
     const res = await fetch(url, {
       method: 'POST',
@@ -102,14 +139,14 @@ async function appendReservationToGoogleSheet(reservation) {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ values: [row] })
+      body: JSON.stringify({ values: [rowData] })
     });
 
     const data = await res.json();
-    console.log(`✅ [Google Sheets Netlify Logged] Reservation ${reservation.id}:`, data.updates?.updatedRange);
+    console.log(`✅ [Google Sheets Logged] Tab ${tabName}:`, data.updates?.updatedRange);
     return data;
   } catch (err) {
-    console.error(`❌ [Google Sheets Netlify Error]:`, err.message);
+    console.error(`❌ [Google Sheets Error] Tab ${tabName}:`, err.message);
   }
 }
 
@@ -136,141 +173,97 @@ async function createCalendarReservationEvent(reservation) {
           `Party Size: ${reservation.partySize} Guests`,
           `Table Assigned: ${reservation.tableAssigned}`,
           `Seating Preference: ${reservation.seatingPreference}`,
-          `Occasion / Dietary Notes: ${reservation.occasionNotes}`,
           `Reservation Window: ${reservation.slotLabel}`,
           `Booked via: Bella Vista Autonomous Voice AI Host ('Marco')`
         ].join('\n'),
         start: { dateTime: startIso, timeZone: 'Asia/Karachi' },
-        end: { dateTime: endIso, timeZone: 'Asia/Karachi' },
-        reminders: {
-          useDefault: false,
-          overrides: [
-            { method: 'popup', minutes: 30 },
-            { method: 'email', minutes: 60 }
-          ]
-        }
+        end: { dateTime: endIso, timeZone: 'Asia/Karachi' }
       })
     });
 
     const eventData = await res.json();
-    console.log(`📅 [Google Calendar Netlify Dispatched] Event ID: ${eventData.id} | Table: ${reservation.tableAssigned}`);
+    console.log(`✅ [Calendar Event Created] Event ID: ${eventData.id}`);
     return eventData;
   } catch (err) {
-    console.error(`❌ [Google Calendar Netlify Error]:`, err.message);
+    console.error(`❌ [Calendar Sync Error]:`, err.message);
     return null;
   }
 }
 
-// List Upcoming Reservations from Google Calendar
-async function listUpcomingReservations() {
-  try {
-    const token = await getGoogleAccessToken();
-    const now = new Date();
-    now.setHours(now.getHours() - 2);
-    const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CAL_ID)}/events?timeMin=${encodeURIComponent(now.toISOString())}&singleEvents=true&orderBy=startTime&maxResults=25`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    const data = await res.json();
-    return (data.items || []).filter(e => /Bella Vista/i.test(e.summary || '')).map(e => ({
-      id: e.id,
-      summary: e.summary,
-      location: e.location,
-      start: e.start?.dateTime || e.start?.date,
-      end: e.end?.dateTime || e.end?.date,
-      description: e.description
-    }));
-  } catch (err) {
-    console.error('Calendar list error:', err.message);
-    return [];
-  }
-}
-
-// Forward to n8n Automation Engine
+// Forward Event to n8n Webhook
 async function forwardToN8n(payload) {
   try {
-    const res = await fetch(N8N_WEBHOOK_URL, {
+    await fetch(N8N_WEBHOOK_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
-    console.log(`[n8n Forwarder Netlify] Status: ${res.status}`);
-  } catch (err) {
-    console.error(`[n8n Forwarder Netlify] Error:`, err.message);
+  } catch (e) {
+    console.warn('[n8n Webhook] Notice:', e.message);
   }
 }
 
-function getOrCreateSession(sessionId) {
-  if (!sessions[sessionId]) {
-    sessions[sessionId] = {
-      step: 1,
-      partySize: 2,
-      dateTimeText: 'Tonight at 7:30 PM',
-      scheduledStart: null,
-      scheduledEnd: null,
-      seatingPreference: 'Indoor Dining',
-      occasionNotes: 'Casual Dining',
-      tableAssigned: 'Table 3 (Indoor Main)',
-      guestName: null,
-      phone: null,
-      reservationId: null
-    };
-  }
-  return sessions[sessionId];
+// Dynamic Kitchen Wait Time Calculation
+function calculateDynamicWaitTime() {
+  const preparingTickets = activeOrders.filter(o => o.status === 'PREPARING').length;
+  const baseMinutes = 15;
+  const minutes = baseMinutes + (preparingTickets * 3);
+  return {
+    minutes,
+    label: `${minutes} - ${minutes + 10} Minutes`,
+    activeTickets: preparingTickets,
+    kitchenRushLevel: preparingTickets >= 5 ? '🔴 HIGH RUSH' : (preparingTickets >= 3 ? '🟡 MODERATE' : '🟢 NORMAL')
+  };
 }
 
-// Menu Knowledge & Dietary RAG Engine
-function queryMenuAndRestaurantKnowledge(lower) {
+// Menu Knowledge & Dietary RAG
+function queryMenuAndRestaurantKnowledge(lower, isPakistaniMode = false) {
   if (/vegan|plant[- ]based/i.test(lower)) {
-    return "For our vegan guests, Chef Marco prepares our signature Wild Mushroom & Black Truffle Risotto (made with rich vegetable fumetto and Arborio rice), our Wood-Fired Margherita with dairy-free artisan cashew mozzarella, and our Charred Heirloom Tomato & Basil Bruschetta. All pastas can also be prepared with our house marinara.";
+    return "For vegan dining, Chef Marco prepares our signature Wild Mushroom & Black Truffle Risotto (made with rich vegetable fumetto and Arborio rice), our Wood-Fired Margherita with dairy-free cashew mozzarella, and our Charred Heirloom Tomato Bruschetta.";
   }
   if (/vegetarian|veggie|meatless/i.test(lower)) {
-    return "We have wonderful vegetarian selections! In addition to our handcrafted Margherita con Bufala pizza and Wild Mushroom Risotto, we feature our famous Eggplant Parmigiana alla Napoletana, Handmade Ricotta & Spinach Ravioli with sage brown butter, and crisp Gnocchi Sorrentina.";
+    return "We have fantastic vegetarian dishes: Handcrafted Margherita con Bufala, Wild Mushroom Risotto, Eggplant Parmigiana alla Napoletana, and Handmade Ricotta & Spinach Ravioli with sage brown butter.";
   }
   if (/gluten[- ]free|celiac|gluten/i.test(lower)) {
-    return "We proudly accommodate gluten-free dining! We offer imported certified gluten-free Penne and Rigatoni for any of our pasta dishes. Our Pan-Seared Mediterranean Branzino with lemon herb salsa, our Grilled Prime Fiorentina Ribeye, and our Antipasto Misto are naturally 100% gluten-free.";
+    return "We proudly accommodate celiac and gluten-free dining! We offer certified gluten-free Penne and Rigatoni for any pasta dish, plus our naturally gluten-free Mediterranean Branzino with lemon herb salsa and Fiorentina Ribeye.";
   }
   if (/halal|kosher|pork|bacon|gelatin/i.test(lower)) {
-    return "Our chicken and beef steaks are sourced from certified Halal purveyors. We do serve traditional Italian prosciutto and pancetta on specific charcuterie boards, but our kitchen maintains dedicated separate prep surfaces and sauté pans upon request.";
+    if (isPakistaniMode) {
+      return "All our meats (chicken, beef, and veal) are 100% certified Halal from verified suppliers, with zero pork or alcohol used in our kitchen sauces.";
+    }
+    return "All chicken and beef cuts are sourced from certified Halal purveyors. Traditional Italian prosciutto is kept completely isolated on dedicated prep stations.";
   }
-  if (/nut|peanut|tree nut|allergy|allergies/i.test(lower)) {
-    return "Our kitchen is completely peanut-free! We do utilize pine nuts in our traditional Genovese pesto and walnuts in our Gorgonzola salad. Please alert our server, and our culinary team will prepare your dishes in an allergen-isolated cookware station.";
+  if (/nut|peanut|allergy|allergies/i.test(lower)) {
+    return "Our kitchen is 100% peanut-free! We do feature pine nuts in our traditional pesto and walnuts in our Gorgonzola salad. Please alert us and we prepare your order on an allergen-isolated cookware station.";
   }
-  if (/signature|special|specials|popular|bestseller|recommend|recommendation|chef/i.test(lower)) {
-    return "Chef Marco's top recommendations this evening are our Slow-Braised Veal Osso Buco served over saffron risotto ($42), our Handmade Pappardelle with Wild Boar ragù ($28), and our Wood-Fired Pizza Regina with San Marzano tomatoes, prosciutto di Parma, and fresh burrata ($24).";
+  if (/signature|special|specials|popular|bestseller|recommend/i.test(lower)) {
+    return "Chef Marco's highlights this evening are our Slow-Braised Veal Osso Buco over Saffron Risotto ($42), Handmade Wild Boar Pappardelle ($28), and Wood-Fired Pizza Regina with Fresh Burrata ($24).";
   }
-  if (/hours|time|open|close|closing|schedule|lunch|dinner/i.test(lower) && !/tonight|tomorrow|pm|am|\d/i.test(lower)) {
-    return "Bella Vista is open Tuesday through Sunday. We serve Lunch from 12:00 PM to 3:00 PM, and Dinner from 5:00 PM to 10:30 PM. We are closed on Mondays for kitchen prep.";
+  if (/hours|time|open|close|closing|schedule/i.test(lower) && !/tonight|tomorrow|pm|am|\d/i.test(lower)) {
+    return "Bella Vista is open Tuesday through Sunday. Lunch is served from 12:00 PM to 3:00 PM, and Dinner from 5:00 PM to 10:30 PM (Mondays Closed).";
   }
   if (/parking|valet|park|car/i.test(lower)) {
-    return "We offer complimentary valet parking directly at our front entrance every Friday and Saturday evening starting at 6:00 PM. For all other evenings, we have a private dedicated guest parking plaza right adjacent to the restaurant.";
+    return "We offer complimentary valet parking at our main entrance on Friday and Saturday evenings starting at 6:00 PM, with our private guest parking plaza open all week.";
   }
-  if (/dress code|wear|attire|formal|jacket/i.test(lower)) {
-    return "Our dress code is Smart Casual. Collared shirts, stylish denim, dresses, and blazers are welcome. We kindly ask guests to refrain from athletic gym wear or beach flip-flops.";
-  }
-  if (/corkage|bring wine|cake fee|birthday cake/i.test(lower)) {
-    return "Our wine corkage fee is $25 per 750ml bottle for bottles not present on our curated wine list (limit two bottles per party). There is no cake-cutting fee if you bring a celebratory dessert!";
-  }
-  if (/price|pricing|cost|how much|average check|expensive/i.test(lower)) {
-    return "Our appetizers range from $14 to $22, handcrafted pastas are $22 to $32, and prime seafood and meat entrées range from $34 to $48. An average dinner for two with wine is approximately $110 to $140.";
+  if (/cod|cash on delivery|payment/i.test(lower)) {
+    return "For pickup orders, we accept Cash on Delivery (COD) with automated phone confirmation, as well as Visa, Mastercard, and online card payments.";
   }
   return null;
 }
 
-// Find Next Available Table
+// Table Allocation
 function allocateTableAndSlot(existingBookings, partySize, seatingPref, targetDateTime) {
   const now = new Date();
   let bookingStart = targetDateTime || new Date(now.getTime() + 60 * 60000);
   bookingStart.setSeconds(0, 0);
 
-  if (bookingStart < now) {
-    bookingStart = new Date(now.getTime() + 60 * 60000);
-  }
-
+  if (bookingStart < now) bookingStart = new Date(now.getTime() + 60 * 60000);
   const bookingEnd = new Date(bookingStart.getTime() + 90 * 60000);
-  const suitableTables = TABLES.filter(t => t.capacity >= partySize);
 
+  const suitableTables = TABLES.filter(t => t.capacity >= partySize);
   const prefLower = (seatingPref || '').toLowerCase();
   let prioritized = [...suitableTables];
+
   if (/patio|outdoor|garden|terrace/i.test(prefLower)) {
     prioritized.sort((a, b) => (a.area.includes('Patio') ? -1 : 1));
   } else if (/window/i.test(prefLower)) {
@@ -312,204 +305,264 @@ function allocateTableAndSlot(existingBookings, partySize, seatingPref, targetDa
   };
 }
 
-// Conversational State Machine
-async function processChatMessage(sessionId, userMessage) {
-  const s = getOrCreateSession(sessionId);
-  const text = (userMessage || '').trim();
-  const lower = text.toLowerCase();
-
-  // Reset
-  if (/^(reset|restart|start\s*over|clear|new\s*call|new\s*reservation)$/i.test(lower)) {
-    sessions[sessionId] = null;
-    return {
-      reply: "Buonasera and welcome to Bella Vista Italian Ristorante! My name is Marco. Are you looking to reserve a table with us, or would you like to inquire about our menu and evening specials?",
+// Voice AI State Machine
+async function processVoiceChat(sessionId, userMessage, marketMode = 'WESTERN') {
+  if (!voiceSessions[sessionId]) {
+    voiceSessions[sessionId] = {
       step: 1,
-      isBooked: false
+      mode: null,
+      partySize: 2,
+      dateTimeText: 'Tonight at 7:30 PM',
+      seatingPreference: 'Garden Patio',
+      orderItems: [],
+      guestName: null,
+      phone: null
     };
   }
 
-  // Dietary & Menu Knowledge Q&A Check
-  const menuAnswer = queryMenuAndRestaurantKnowledge(lower);
-  if (menuAnswer) {
-    if (s.step === 1) {
-      return {
-        reply: `${menuAnswer}\n\nWould you like me to reserve a wonderful table for you this evening or another day?`,
-        step: 1
-      };
-    }
-    if (s.step === 2) {
-      return {
-        reply: `${menuAnswer}\n\nWhat day and time would you like to join us for dinner?`,
-        step: 2
-      };
-    }
-    if (s.step === 3) {
-      return {
-        reply: `${menuAnswer}\n\nWould you prefer our romantic garden patio or our main indoor dining room?`,
-        step: 3
-      };
-    }
-    if (s.step === 'COMPLETED') {
-      return {
-        reply: `${menuAnswer}\n\nIs there anything else I can assist you with regarding your reservation?`,
-        step: 'COMPLETED'
-      };
-    }
-  }
+  const s = voiceSessions[sessionId];
+  const text = (userMessage || '').trim();
+  const lower = text.toLowerCase();
+  const isPakistani = marketMode === 'PAKISTAN' || /bhai|janab|pack|urdu|shukriya|biryani|roti|karahi/i.test(lower);
+  const waitInfo = calculateDynamicWaitTime();
 
-  // STEP 1: Detect Party Size & Intent
-  if (s.step === 1) {
-    const isReserveIntent = /table|reserve|reservation|booking|book|dinner|lunch|eat|dine|party|tonight|tomorrow|friday|saturday|sunday/i.test(lower);
-    const sizeMatch = text.match(/\b([1-9]|1[0-4])\b|one|two|three|four|five|six|seven|eight|couple/i);
-
-    let parsedSize = 2;
-    if (sizeMatch) {
-      const w = sizeMatch[0].toLowerCase();
-      if (w === 'one') parsedSize = 1;
-      else if (w === 'two' || w === 'couple') parsedSize = 2;
-      else if (w === 'three') parsedSize = 3;
-      else if (w === 'four') parsedSize = 4;
-      else if (w === 'five') parsedSize = 5;
-      else if (w === 'six') parsedSize = 6;
-      else if (w === 'seven') parsedSize = 7;
-      else if (w === 'eight') parsedSize = 8;
-      else parsedSize = parseInt(sizeMatch[1] || '2', 10);
-    }
-
-    s.partySize = parsedSize;
-
-    if (isReserveIntent || sizeMatch) {
-      s.step = 2;
-      return {
-        reply: `Fantastico! I would be delighted to arrange a table for a party of ${s.partySize}. What date and time would you like to dine with us? For instance, tonight at 7:30 PM, or another evening?`,
-        step: 2
-      };
-    }
-
+  if (/^(reset|restart|start\s*over|clear|new\s*call)$/i.test(lower)) {
+    voiceSessions[sessionId] = null;
     return {
-      reply: "We would love to host you! Are you looking to reserve a table for dinner, or can I answer any questions about our chef specials, pasta selections, or wine pairings?",
+      reply: isPakistani 
+        ? "Assalam-o-alaikum and welcome to Bella Vista Bistro! My name is Marco. Table reservation karwani hai ya pickup order book karwana hai?"
+        : "Buonasera and welcome to Bella Vista Italian Bistro! My name is Marco. Would you like to reserve a table, place a pickup food order, or inquire about our menu?",
       step: 1
     };
   }
 
-  // STEP 2: Collect Date & Preferred Dining Time
-  if (s.step === 2) {
-    s.dateTimeText = text;
-    s.step = 3;
+  // Dietary Q&A
+  const faq = queryMenuAndRestaurantKnowledge(lower, isPakistani);
+  if (faq) {
     return {
-      reply: `Perfetto, I have noted ${s.dateTimeText} for your party of ${s.partySize}. Would you prefer our main indoor dining room, our romantic garden patio, or a quiet window table? Also, are you celebrating any special occasion?`,
-      step: 3
+      reply: `${faq}\n\nWould you like me to book a table for you or prepare a pickup order?`,
+      step: s.step
     };
   }
 
-  // STEP 3: Collect Seating Preference & Occasion Notes
-  if (s.step === 3) {
-    if (/patio|garden|outside|outdoor|terrace/i.test(lower)) {
-      s.seatingPreference = 'Garden Patio';
-    } else if (/window/i.test(lower)) {
-      s.seatingPreference = 'Indoor Window';
-    } else if (/private|cellar/i.test(lower)) {
-      s.seatingPreference = 'Private Wine Cellar Suite';
-    } else {
-      s.seatingPreference = 'Main Dining Room';
+  // STEP 1: Determine Intent
+  if (s.step === 1) {
+    const isPickupOrder = /order|pickup|takeaway|takeout|food to go|pack|pizza|pasta|risotto/i.test(lower);
+    const isReservation = /reserve|table|reservation|booking|dine in|dinner|lunch|party of/i.test(lower);
+
+    if (isPickupOrder && !isReservation) {
+      s.mode = 'ORDER';
+      s.step = 'ORDER_ITEMS';
+      return {
+        reply: isPakistani
+          ? `G bilkul! Hamara kitchen fresh orders ready kar raha hai. Kitchen wait time abhi ${waitInfo.label} hai. Aap ko kya order karwana hai? (e.g. Wood-Fired Margherita Pizza, Truffle Risotto)`
+          : `Excellent! Our kitchen is firing fresh orders. Our current dynamic pickup wait time is ${waitInfo.label}. What delicious dishes can Chef Marco prepare for you?`,
+        step: 'ORDER_ITEMS'
+      };
     }
 
-    s.occasionNotes = text;
-    s.step = 4;
+    s.mode = 'RESERVATION';
+    s.step = 'RES_PARTY';
+    const sizeMatch = text.match(/\b([1-9]|1[0-4])\b|one|two|three|four|five|six|eight|couple/i);
+    let size = 2;
+    if (sizeMatch) {
+      const w = sizeMatch[0].toLowerCase();
+      if (w === 'one') size = 1;
+      else if (w === 'two' || w === 'couple') size = 2;
+      else if (w === 'three') size = 3;
+      else if (w === 'four') size = 4;
+      else if (w === 'five') size = 5;
+      else if (w === 'six') size = 6;
+      else if (w === 'eight') size = 8;
+      else size = parseInt(sizeMatch[1] || '2', 10);
+    }
+    s.partySize = size;
+
     return {
-      reply: `Understood, ${s.seatingPreference} will be wonderful. May I please have your full name for the reservation?`,
-      step: 4
+      reply: `Fantastico! I would be honored to arrange a table for a party of ${s.partySize}. What date and preferred time would you like to dine with us? For instance, tonight at 7:30 PM?`,
+      step: 'RES_TIME'
     };
   }
 
-  // STEP 4: Collect Guest Name
-  if (s.step === 4) {
-    let cleanName = text.replace(/^(my name is|i am|this is|it's|name is)\s+/i, '').replace(/[!?,;]+$/, '').trim();
-    if (!cleanName || cleanName.length < 2) {
-      return { reply: "Could you please tell me your first and last name for the table holding card?", step: 4 };
-    }
-    s.guestName = cleanName;
-    s.step = 5;
+  // --- BRANCH A: FOOD ORDER INTAKE ---
+  if (s.step === 'ORDER_ITEMS') {
+    s.orderItems.push(text);
+    s.step = 'ORDER_UPSELL';
     return {
-      reply: `Grazie, ${s.guestName}! And what is the best direct mobile number to send your instant confirmation SMS and table details?`,
-      step: 5
+      reply: `Delicious choice! I have noted ${text}. Chef Marco highly recommends adding our signature Truffle Parmesan Herb Fries (+$6) or our freshly baked Garlic Focaccia (+$5). Would you like to add either of those to complete your order?`,
+      step: 'ORDER_UPSELL'
     };
   }
 
-  // STEP 5: Collect Phone & Finalize Instant Table Reservation
-  if (s.step === 5) {
-    const rawDigits = text.replace(/[^0-9]/g, '');
-    if (!rawDigits || rawDigits.length < 7) {
-      return { reply: "Please provide a valid callback number so we can text you your reservation confirmation code.", step: 5 };
+  if (s.step === 'ORDER_UPSELL') {
+    if (!/no|none|skip|that's all|thats all|bass/i.test(lower)) {
+      s.orderItems.push(text);
     }
+    s.step = 'ORDER_NAME';
+    return {
+      reply: "Perfetto! May I please have your full name for the kitchen ticket?",
+      step: 'ORDER_NAME'
+    };
+  }
 
-    s.phone = text.trim().startsWith('+') ? `+${rawDigits}` : (rawDigits.startsWith('0') ? rawDigits : `0${rawDigits}`);
-    s.reservationId = `BV-RES-${reservationCounter++}`;
+  if (s.step === 'ORDER_NAME') {
+    s.guestName = text.replace(/^(my name is|i am|this is)\s+/i, '').trim();
+    s.step = 'ORDER_PHONE';
+    return {
+      reply: `Grazie, ${s.guestName}! And what direct mobile number should we text your live order status and pickup notification to?`,
+      step: 'ORDER_PHONE'
+    };
+  }
+
+  if (s.step === 'ORDER_PHONE') {
+    const raw = text.replace(/[^0-9]/g, '');
+    s.phone = raw || '03471098310';
     s.step = 'COMPLETED';
 
+    const orderId = `BV-ORD-${orderCounter++}`;
+    const totalAmount = `$${(s.orderItems.length * 18 + 12).toFixed(2)}`;
+    const newOrder = {
+      id: orderId,
+      channel: 'VOICE_AI',
+      customerName: s.guestName,
+      phone: s.phone,
+      items: s.orderItems,
+      totalAmount,
+      paymentMethod: isPakistani ? 'Cash on Delivery (COD Verified)' : 'Credit Card (Pre-Authorized)',
+      status: 'PREPARING',
+      elapsedMinutes: 1,
+      createdAt: new Date().toISOString()
+    };
+
+    activeOrders.unshift(newOrder);
+
+    // 1. Log to Google Sheets
+    await appendToSheet('Restaurant_Orders_Day5', [
+      new Date().toLocaleString('en-US', { timeZone: 'Asia/Karachi' }),
+      orderId,
+      'VOICE_AI',
+      s.guestName,
+      s.phone,
+      s.orderItems.join(' + '),
+      totalAmount,
+      newOrder.paymentMethod,
+      'PREPARING',
+      waitInfo.label
+    ]);
+
+    // 2. Decrement Inventory
+    if (liveInventory[0].stock > 1) liveInventory[0].stock -= 1;
+    if (liveInventory[3].stock > 1) liveInventory[3].stock -= 1;
+
+    forwardToN8n({ event: 'restaurant_order_received', order: newOrder });
+
+    const summary = [
+      `🎉 ORDER INJECTED TO KITCHEN DISPLAY [${orderId}]`,
+      `• Guest: ${s.guestName}`,
+      `• Items: ${s.orderItems.join(' + ')}`,
+      `• Total Amount: ${totalAmount}`,
+      `• Estimated Pickup Window: ~${waitInfo.label}`,
+      `• Payment: ${newOrder.paymentMethod}`,
+      "",
+      `Our kitchen staff has received your ticket and is preparing your meal right now. You will receive an SMS when it's hot and boxed for pickup!`
+    ].join('\n');
+
+    return {
+      reply: summary,
+      step: 'COMPLETED',
+      isBooked: true,
+      order: newOrder,
+      endCall: false
+    };
+  }
+
+  // --- BRANCH B: TABLE RESERVATION ---
+  if (s.step === 'RES_TIME') {
+    s.dateTimeText = text;
+    s.step = 'RES_SEATING';
+    return {
+      reply: `Perfetto, I have noted ${s.dateTimeText} for your party of ${s.partySize}. Would you prefer our romantic heated garden patio, our main indoor dining room, or a private window table? Also, are you celebrating any special occasion?`,
+      step: 'RES_SEATING'
+    };
+  }
+
+  if (s.step === 'RES_SEATING') {
+    s.seatingPreference = /patio|garden|terrace/i.test(lower) ? 'Garden Patio' : (/window/i.test(lower) ? 'Indoor Window' : 'Main Dining Room');
+    s.step = 'RES_NAME';
+    return {
+      reply: `Understood, ${s.seatingPreference} will be wonderful! May I please have your full name for the table holding card?`,
+      step: 'RES_NAME'
+    };
+  }
+
+  if (s.step === 'RES_NAME') {
+    s.guestName = text.replace(/^(my name is|i am|this is)\s+/i, '').trim();
+    s.step = 'RES_PHONE';
+    return {
+      reply: `Grazie, ${s.guestName}! And what is the best mobile phone number to send your instant confirmation voucher to?`,
+      step: 'RES_PHONE'
+    };
+  }
+
+  if (s.step === 'RES_PHONE') {
+    const raw = text.replace(/[^0-9]/g, '');
+    s.phone = raw || '03471098310';
+    s.step = 'COMPLETED';
+
+    const resId = `BV-RES-${reservationCounter++}`;
     const targetDate = new Date();
     targetDate.setHours(19, 30, 0, 0);
-    if (/tomorrow/i.test(s.dateTimeText)) {
-      targetDate.setDate(targetDate.getDate() + 1);
-    }
-    const timeMatch = s.dateTimeText.match(/(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/i);
-    if (timeMatch) {
-      let h = parseInt(timeMatch[1], 10);
-      const m = parseInt(timeMatch[2] || '0', 10);
-      const ampm = (timeMatch[3] || '').toLowerCase();
-      if (ampm === 'pm' && h < 12) h += 12;
-      if (ampm === 'am' && h === 12) h = 0;
-      targetDate.setHours(h, m, 0, 0);
-    }
-
     const allocation = allocateTableAndSlot(activeReservations, s.partySize, s.seatingPreference, targetDate);
-    s.tableAssigned = `${allocation.table.name} (${allocation.table.area})`;
-    s.scheduledStart = allocation.start.toISOString();
-    s.scheduledEnd = allocation.end.toISOString();
 
     const reservationObj = {
-      id: s.reservationId,
+      id: resId,
       timestamp: new Date().toISOString(),
-      scheduledStart: s.scheduledStart,
-      scheduledEnd: s.scheduledEnd,
+      scheduledStart: allocation.start.toISOString(),
+      scheduledEnd: allocation.end.toISOString(),
       slotLabel: allocation.slotLabel,
       guestName: s.guestName,
       phone: s.phone,
       partySize: s.partySize,
       seatingPreference: s.seatingPreference,
-      occasionNotes: s.occasionNotes,
-      tableId: allocation.table.id,
-      tableAssigned: s.tableAssigned,
+      tableAssigned: `${allocation.table.name} (${allocation.table.area})`,
       status: 'CONFIRMED'
     };
 
     activeReservations.unshift(reservationObj);
 
-    // 1. Sync to Google Sheets CRM (Tab: Restaurant_Reservations_Day5)
-    await appendReservationToGoogleSheet(reservationObj);
+    // 1. Log to Google Sheets
+    await appendToSheet('Restaurant_Reservations_Day5', [
+      new Date().toLocaleString('en-US', { timeZone: 'Asia/Karachi' }),
+      resId,
+      s.guestName,
+      s.phone,
+      allocation.slotLabel,
+      `${s.partySize} Guests`,
+      s.seatingPreference,
+      'Voice AI Booking',
+      reservationObj.tableAssigned,
+      'CONFIRMED'
+    ]);
 
-    // 2. Schedule in Google Calendar
+    // 2. Google Calendar Event
     await createCalendarReservationEvent(reservationObj);
-
-    // 3. Forward to n8n webhook
     forwardToN8n({ event: 'restaurant_reservation_booked', reservation: reservationObj });
 
-    const summaryText = [
-      `🎉 TABLE RESERVATION CONFIRMED [${s.reservationId}]`,
+    const summary = [
+      `🎉 TABLE RESERVATION CONFIRMED [${resId}]`,
       `• Guest: ${s.guestName}`,
       `• Party Size: ${s.partySize} Guests`,
-      `• Arrival Time: ${allocation.slotLabel}`,
-      `• Seating Area: ${s.seatingPreference}`,
-      `• Table Assigned: ${s.tableAssigned}`,
+      `• Dining Time: ${allocation.slotLabel}`,
+      `• Seating: ${reservationObj.tableAssigned}`,
       `• Confirmation Sent to: ${s.phone}`,
       "",
-      `Your table has been prepared and reserved. We look forward to giving you an unforgettable culinary experience at Bella Vista!`,
+      `Your table has been prepared with zero scheduling conflict. We look forward to hosting you at Bella Vista!`,
       "",
-      "Can I answer any questions about our wine menu or valet parking?"
+      "Can I answer any questions about valet parking or our wine pairings?"
     ].join('\n');
 
     return {
-      reply: summaryText,
+      reply: summary,
       step: 'COMPLETED',
       isBooked: true,
       reservation: reservationObj,
@@ -517,30 +570,111 @@ async function processChatMessage(sessionId, userMessage) {
     };
   }
 
-  // POST-COMPLETION
   if (s.step === 'COMPLETED') {
-    if (/thank|thanks|grazie|bye|goodbye|all good|no that's all|see you/i.test(lower)) {
-      return {
-        reply: `Prego, ${s.guestName || 'valued guest'}! Chef Marco and our entire team look forward to welcoming you. Have a wonderful rest of your day!`,
-        step: 'COMPLETED',
-        endCall: true
-      };
+    if (/thank|thanks|grazie|bye|goodbye/i.test(lower)) {
+      return { reply: "Prego! Chef Marco and our team look forward to welcoming you. Have a wonderful day!", step: 'COMPLETED', endCall: true };
     }
-    return {
-      reply: `Your reservation ${s.reservationId} is confirmed for ${s.partySize} guests at ${s.tableAssigned}. If you need to make any changes or add notes for the chef, just let me know!`,
-      step: 'COMPLETED'
-    };
+    return { reply: "Your ticket is confirmed in our system. If you need any special dietary accommodations or directions, just let me know!", step: 'COMPLETED' };
   }
 }
 
-// Netlify Serverless Handler
-exports.handler = async (event) => {
+// WhatsApp Digital Waiter Engine
+async function processWhatsAppChat(sessionId, userMessage, isPakistani = false) {
+  if (!whatsappSessions[sessionId]) {
+    whatsappSessions[sessionId] = {
+      step: 'MENU',
+      cart: [],
+      name: 'Guest',
+      tableNo: 'Table 4'
+    };
+  }
+
+  const s = whatsappSessions[sessionId];
+  const text = (userMessage || '').trim();
+  const lower = text.toLowerCase();
+  const waitInfo = calculateDynamicWaitTime();
+
+  if (/hi|hello|salam|menu|start|qr/i.test(lower)) {
+    return {
+      reply: isPakistani
+        ? `🍕 *Bella Vista WhatsApp Digital Waiter*\nAssalam-o-alaikum! Welcome to Table 4.\n\n*Quick Menu:*\n1️⃣ Wood-Fired Margherita ($22)\n2️⃣ Wild Mushroom Truffle Risotto ($26)\n3️⃣ Veal Osso Buco ($42)\n4️⃣ Handmade Beef Lasagna ($24)\n\nReply with the item number or name to order! Current Kitchen Wait Time: *${waitInfo.label}*`
+        : `🍕 *Welcome to Bella Vista Italian Bistro!*\nI am your Digital Waiter for Table 4.\n\n*Chef's Recommendations:*\n1️⃣ Wood-Fired Margherita Pizza ($22)\n2️⃣ Wild Mushroom & Truffle Risotto ($26)\n3️⃣ Slow-Braised Veal Osso Buco ($42)\n4️⃣ Handmade Truffle Lasagna ($24)\n\nType the item name or number to add to your order! Live Kitchen Wait: *${waitInfo.label}*`,
+      step: 'ORDERING'
+    };
+  }
+
+  if (s.step === 'MENU' || s.step === 'ORDERING') {
+    let item = 'Wood-Fired Margherita ($22)';
+    if (/risotto|2/i.test(lower)) item = 'Wild Mushroom & Truffle Risotto ($26)';
+    else if (/osso|buco|3/i.test(lower)) item = 'Slow-Braised Veal Osso Buco ($42)';
+    else if (/lasagna|4/i.test(lower)) item = 'Handmade Truffle Lasagna ($24)';
+
+    s.cart.push(item);
+    s.step = 'UPSELL';
+
+    return {
+      reply: `✅ Added *${item}* to your table order!\n\n✨ *Chef's Upsell Recommendation:*\nWould you like to add our *Crispy Truffle Parmesan Fries (+$6)* or a refreshing *Italian Limoncello Spritz (+$10)*?\n\nReply *YES* to add, or *CHECKOUT* to send order to the kitchen!`,
+      step: 'UPSELL'
+    };
+  }
+
+  if (s.step === 'UPSELL') {
+    if (/yes|fries|limoncello|add/i.test(lower)) {
+      s.cart.push('Truffle Parmesan Fries ($6.00)');
+    }
+
+    const orderId = `BV-ORD-${orderCounter++}`;
+    const newOrder = {
+      id: orderId,
+      channel: 'WHATSAPP',
+      customerName: 'WhatsApp Table 4 Guest',
+      phone: '03008765432',
+      items: s.cart,
+      totalAmount: '$32.00',
+      paymentMethod: isPakistani ? 'Cash on Table / COD Verified' : 'Card at Table (POS Toast)',
+      status: 'PREPARING',
+      elapsedMinutes: 1,
+      createdAt: new Date().toISOString()
+    };
+
+    activeOrders.unshift(newOrder);
+
+    // Google Sheets Sync
+    await appendToSheet('Restaurant_Orders_Day5', [
+      new Date().toLocaleString('en-US', { timeZone: 'Asia/Karachi' }),
+      orderId,
+      'WHATSAPP',
+      'Table 4 Guest',
+      '03008765432',
+      s.cart.join(' + '),
+      '$32.00',
+      newOrder.paymentMethod,
+      'PREPARING',
+      waitInfo.label
+    ]);
+
+    s.step = 'CONFIRMED';
+    forwardToN8n({ event: 'whatsapp_table_order_dispatched', order: newOrder });
+
+    return {
+      reply: `🚀 *Order #${orderId} Dispatched to Kitchen!*\n\n• Items: ${s.cart.join(', ')}\n• Estimated Cooking Time: *${waitInfo.label}*\n• Status: 🍳 *PREPARING (KDS Live)*\n\nYour digital waiter will alert you here as soon as the kitchen plates your meal. Buon Appetito!`,
+      order: newOrder
+    };
+  }
+
+  return {
+    reply: `Your order is currently with Chef Marco in the kitchen. Expected arrival at your table in approximately ${waitInfo.label}! Let me know if you need any water or condiments.`,
+    step: 'CONFIRMED'
+  };
+}
+
+// Netlify Handler
+exports.handler = async (event, context) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-    'Content-Type': 'application/json',
-    'Cache-Control': 'no-cache, no-store, must-revalidate'
+    'Content-Type': 'application/json'
   };
 
   if (event.httpMethod === 'OPTIONS') {
@@ -549,6 +683,142 @@ exports.handler = async (event) => {
 
   const path = event.path.replace(/\/\.netlify\/functions\/api/, '').replace(/^\/api/, '');
 
+  // 1. Voice AI Chat Endpoint
+  if (path === '/chat' && event.httpMethod === 'POST') {
+    try {
+      const { sessionId, messageText, marketMode } = JSON.parse(event.body || '{}');
+      const result = await processVoiceChat(sessionId || 'voice_default', messageText, marketMode);
+      return { statusCode: 200, headers, body: JSON.stringify(result) };
+    } catch (err) {
+      return { statusCode: 500, headers, body: JSON.stringify({ error: err.message }) };
+    }
+  }
+
+  // 2. WhatsApp Digital Waiter Endpoint
+  if (path === '/whatsapp/chat' && event.httpMethod === 'POST') {
+    try {
+      const { sessionId, messageText, isPakistani } = JSON.parse(event.body || '{}');
+      const result = await processWhatsAppChat(sessionId || 'wa_default', messageText, isPakistani);
+      return { statusCode: 200, headers, body: JSON.stringify(result) };
+    } catch (err) {
+      return { statusCode: 500, headers, body: JSON.stringify({ error: err.message }) };
+    }
+  }
+
+  // 3. Kitchen Display System (KDS) Omnichannel Orders
+  if (path === '/orders' && event.httpMethod === 'GET') {
+    const waitInfo = calculateDynamicWaitTime();
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({ success: true, waitInfo, orders: activeOrders })
+    };
+  }
+
+  if (path.startsWith('/orders/status') && event.httpMethod === 'POST') {
+    try {
+      const { orderId, newStatus } = JSON.parse(event.body || '{}');
+      const ord = activeOrders.find(o => o.id === orderId);
+      if (ord) {
+        ord.status = newStatus;
+        return { statusCode: 200, headers, body: JSON.stringify({ success: true, order: ord }) };
+      }
+      return { statusCode: 404, headers, body: JSON.stringify({ error: 'Order not found' }) };
+    } catch (e) {
+      return { statusCode: 500, headers, body: JSON.stringify({ error: e.message }) };
+    }
+  }
+
+  // 4. Inventory & Predictive PO
+  if (path === '/inventory' && event.httpMethod === 'GET') {
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({
+        success: true,
+        inventory: liveInventory,
+        lowStockItems: liveInventory.filter(i => i.stock <= i.threshold)
+      })
+    };
+  }
+
+  // 5. CRM & Win-Back Remarketing
+  if (path === '/crm' && event.httpMethod === 'GET') {
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({ success: true, customers: crmCustomers })
+    };
+  }
+
+  if (path === '/crm/winback' && event.httpMethod === 'POST') {
+    const dormant = crmCustomers.filter(c => c.remarketingStatus === 'READY_FOR_WINBACK');
+    dormant.forEach(c => c.remarketingStatus = 'DISCOUNT_VOUCHER_SENT');
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({
+        success: true,
+        recipients: dormant.length,
+        promoCode: 'WELCOMEBACK20',
+        message: 'Automated 20% discount WhatsApp broadcast sent to dormant customers!'
+      })
+    };
+  }
+
+  // 6. Review & Sentiment Interception
+  if (path === '/reviews' && event.httpMethod === 'GET') {
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({ success: true, reviews: customerReviews })
+    };
+  }
+
+  if (path === '/reviews' && event.httpMethod === 'POST') {
+    try {
+      const { customerName, rating, text } = JSON.parse(event.body || '{}');
+      const numRating = parseInt(rating, 10);
+      const isNegative = numRating <= 3;
+      const sentiment = isNegative ? 'NEGATIVE' : 'POSITIVE';
+
+      const action = isNegative
+        ? '⚠️ Intercepted: Escalate to General Manager + 25% VIP Voucher Issued'
+        : '🟢 Promoter: Directed to Google Maps + Personalized AI Gratitude';
+
+      const aiResponse = isNegative
+        ? `Dear ${customerName}, we are deeply sorry your dining experience fell short. Our General Manager has been notified directly, and we have sent a 25% VIP apology voucher to your WhatsApp.`
+        : `Grazie mille, ${customerName}! Chef Marco and the team are thrilled you enjoyed your visit. We would be honored if you could leave us a quick review on Google!`;
+
+      const revObj = {
+        id: `REV-${Date.now().toString().slice(-4)}`,
+        customerName: customerName || 'Valued Guest',
+        rating: numRating,
+        text: text || 'Dining feedback',
+        sentiment,
+        action,
+        aiResponse
+      };
+
+      customerReviews.unshift(revObj);
+
+      await appendToSheet('Restaurant_Reviews_Day5', [
+        new Date().toLocaleString('en-US', { timeZone: 'Asia/Karachi' }),
+        revObj.customerName,
+        numRating,
+        revObj.text,
+        sentiment,
+        action,
+        aiResponse
+      ]);
+
+      return { statusCode: 200, headers, body: JSON.stringify({ success: true, review: revObj }) };
+    } catch (err) {
+      return { statusCode: 500, headers, body: JSON.stringify({ error: err.message }) };
+    }
+  }
+
+  // 7. Reservations & Tables
   if (path === '/reservations' && event.httpMethod === 'GET') {
     return {
       statusCode: 200,
@@ -562,62 +832,23 @@ exports.handler = async (event) => {
     };
   }
 
-  if (path === '/calendar-events' && event.httpMethod === 'GET') {
-    try {
-      const calEvents = await listUpcomingReservations();
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({
-          success: true,
-          count: calEvents.length,
-          events: calEvents
-        })
-      };
-    } catch (e) {
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({
-          success: true,
-          count: activeReservations.length,
-          events: activeReservations.map(r => ({
-            id: r.id,
-            summary: `🍝 Bella Vista Reservation: ${r.guestName} (${r.tableAssigned})`,
-            location: 'Bella Vista Bistro',
-            start: r.scheduledStart,
-            end: r.scheduledEnd,
-            description: `Party of ${r.partySize}\nTable: ${r.tableAssigned}\nPhone: ${r.phone}`
-          }))
-        })
-      };
-    }
-  }
-
-  if (path === '/chat' && event.httpMethod === 'POST') {
-    try {
-      const { sessionId, messageText } = JSON.parse(event.body || '{}');
-      const result = await processChatMessage(sessionId || 'default_bistro_session', messageText);
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify(result)
-      };
-    } catch (err) {
-      return {
-        statusCode: 500,
-        headers,
-        body: JSON.stringify({ error: err.message })
-      };
-    }
-  }
-
   if (path === '/record-reservation' && event.httpMethod === 'POST') {
     try {
       const reservation = JSON.parse(event.body || '{}');
       if (reservation && reservation.id) {
         activeReservations.unshift(reservation);
-        await appendReservationToGoogleSheet(reservation);
+        await appendToSheet('Restaurant_Reservations_Day5', [
+          new Date().toLocaleString('en-US', { timeZone: 'Asia/Karachi' }),
+          reservation.id,
+          reservation.guestName,
+          reservation.phone,
+          reservation.slotLabel,
+          `${reservation.partySize} Guests`,
+          reservation.seatingPreference,
+          reservation.occasionNotes || 'Direct Client Sync',
+          reservation.tableAssigned,
+          'CONFIRMED'
+        ]);
         await createCalendarReservationEvent(reservation);
         forwardToN8n({ event: 'restaurant_reservation_booked', reservation });
         return {

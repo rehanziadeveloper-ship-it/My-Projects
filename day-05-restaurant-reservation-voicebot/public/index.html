@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Bella Vista Italian Ristorante — Autonomous Voice AI Host & Reservations</title>
+  <title>Bella Vista Italian Bistro — Autonomous AI Restaurant Ecosystem</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Playfair+Display:ital,wght@0,600;0,700;1,600&display=swap" rel="stylesheet">
@@ -17,6 +17,7 @@
       --primary: #c2410c; /* Tuscan Terracotta */
       --primary-hover: #9a3412;
       --secondary: #15803d; /* Olive Green */
+      --secondary-hover: #166534;
       --accent: #b45309; /* Warm Gold */
       --badge-bg: #fef3c7;
       --badge-text: #92400e;
@@ -40,7 +41,7 @@
       background-color: var(--bg);
       color: var(--text-main);
       font-family: var(--font-body);
-      font-size: 15px;
+      font-size: 14.5px;
       line-height: 1.5;
       overflow-x: hidden !important;
       -webkit-font-smoothing: antialiased;
@@ -48,21 +49,21 @@
 
     .container {
       width: 100%;
-      max-width: 1360px;
+      max-width: 1400px;
       margin: 0 auto;
-      padding: 1.25rem 1rem 3rem 1rem;
+      padding: 1rem 0.85rem 3rem 0.85rem;
     }
 
-    /* Header Bar */
+    /* Top Navigation Header */
     header {
       display: flex;
       justify-content: space-between;
       align-items: center;
       flex-wrap: wrap;
       gap: 1rem;
-      padding-bottom: 1.25rem;
+      padding-bottom: 1.15rem;
       border-bottom: 1px solid var(--card-border);
-      margin-bottom: 1.5rem;
+      margin-bottom: 1.25rem;
     }
 
     .brand-block {
@@ -86,18 +87,18 @@
 
     .brand-titles h1 {
       font-family: var(--font-heading);
-      font-size: 1.45rem;
+      font-size: 1.4rem;
       font-weight: 700;
       color: var(--text-main);
       letter-spacing: -0.01em;
     }
 
     .brand-titles p {
-      font-size: 0.85rem;
+      font-size: 0.82rem;
       color: var(--text-muted);
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      gap: 0.45rem;
       flex-wrap: wrap;
     }
 
@@ -124,15 +125,46 @@
       flex-wrap: wrap;
     }
 
+    /* Market Mode Switcher */
+    .market-mode-switcher {
+      display: inline-flex;
+      background: #f1ede5;
+      border: 1px solid #dfd8cb;
+      padding: 0.25rem;
+      border-radius: 10px;
+      gap: 0.25rem;
+    }
+
+    .market-btn {
+      padding: 0.35rem 0.75rem;
+      font-size: 0.8rem;
+      font-weight: 700;
+      border-radius: 7px;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      color: var(--text-muted);
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .market-btn.active {
+      background: #ffffff;
+      color: var(--primary);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+    }
+
     .btn {
       display: inline-flex;
       align-items: center;
       justify-content: center;
       gap: 0.45rem;
       font-family: var(--font-body);
-      font-size: 0.88rem;
+      font-size: 0.85rem;
       font-weight: 600;
-      padding: 0.55rem 1rem;
+      padding: 0.5rem 0.9rem;
       border-radius: 8px;
       border: 1px solid var(--card-border);
       background: var(--card-bg);
@@ -140,6 +172,7 @@
       cursor: pointer;
       transition: all 0.2s ease;
       text-decoration: none;
+      white-space: nowrap;
     }
 
     .btn:hover {
@@ -168,20 +201,85 @@
     }
 
     .btn-olive:hover {
-      background: #166534;
+      background: var(--secondary-hover);
       color: #fff;
     }
 
-    /* Grid Layout */
-    .dashboard-grid {
+    .btn-sm {
+      padding: 0.3rem 0.6rem;
+      font-size: 0.76rem;
+      border-radius: 6px;
+    }
+
+    /* Main Pillar Tabs */
+    .pillar-nav {
+      display: flex;
+      gap: 0.5rem;
+      background: #f5f1e8;
+      padding: 0.35rem;
+      border-radius: 12px;
+      margin-bottom: 1.25rem;
+      overflow-x: auto;
+      border: 1px solid #e5dfd4;
+    }
+
+    .pillar-tab {
+      flex: 1;
+      min-width: 180px;
+      padding: 0.65rem 1rem;
+      font-size: 0.9rem;
+      font-weight: 700;
+      border-radius: 9px;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+
+    .pillar-tab.active {
+      background: #ffffff;
+      color: var(--primary);
+      box-shadow: 0 3px 10px rgba(0,0,0,0.06);
+    }
+
+    .tab-badge {
+      font-size: 0.7rem;
+      padding: 0.15rem 0.45rem;
+      border-radius: 999px;
+      background: #f1ede5;
+      color: var(--text-muted);
+    }
+
+    .pillar-tab.active .tab-badge {
+      background: #ffedd5;
+      color: var(--primary);
+    }
+
+    /* Tab Sections */
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* Cards & Layouts */
+    .grid-2 {
       display: grid;
-      grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.35fr);
-      gap: 1.5rem;
+      grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.15fr);
+      gap: 1.25rem;
       width: 100%;
     }
 
     @media (max-width: 992px) {
-      .dashboard-grid {
+      .grid-2 {
         grid-template-columns: minmax(0, 1fr);
       }
     }
@@ -190,8 +288,8 @@
       background: var(--card-bg);
       border: 1px solid var(--card-border);
       border-radius: 14px;
-      padding: 1.25rem;
-      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.03);
+      padding: 1.15rem;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.02);
       display: flex;
       flex-direction: column;
       gap: 1rem;
@@ -207,8 +305,10 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding-bottom: 0.75rem;
+      padding-bottom: 0.65rem;
       border-bottom: 1px solid #f2ede4;
+      flex-wrap: wrap;
+      gap: 0.5rem;
     }
 
     /* Left Column: Voice Call Console */
@@ -216,22 +316,22 @@
       background: linear-gradient(180deg, #fefdfa 0%, #f9f6ef 100%);
       border: 1px solid var(--card-border);
       border-radius: 12px;
-      padding: 1.25rem;
+      padding: 1.15rem;
       display: flex;
       flex-direction: column;
       align-items: center;
       text-align: center;
-      gap: 0.85rem;
+      gap: 0.75rem;
     }
 
     .mic-button {
-      width: 76px;
-      height: 76px;
+      width: 72px;
+      height: 72px;
       border-radius: 50%;
       background: linear-gradient(135deg, #15803d, #16a34a);
       border: 4px solid #dcfce7;
       color: #fff;
-      font-size: 2rem;
+      font-size: 1.85rem;
       cursor: pointer;
       display: flex;
       align-items: center;
@@ -241,7 +341,7 @@
     }
 
     .mic-button:hover {
-      transform: scale(1.05);
+      transform: scale(1.04);
     }
 
     .mic-button.active {
@@ -260,10 +360,10 @@
     .status-pill {
       display: inline-flex;
       align-items: center;
-      gap: 0.5rem;
-      padding: 0.4rem 0.9rem;
+      gap: 0.45rem;
+      padding: 0.35rem 0.85rem;
       border-radius: 9999px;
-      font-size: 0.85rem;
+      font-size: 0.82rem;
       font-weight: 600;
       background: #f3f0e8;
       color: var(--text-main);
@@ -290,14 +390,13 @@
     }
 
     .status-sub {
-      font-size: 0.8rem;
+      font-size: 0.78rem;
       color: var(--text-muted);
     }
 
-    /* Audio Equalizer Visualizer */
     .visualizer-box {
       width: 100%;
-      height: 36px;
+      height: 32px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -305,22 +404,22 @@
 
     canvas#audioVisualizer {
       width: 100%;
-      max-width: 280px;
-      height: 32px;
+      max-width: 260px;
+      height: 28px;
       border-radius: 6px;
     }
 
     .interim-preview {
-      font-size: 0.82rem;
+      font-size: 0.8rem;
       font-style: italic;
       color: #c2410c;
-      min-height: 1.2rem;
+      min-height: 1.1rem;
     }
 
     /* Live Transcript */
     .transcript-box {
       width: 100%;
-      height: 250px;
+      height: 240px;
       overflow-y: auto;
       border: 1px solid #eee9e0;
       border-radius: 10px;
@@ -329,13 +428,13 @@
       display: flex;
       flex-direction: column;
       gap: 0.65rem;
-      font-size: 0.88rem;
+      font-size: 0.85rem;
     }
 
     .msg {
-      padding: 0.65rem 0.9rem;
+      padding: 0.6rem 0.85rem;
       border-radius: 10px;
-      max-width: 86%;
+      max-width: 88%;
       word-wrap: break-word;
       line-height: 1.45;
     }
@@ -354,7 +453,7 @@
     }
 
     .msg-sender {
-      font-size: 0.72rem;
+      font-size: 0.7rem;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.04em;
@@ -362,16 +461,15 @@
       opacity: 0.85;
     }
 
-    /* 1-Click Demo Scenarios */
     .demo-scenarios-container {
       display: flex;
       flex-direction: column;
-      gap: 0.4rem;
+      gap: 0.35rem;
       width: 100%;
     }
 
     .scenarios-title {
-      font-size: 0.78rem;
+      font-size: 0.76rem;
       font-weight: 700;
       text-transform: uppercase;
       color: var(--text-muted);
@@ -380,7 +478,7 @@
 
     .scenarios-scroll {
       display: flex;
-      gap: 0.4rem;
+      gap: 0.35rem;
       overflow-x: auto;
       padding-bottom: 0.2rem;
       width: 100%;
@@ -388,8 +486,8 @@
 
     .scenario-btn {
       flex: 0 0 auto;
-      font-size: 0.78rem;
-      padding: 0.4rem 0.75rem;
+      font-size: 0.76rem;
+      padding: 0.35rem 0.65rem;
       border-radius: 6px;
       border: 1px solid #dcd6ca;
       background: #fff;
@@ -406,7 +504,6 @@
       color: #c2410c;
     }
 
-    /* Chat Input Form */
     .chat-input-bar {
       display: flex;
       gap: 0.5rem;
@@ -415,11 +512,11 @@
 
     .chat-input {
       flex: 1;
-      padding: 0.65rem 0.9rem;
+      padding: 0.6rem 0.85rem;
       border: 1px solid var(--card-border);
       border-radius: 8px;
       font-family: var(--font-body);
-      font-size: 0.88rem;
+      font-size: 0.85rem;
       background: #fff;
       color: var(--text-main);
       outline: none;
@@ -430,7 +527,333 @@
       box-shadow: 0 0 0 2px rgba(194, 65, 12, 0.15);
     }
 
-    /* Floor Plan & Seating Matrix */
+    /* WhatsApp Simulator Phone Frame */
+    .wa-mockup {
+      background: #ece5dd;
+      border: 1px solid #d4cdc5;
+      border-radius: 16px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      height: 520px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+    }
+
+    .wa-header {
+      background: #075e54;
+      color: #ffffff;
+      padding: 0.75rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+    }
+
+    .wa-avatar {
+      width: 38px;
+      height: 38px;
+      background: #128c7e;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+    }
+
+    .wa-meta h4 {
+      font-size: 0.92rem;
+      font-weight: 700;
+      line-height: 1.2;
+    }
+
+    .wa-meta p {
+      font-size: 0.72rem;
+      color: #cbfbe2;
+    }
+
+    .wa-messages-area {
+      flex: 1;
+      padding: 0.85rem;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+      background-image: radial-gradient(#d3cbbf 1px, transparent 1px);
+      background-size: 16px 16px;
+    }
+
+    .wa-bubble {
+      max-width: 85%;
+      padding: 0.55rem 0.8rem;
+      border-radius: 8px;
+      font-size: 0.82rem;
+      line-height: 1.4;
+      position: relative;
+      word-wrap: break-word;
+    }
+
+    .wa-bubble.bot {
+      align-self: flex-start;
+      background: #ffffff;
+      color: #111b21;
+      border-top-left-radius: 2px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+
+    .wa-bubble.user {
+      align-self: flex-end;
+      background: #d9fdd3;
+      color: #111b21;
+      border-top-right-radius: 2px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+
+    .wa-time {
+      font-size: 0.65rem;
+      color: #667781;
+      text-align: right;
+      margin-top: 0.2rem;
+    }
+
+    .wa-actions-bar {
+      display: flex;
+      gap: 0.4rem;
+      flex-wrap: wrap;
+      padding: 0.4rem 0.85rem;
+      background: #f0f2f5;
+      border-top: 1px solid #e1e3e6;
+    }
+
+    .wa-quick-btn {
+      font-size: 0.74rem;
+      font-weight: 600;
+      padding: 0.3rem 0.6rem;
+      background: #fff;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      cursor: pointer;
+      color: #0f766e;
+      transition: all 0.15s ease;
+    }
+
+    .wa-quick-btn:hover {
+      background: #ccfbf1;
+      border-color: #0f766e;
+    }
+
+    .wa-input-row {
+      display: flex;
+      gap: 0.4rem;
+      padding: 0.5rem 0.85rem;
+      background: #f0f2f5;
+    }
+
+    .wa-input-row input {
+      flex: 1;
+      padding: 0.5rem 0.75rem;
+      border: none;
+      border-radius: 20px;
+      font-size: 0.82rem;
+      outline: none;
+      background: #fff;
+    }
+
+    .wa-send-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: #00a884;
+      border: none;
+      color: #fff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+    }
+
+    /* Review & Sentiment Section */
+    .review-simulator-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+      gap: 1.25rem;
+      width: 100%;
+    }
+
+    @media (max-width: 860px) {
+      .review-simulator-grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+
+    .star-selector {
+      display: flex;
+      gap: 0.35rem;
+      font-size: 1.4rem;
+      cursor: pointer;
+    }
+
+    .star-btn {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 1.4rem;
+      color: #d1d5db;
+      transition: color 0.15s;
+    }
+
+    .star-btn.active {
+      color: #eab308;
+    }
+
+    .reviews-stream {
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+      max-height: 280px;
+      overflow-y: auto;
+    }
+
+    .review-card {
+      background: #ffffff;
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      padding: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
+    .review-card.intercepted {
+      border-left: 4px solid var(--danger);
+      background: #fffafa;
+    }
+
+    .review-card.promoted {
+      border-left: 4px solid var(--secondary);
+      background: #fafdfa;
+    }
+
+    .review-badge {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+
+    .review-badge.neg {
+      background: #fee2e2;
+      color: #b91c1c;
+    }
+
+    .review-badge.pos {
+      background: #dcfce7;
+      color: #15803d;
+    }
+
+    /* KDS (Kitchen Display System) */
+    .kds-header-bar {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 0.75rem;
+      width: 100%;
+      margin-bottom: 0.5rem;
+    }
+
+    .kds-stat-card {
+      background: #fdfbf7;
+      border: 1px solid #ebd7cb;
+      border-radius: 10px;
+      padding: 0.85rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .kds-stat-label {
+      font-size: 0.76rem;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+
+    .kds-stat-val {
+      font-family: var(--font-heading);
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    .orders-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 1rem;
+      width: 100%;
+    }
+
+    .order-ticket {
+      background: #ffffff;
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.65rem;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.03);
+      border-top: 4px solid #c2410c;
+    }
+
+    .order-ticket.ready {
+      border-top-color: #15803d;
+    }
+
+    .order-ticket.completed {
+      border-top-color: #64748b;
+      opacity: 0.75;
+    }
+
+    .ticket-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .ticket-id {
+      font-weight: 800;
+      font-size: 0.95rem;
+      color: var(--text-main);
+    }
+
+    .ticket-channel {
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 0.2rem 0.5rem;
+      border-radius: 6px;
+      background: #ffedd5;
+      color: #9a3412;
+    }
+
+    .ticket-items {
+      background: #faf8f5;
+      border: 1px solid #f1eae0;
+      border-radius: 8px;
+      padding: 0.5rem 0.75rem;
+      font-size: 0.82rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.2rem;
+    }
+
+    .ticket-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 0.5rem;
+      margin-top: 0.2rem;
+    }
+
+    /* Floor Plan Grid */
     .floor-plan-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
@@ -449,11 +872,6 @@
       transition: all 0.2s ease;
     }
 
-    .table-seat-card:hover {
-      border-color: var(--primary);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
-    }
-
     .table-seat-card.reserved {
       background: #fff7ed;
       border-color: #fdba74;
@@ -467,7 +885,7 @@
 
     .table-name {
       font-weight: 700;
-      font-size: 0.88rem;
+      font-size: 0.86rem;
     }
 
     .table-status-badge {
@@ -488,86 +906,36 @@
       color: #c2410c;
     }
 
-    .table-details {
-      font-size: 0.75rem;
-      color: var(--text-muted);
-    }
-
-    /* Reservations List */
-    .reservations-container {
-      display: flex;
-      flex-direction: column;
-      gap: 0.65rem;
-      max-height: 280px;
-      overflow-y: auto;
-    }
-
-    .res-card {
-      background: #fff;
-      border: 1px solid #ebe5dc;
-      border-left: 4px solid var(--primary);
-      border-radius: 8px;
-      padding: 0.75rem 0.9rem;
-      display: flex;
-      flex-direction: column;
-      gap: 0.25rem;
-    }
-
-    .res-top {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      font-size: 0.9rem;
-      font-weight: 700;
-    }
-
-    .res-code {
-      font-size: 0.75rem;
-      background: #f4ede2;
-      color: var(--accent);
-      padding: 0.15rem 0.45rem;
-      border-radius: 4px;
-    }
-
-    .res-info {
-      font-size: 0.8rem;
-      color: var(--text-muted);
-    }
-
-    /* Menu & Dietary Accordion */
-    .menu-tabs {
-      display: flex;
-      gap: 0.4rem;
+    /* Back-Office Tables */
+    .data-table-wrap {
+      width: 100%;
       overflow-x: auto;
-      border-bottom: 1px solid #e7e2d9;
-      padding-bottom: 0.5rem;
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      background: #fff;
     }
 
-    .menu-tab-btn {
-      padding: 0.35rem 0.75rem;
-      font-size: 0.8rem;
-      font-weight: 600;
-      border: 1px solid transparent;
-      border-radius: 6px;
-      background: transparent;
-      cursor: pointer;
-      color: var(--text-muted);
-    }
-
-    .menu-tab-btn.active {
-      background: #fdf2e9;
-      color: #c2410c;
-      border-color: #fdba74;
-    }
-
-    .menu-content-box {
+    table.data-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
       font-size: 0.82rem;
+    }
+
+    table.data-table th {
+      background: #f9f6ef;
+      padding: 0.65rem 0.85rem;
+      font-weight: 700;
+      border-bottom: 1px solid #ebd7cb;
       color: var(--text-main);
-      background: #faf8f5;
-      padding: 0.75rem;
-      border-radius: 8px;
-      border: 1px solid #ede8df;
-      line-height: 1.45;
+      white-space: nowrap;
+    }
+
+    table.data-table td {
+      padding: 0.65rem 0.85rem;
+      border-bottom: 1px solid #f1ede5;
+      color: var(--text-main);
+      white-space: nowrap;
     }
 
     /* Modal */
@@ -587,12 +955,14 @@
       background: #fff;
       border-radius: 14px;
       padding: 1.5rem;
-      max-width: 500px;
+      max-width: 540px;
       width: 100%;
       box-shadow: 0 16px 48px rgba(0, 0, 0, 0.15);
       display: flex;
       flex-direction: column;
       gap: 1.15rem;
+      max-height: 90vh;
+      overflow-y: auto;
     }
 
     .modal-title {
@@ -641,7 +1011,7 @@
 <body>
 
   <div class="container">
-    <!-- Header -->
+    <!-- Top Header -->
     <header>
       <div class="brand-block">
         <div class="brand-icon">🍝</div>
@@ -649,133 +1019,355 @@
           <h1>Bella Vista Italian Bistro & Ristorante</h1>
           <p>
             <span class="live-dot"></span>
-            <strong>24/7 Voice AI Host ("Marco")</strong> • Table Reservations & Menu Q&A
+            <strong>Autonomous AI Restaurant Ecosystem</strong> • Voice AI Host, WhatsApp Waiter, KDS & CRM
           </p>
         </div>
       </div>
 
       <div class="header-actions">
+        <!-- Market Adaptation Switcher -->
+        <div class="market-mode-switcher">
+          <button id="modeWesternBtn" class="market-btn active" onclick="setMarketMode('WESTERN')">
+            🇺🇸 Western POS Mode
+          </button>
+          <button id="modePakistanBtn" class="market-btn" onclick="setMarketMode('PAKISTAN')">
+            🇵🇰 Pakistan COD Mode
+          </button>
+        </div>
+
         <button class="btn btn-primary" onclick="toggleRoiModal(true)">
-          📊 Hospitality ROI Calculator
+          📊 Hospitality ROI
         </button>
-        <button class="btn" onclick="loadAll()">
+        <button class="btn" onclick="loadAllData()">
           🔄 Refresh
         </button>
         <a href="https://linkedin.com/in/rehan-zia-voiceai" target="_blank" class="btn btn-olive">
-          💼 Connect with Founder ↗
+          💼 Founder Contact ↗
         </a>
       </div>
     </header>
 
-    <!-- Main Grid -->
-    <div class="dashboard-grid">
-      <!-- Left Column: Voice Dialing & Live Host Console -->
-      <div class="card">
-        <div class="card-title">
-          <span>🎙️ Live Voice Host & Intake</span>
-          <button class="btn" onclick="resetCall()">🔄 Reset Call</button>
-        </div>
+    <!-- 3-Pillar Navigation Tabs -->
+    <nav class="pillar-nav">
+      <button class="pillar-tab active" onclick="switchPillar('foh')">
+        <span>🎙️ Front-of-House</span>
+        <span class="tab-badge">Voice & WhatsApp</span>
+      </button>
+      <button class="pillar-tab" onclick="switchPillar('boh')">
+        <span>🍳 Back-of-House</span>
+        <span class="tab-badge" id="kdsBadge">2 In Kitchen</span>
+      </button>
+      <button class="pillar-tab" onclick="switchPillar('admin')">
+        <span>📊 Back-Office & CRM</span>
+        <span class="tab-badge" id="crmBadge">Auto Win-Back</span>
+      </button>
+    </nav>
 
-        <div class="call-box">
-          <button id="callBtn" class="mic-button" onclick="toggleCall()" title="Click to speak with Marco">📞</button>
-
-          <div id="statusPill" class="status-pill idle" onclick="if(isCalling) tapToSpeak()" style="cursor: pointer;" title="Tap to toggle microphone">
-            <span id="statusDot">⚪</span>
-            <span id="statusLabel">Click Call to speak with Marco</span>
+    <!-- ============================================================ -->
+    <!-- PILLAR 1: FRONT-OF-HOUSE (Voice Host & WhatsApp Waiter)      -->
+    <!-- ============================================================ -->
+    <main id="tabFoh" class="tab-content active">
+      <div class="grid-2">
+        <!-- Pillar 1A: Voice AI Host & Order Taker -->
+        <div class="card">
+          <div class="card-title">
+            <span>🎙️ Autonomous Voice AI Host ("Marco")</span>
+            <button class="btn btn-sm" onclick="resetCall()">🔄 Reset Call</button>
           </div>
 
-          <div id="statusSub" class="status-sub">Maître d' Marco reserves tables and answers dietary FAQs</div>
+          <div class="call-box">
+            <button id="callBtn" class="mic-button" onclick="toggleCall()" title="Click to speak with Marco">📞</button>
 
-          <div class="visualizer-box">
-            <canvas id="audioVisualizer" width="280" height="32"></canvas>
+            <div id="statusPill" class="status-pill idle" onclick="if(isCalling) tapToSpeak()" style="cursor: pointer;" title="Tap to toggle microphone">
+              <span id="statusDot">⚪</span>
+              <span id="statusLabel">Click Call to speak with Marco</span>
+            </div>
+
+            <div id="statusSub" class="status-sub">Maître d' Marco books tables & accepts pickup orders</div>
+
+            <div class="visualizer-box">
+              <canvas id="audioVisualizer" width="260" height="28"></canvas>
+            </div>
+
+            <div id="interimPreview" class="interim-preview"></div>
+
+            <button id="tapToSpeakBtn" class="btn btn-primary" style="display: none; width: 100%; max-width: 260px; font-size: 0.85rem; padding: 0.6rem 1rem;" onclick="tapToSpeak()">
+              🎙️ Speak Answer (or Tap to Talk)
+            </button>
           </div>
 
-          <div id="interimPreview" class="interim-preview"></div>
+          <!-- 1-Click Interactive Scenarios -->
+          <div class="demo-scenarios-container">
+            <span class="scenarios-title">⚡ 1-Click Interactive Call Scenarios:</span>
+            <div class="scenarios-scroll">
+              <button type="button" class="scenario-btn" onclick="triggerScenario('party4')">🍝 Table for 4 Tonight (7:30 PM)</button>
+              <button type="button" class="scenario-btn" onclick="triggerScenario('pickup')">🍕 Pickup Order: Margherita Pizza</button>
+              <button type="button" class="scenario-btn" onclick="triggerScenario('vegan')">🌿 Vegan & Gluten-Free FAQ</button>
+              <button type="button" class="scenario-btn" onclick="triggerScenario('patio')">🕯️ Romantic Patio for 2</button>
+              <button type="button" class="scenario-btn" onclick="triggerScenario('parking')">🅿️ Valet Parking & Hours</button>
+            </div>
+          </div>
 
-          <!-- Tactile Mobile Push-To-Talk Button -->
-          <button id="tapToSpeakBtn" class="btn btn-primary" style="display: none; width: 100%; max-width: 280px; font-size: 0.88rem; padding: 0.65rem 1rem;" onclick="tapToSpeak()">
-            🎙️ Speak Answer (or Tap to Talk)
-          </button>
+          <!-- Live Transcript -->
+          <div id="transcriptBox" class="transcript-box">
+            <div class="msg bot">
+              <div class="msg-sender">Marco (Maître d')</div>
+              Buonasera and welcome to Bella Vista Italian Bistro! My name is Marco. Would you like to reserve a table for dinner, place a pickup food order, or ask about our evening menu?
+            </div>
+          </div>
+
+          <!-- Text Input Form -->
+          <form class="chat-input-bar" onsubmit="handleTextSubmit(event)">
+            <input type="text" id="chatInput" class="chat-input" placeholder="Speak or type (e.g. 'I want to order a Margherita pizza for pickup')..." autocomplete="off">
+            <button type="submit" class="btn btn-primary">Send</button>
+          </form>
         </div>
 
-        <!-- 1-Click Interactive Scenarios -->
-        <div class="demo-scenarios-container">
-          <span class="scenarios-title">⚡ 1-Click Demo Scenarios (Instant AI Host Triage):</span>
-          <div class="scenarios-scroll">
-            <button type="button" class="scenario-btn" onclick="triggerScenario('party4')">🍝 Table for 4 Tonight (7:30 PM)</button>
-            <button type="button" class="scenario-btn" onclick="triggerScenario('vegan')">🌿 Vegan & Gluten-Free FAQ</button>
-            <button type="button" class="scenario-btn" onclick="triggerScenario('patio')">🕯️ Romantic Patio for 2</button>
-            <button type="button" class="scenario-btn" onclick="triggerScenario('parking')">🅿️ Valet Parking & Hours</button>
+        <!-- Pillar 1B: WhatsApp Automation ("The Digital Waiter") -->
+        <div class="card">
+          <div class="card-title">
+            <span>💬 WhatsApp Automation (The Digital Waiter)</span>
+            <span style="font-size: 0.75rem; background: #dcfce7; color: #15803d; padding: 0.2rem 0.5rem; border-radius: 6px; font-weight:700;">
+              QR Code Table 4 Live
+            </span>
+          </div>
+
+          <div class="wa-mockup">
+            <div class="wa-header">
+              <div class="wa-avatar">🍕</div>
+              <div class="wa-meta">
+                <h4>Bella Vista Digital Waiter</h4>
+                <p>online • Table 4 Seated Guest</p>
+              </div>
+            </div>
+
+            <div id="waMessages" class="wa-messages-area">
+              <div class="wa-bubble bot">
+                🍕 <strong>Welcome to Table 4!</strong><br>
+                I am your Digital Waiter. Browse our kitchen favorites below or type your order:
+                <div class="wa-time">Just now</div>
+              </div>
+            </div>
+
+            <!-- Interactive Quick Tap Actions -->
+            <div class="wa-actions-bar">
+              <button class="wa-quick-btn" onclick="sendWhatsAppQuick('1. Wood-Fired Margherita ($22)')">🍕 Margherita ($22)</button>
+              <button class="wa-quick-btn" onclick="sendWhatsAppQuick('2. Truffle Risotto ($26)')">🍄 Truffle Risotto ($26)</button>
+              <button class="wa-quick-btn" onclick="sendWhatsAppQuick('3. Veal Osso Buco ($42)')">🥩 Osso Buco ($42)</button>
+              <button class="wa-quick-btn" onclick="sendWhatsAppQuick('YES, add Truffle Parmesan Fries!')">✨ Add Fries (+$6)</button>
+              <button class="wa-quick-btn" onclick="sendWhatsAppQuick('CHECKOUT')">🚀 Checkout Order</button>
+            </div>
+
+            <form class="wa-input-row" onsubmit="handleWhatsAppSubmit(event)">
+              <input type="text" id="waInput" placeholder="Reply to Digital Waiter (e.g. 'Add Limoncello Spritz')...">
+              <button type="submit" class="wa-send-btn">➤</button>
+            </form>
           </div>
         </div>
-
-        <!-- Live Transcript -->
-        <div id="transcriptBox" class="transcript-box">
-          <div class="msg bot">
-            <div class="msg-sender">Marco (Maître d')</div>
-            Buonasera and welcome to Bella Vista Italian Ristorante! My name is Marco. Are you looking to reserve a table with us, or would you like to inquire about our menu and evening specials?
-          </div>
-        </div>
-
-        <!-- Text Input Form -->
-        <form class="chat-input-bar" onsubmit="handleTextSubmit(event)">
-          <input type="text" id="chatInput" class="chat-input" placeholder="Speak or type (e.g., 'Table for 4 tonight on the garden patio')..." autocomplete="off">
-          <button type="submit" class="btn btn-primary">Send</button>
-        </form>
       </div>
 
-      <!-- Right Column: Seating Floor Plan & Live Reservations -->
-      <div class="card">
+      <!-- Pillar 1C: Automated Review & Sentiment Interception -->
+      <div class="card" style="margin-top: 1.25rem;">
         <div class="card-title">
-          <span>🪑 Floor Plan & Table Seating Matrix</span>
-          <span id="openTablesCount" style="font-size: 0.82rem; color: var(--secondary); font-weight: 700;">11 Tables Active</span>
+          <span>⭐ Automated Review & Sentiment Management</span>
+          <span style="font-size: 0.8rem; color: var(--text-muted);">Intercepts 1-3 Stars Before Google • Boosts 4-5 Stars</span>
+        </div>
+
+        <div class="review-simulator-grid">
+          <!-- Form -->
+          <div style="display: flex; flex-direction: column; gap: 0.75rem;">
+            <p style="font-size: 0.82rem; color: var(--text-muted);">
+              Post-dining SMS/WhatsApp follow-up sends diners a feedback request. Try leaving both a 1-star complaint and a 5-star compliment to observe autonomous AI routing:
+            </p>
+
+            <div>
+              <label style="font-size: 0.78rem; font-weight:700;">Customer Name:</label>
+              <input type="text" id="revName" class="chat-input" value="Hamza Farooq" style="margin-top: 0.25rem;">
+            </div>
+
+            <div>
+              <label style="font-size: 0.78rem; font-weight:700;">Dining Rating:</label>
+              <div class="star-selector" id="starSelector" style="margin-top: 0.25rem;">
+                <button type="button" class="star-btn active" onclick="setRating(1)">★</button>
+                <button type="button" class="star-btn active" onclick="setRating(2)">★</button>
+                <button type="button" class="star-btn" onclick="setRating(3)">★</button>
+                <button type="button" class="star-btn" onclick="setRating(4)">★</button>
+                <button type="button" class="star-btn" onclick="setRating(5)">★</button>
+              </div>
+            </div>
+
+            <div>
+              <label style="font-size: 0.78rem; font-weight:700;">Feedback Experience:</label>
+              <textarea id="revText" class="chat-input" rows="2" style="margin-top: 0.25rem; resize: none;">Steak was cooked rare instead of medium well, and server was slow to bring the check.</textarea>
+            </div>
+
+            <button class="btn btn-primary" onclick="submitReview()">
+              🚀 Submit Sentiment & Trigger AI Triage
+            </button>
+          </div>
+
+          <!-- Stream -->
+          <div>
+            <div style="font-size: 0.78rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); margin-bottom: 0.5rem;">
+              Live Sentiment Interception Stream (Dual-Write Google Sheets `Restaurant_Reviews_Day5`):
+            </div>
+            <div id="reviewsStream" class="reviews-stream">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- ============================================================ -->
+    <!-- PILLAR 2: BACK-OF-HOUSE (Kitchen Display & Omnichannel KDS)  -->
+    <!-- ============================================================ -->
+    <main id="tabBoh" class="tab-content">
+      <!-- Dynamic Wait Time & Rush Meter -->
+      <div class="kds-header-bar">
+        <div class="kds-stat-card">
+          <span class="kds-stat-label">⏱️ Dynamic Kitchen Wait Time</span>
+          <span class="kds-stat-val" id="waitMetric">18 - 28 Mins</span>
+          <span style="font-size: 0.72rem; color: var(--text-muted);">Adjusts in real-time as tickets queue</span>
+        </div>
+        <div class="kds-stat-card">
+          <span class="kds-stat-label">🍳 Active Cooking Tickets</span>
+          <span class="kds-stat-val" id="ticketsMetric">2 Orders</span>
+          <span style="font-size: 0.72rem; color: var(--text-muted);">Omnichannel: Voice AI + WhatsApp</span>
+        </div>
+        <div class="kds-stat-card">
+          <span class="kds-stat-label">🚦 Kitchen Rush Status</span>
+          <span class="kds-stat-val" id="rushMetric" style="color: #ca8a04;">🟡 MODERATE</span>
+          <span style="font-size: 0.72rem; color: var(--text-muted);">Dynamic load-balancing threshold</span>
+        </div>
+        <div class="kds-stat-card">
+          <span class="kds-stat-label">📊 Formula Engine</span>
+          <span class="kds-stat-val" style="font-size: 1.1rem; color: var(--secondary);">15m + (Tickets × 3m)</span>
+          <span style="font-size: 0.72rem; color: var(--text-muted);">Shared with Voice callers & WhatsApp</span>
+        </div>
+      </div>
+
+      <!-- Kitchen Display Tickets -->
+      <div class="card" style="margin-top: 1rem;">
+        <div class="card-title">
+          <span>🍳 Omnichannel Kitchen Display System (KDS)</span>
+          <span style="font-size: 0.78rem; color: var(--text-muted);">Consolidated from Voice AI, WhatsApp & Web • Google Sheets Synced</span>
+        </div>
+
+        <div id="kdsOrdersList" class="orders-grid">
+          <!-- Rendered dynamically -->
+        </div>
+      </div>
+
+      <!-- Floor Plan & Table Seating Matrix -->
+      <div class="card" style="margin-top: 1.25rem;">
+        <div class="card-title">
+          <span>🪑 Floor Plan Matrix & Table Allocation Engine</span>
+          <span id="openTablesCount" style="font-size: 0.8rem; color: var(--secondary); font-weight:700;">11 Tables Active</span>
         </div>
 
         <div id="floorPlanGrid" class="floor-plan-grid">
           <!-- Rendered dynamically -->
         </div>
 
-        <div class="card-title" style="margin-top: 0.5rem;">
-          <span>📋 Active Reservations & Google Calendar Sync</span>
-          <span id="resCount" class="res-code">0 Bookings</span>
+        <div class="card-title" style="margin-top: 1rem;">
+          <span>📋 Active Table Reservations (Google Calendar + Sheets Synchronized)</span>
+          <span id="resCount" style="font-size: 0.78rem; background: #ffedd5; color: #9a3412; padding: 0.15rem 0.5rem; border-radius: 4px; font-weight:700;">
+            0 Bookings
+          </span>
         </div>
 
-        <div id="reservationsList" class="reservations-container">
-          <div style="text-align: center; color: var(--text-muted); padding: 2rem;">
-            No active reservations yet. Call or trigger a demo scenario above to book!
-          </div>
-        </div>
-
-        <!-- Menu & Dietary Quick Reference -->
-        <div class="card-title" style="margin-top: 0.5rem;">
-          <span>📖 Chef's Menu & Dietary Guide</span>
-        </div>
-
-        <div class="menu-tabs">
-          <button class="menu-tab-btn active" onclick="switchMenuTab('specialties')">Signature Specials</button>
-          <button class="menu-tab-btn" onclick="switchMenuTab('dietary')">Vegan & Gluten-Free</button>
-          <button class="menu-tab-btn" onclick="switchMenuTab('wine')">Wine & Cocktails</button>
-          <button class="menu-tab-btn" onclick="switchMenuTab('hours')">Hours & Valet</button>
-        </div>
-
-        <div id="menuContent" class="menu-content-box">
-          <strong>Chef Highlights:</strong> Slow-Braised Veal Osso Buco over Saffron Risotto ($42), Handmade Wild Boar Pappardelle ($28), Wood-Fired Pizza Regina with Fresh Burrata ($24), and Classic Tiramisù Tradizionale ($12).
+        <div id="reservationsList" style="display: flex; flex-direction: column; gap: 0.5rem; max-height: 220px; overflow-y: auto;">
+          <!-- Rendered dynamically -->
         </div>
       </div>
-    </div>
+    </main>
+
+    <!-- ============================================================ -->
+    <!-- PILLAR 3: BACK-OFFICE (Inventory & CRM Remarketing)          -->
+    <!-- ============================================================ -->
+    <main id="tabAdmin" class="tab-content">
+      <!-- AI Inventory & Predictive Purchasing -->
+      <div class="card">
+        <div class="card-title">
+          <span>📦 AI Inventory & Predictive Purchasing</span>
+          <button class="btn btn-primary btn-sm" onclick="openPoDraftModal()">
+            📝 Draft Supplier Purchase Order (PO)
+          </button>
+        </div>
+
+        <p style="font-size: 0.82rem; color: var(--text-muted);">
+          Each dish ordered via Voice AI or WhatsApp automatically deducts raw ingredient stock. When stock breaches the reorder threshold, the system flags the SKU and generates an automated vendor purchase order.
+        </p>
+
+        <div class="data-table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>SKU</th>
+                <th>Ingredient</th>
+                <th>Current Stock</th>
+                <th>Unit</th>
+                <th>Reorder Threshold</th>
+                <th>Unit Cost</th>
+                <th>Stock Status</th>
+              </tr>
+            </thead>
+            <tbody id="inventoryTableBody">
+              <!-- Rendered dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Zero-Effort CRM & 30-Day Win-Back Remarketing -->
+      <div class="card" style="margin-top: 1.25rem;">
+        <div class="card-title">
+          <span>👥 Zero-Effort CRM & 30-Day Win-Back Broadcast</span>
+          <button class="btn btn-olive btn-sm" onclick="triggerWinBackBroadcast()">
+            🚀 Broadcast 20% Win-Back Voucher to Dormant Guests
+          </button>
+        </div>
+
+        <p style="font-size: 0.82rem; color: var(--text-muted);">
+          Every caller and WhatsApp guest is fingerprinted into the CRM. If a guest hasn't dined in 30 days, the autonomous remarketing workflow drafts and dispatches a personalized WhatsApp broadcast with coupon code <code>WELCOMEBACK20</code>.
+        </p>
+
+        <div class="data-table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Customer ID</th>
+                <th>Guest Name</th>
+                <th>Phone</th>
+                <th>Total Orders</th>
+                <th>Lifetime Spend</th>
+                <th>Last Dine Date</th>
+                <th>Segment</th>
+                <th>Remarketing Status</th>
+              </tr>
+            </thead>
+            <tbody id="crmTableBody">
+              <!-- Rendered dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+
   </div>
 
-  <!-- ROI Modal -->
+  <!-- Modal: Hospitality ROI Calculator -->
   <div id="roiModal" class="modal-overlay">
     <div class="modal-box">
       <div class="modal-title">📈 Restaurant Revenue Recapture Model</div>
-      <p style="font-size: 0.85rem; color: var(--text-muted);">
-        Restaurants lose 28% of phone reservations during peak dinner rush (6:00 PM – 9:00 PM) when hosts are seating guests. See how much revenue an autonomous AI Maître d' recaptures:
+      <p style="font-size: 0.82rem; color: var(--text-muted);">
+        Restaurants lose 28% of phone reservations and orders during peak rush (6:00 PM – 9:00 PM) when front staff are busy seating guests. See how much revenue this Autonomous AI Ecosystem recaptures:
       </p>
 
       <div class="calc-slider-row">
         <div class="calc-label-row">
-          <span>Missed Reservation Calls / Week:</span>
+          <span>Missed Reservation/Order Calls / Week:</span>
           <span id="callsLabel">25 calls</span>
         </div>
         <input type="range" id="callsSlider" min="5" max="80" value="25" oninput="updateRoi()">
@@ -790,9 +1382,9 @@
       </div>
 
       <div class="roi-output-card">
-        <span style="font-size: 0.8rem; color: var(--text-muted); font-weight: 600;">Monthly Recaptured Revenue:</span>
+        <span style="font-size: 0.78rem; color: var(--text-muted); font-weight: 600;">Monthly Recaptured Revenue:</span>
         <span id="monthlyRoi" class="roi-big">+$8,400 / mo</span>
-        <span style="font-size: 0.8rem; color: var(--text-muted);">Annual Recaptured Pipeline: <strong id="annualRoi" style="color: var(--secondary);">+$100,800 / year</strong></span>
+        <span style="font-size: 0.78rem; color: var(--text-muted);">Annual Recaptured Pipeline: <strong id="annualRoi" style="color: var(--secondary);">+$100,800 / year</strong></span>
       </div>
 
       <div style="display: flex; justify-content: flex-end; gap: 0.65rem;">
@@ -802,8 +1394,45 @@
     </div>
   </div>
 
+  <!-- Modal: Vendor Purchase Order Draft -->
+  <div id="poModal" class="modal-overlay">
+    <div class="modal-box">
+      <div class="modal-title">📝 Vendor Purchase Order (PO Draft)</div>
+      <p style="font-size: 0.82rem; color: var(--text-muted);">
+        Autonomous inventory trigger detected low stock. Pre-filled purchase order ready for Italian Food Importers LLC:
+      </p>
+
+      <div style="background: #faf8f5; border: 1px solid #ebd7cb; border-radius: 8px; padding: 0.85rem; font-family: monospace; font-size: 0.82rem; white-space: pre-wrap;" id="poDraftContent">
+TO: orders@italianfoodimporters.com
+FROM: purchasing@bellavistabistro.com
+SUBJECT: URGENT PURCHASE ORDER #PO-2026-1027 (Low Stock Trigger)
+
+Dear Supplier,
+Please dispatch the following replenishment items for Bella Vista Bistro:
+
+• 12x White Truffle Oil (ING-003) @ $34.00 = $408.00
+• 30x San Marzano Tomatoes DOP (ING-001) @ $8.50 = $255.00
+
+Requested Delivery: Tomorrow by 11:00 AM (Pre-Lunch Prep).
+Terms: Net 30.
+Authorized by: Autonomous Inventory Engine (Chef Marco Signature).
+      </div>
+
+      <div style="display: flex; justify-content: flex-end; gap: 0.65rem;">
+        <button class="btn" onclick="document.getElementById('poModal').style.display='none'">Cancel</button>
+        <button class="btn btn-primary" onclick="alert('✅ Purchase Order dispatched to orders@italianfoodimporters.com!'); document.getElementById('poModal').style.display='none';">
+          📧 Dispatch PO Email
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JavaScript Engine -->
   <script>
     const sessionId = 'session_bistro_' + Math.floor(Math.random() * 1000000);
+    let currentMarketMode = 'WESTERN'; // 'WESTERN' | 'PAKISTAN'
+    let currentRating = 2;
+
     let isCalling = false;
     let isAgentSpeaking = false;
     let isProcessing = false;
@@ -821,7 +1450,13 @@
     let audioStream = null;
     let animFrameId = null;
 
-    // Restaurant Tables Data
+    // Local State
+    let activeOrders = [];
+    let liveInventory = [];
+    let crmCustomers = [];
+    let customerReviews = [];
+    let activeReservations = [];
+
     const TABLES = [
       { id: 'T1', name: 'Table 1', area: 'Indoor Window', capacity: 2, desc: 'Quiet 2-top by garden window' },
       { id: 'T2', name: 'Table 2', area: 'Indoor Main', capacity: 2, desc: 'Intimate candlelit dining' },
@@ -836,19 +1471,37 @@
       { id: 'PR1', name: 'Wine Cellar Suite', area: 'Private Dining', capacity: 14, desc: 'Exclusive private dining cellar room' }
     ];
 
-    let storedReservations = [];
+    // Pillar Tab Navigation
+    function switchPillar(tabId) {
+      document.querySelectorAll('.pillar-tab').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
 
-    // Local Fallback Session State
-    let localSession = {
-      step: 1,
-      partySize: 2,
-      dateTimeText: 'Tonight at 7:30 PM',
-      seatingPreference: 'Garden Patio',
-      name: '',
-      phone: ''
-    };
+      if (tabId === 'foh') {
+        document.querySelectorAll('.pillar-tab')[0].classList.add('active');
+        document.getElementById('tabFoh').classList.add('active');
+      } else if (tabId === 'boh') {
+        document.querySelectorAll('.pillar-tab')[1].classList.add('active');
+        document.getElementById('tabBoh').classList.add('active');
+      } else if (tabId === 'admin') {
+        document.querySelectorAll('.pillar-tab')[2].classList.add('active');
+        document.getElementById('tabAdmin').classList.add('active');
+      }
+    }
 
-    // Preload & Select Warm Baritone Voice for Marco
+    // Market Mode Switcher
+    function setMarketMode(mode) {
+      currentMarketMode = mode;
+      document.getElementById('modeWesternBtn').classList.toggle('active', mode === 'WESTERN');
+      document.getElementById('modePakistanBtn').classList.toggle('active', mode === 'PAKISTAN');
+
+      if (mode === 'PAKISTAN') {
+        alert('🇵🇰 Switched to Pakistani Market Mode:\n• WhatsApp-First Customer Experience\n• Roman Urdu / Minglish Speech & Text Understanding\n• Automated Cash-on-Delivery (COD) Phone Verification\n• 100% Halal Verified Kitchen Sauces');
+      } else {
+        alert('🇺🇸 Switched to Western POS Market Mode:\n• Toast / Square POS Omnichannel API Sync\n• Hostess Labor Cost Reduction Automation\n• Pre-Authorized Credit Card Voice Checkout');
+      }
+    }
+
+    // Baritone Voice Selector
     function getBestMaleVoice() {
       if (!synthesis) return null;
       const voices = synthesis.getVoices();
@@ -858,21 +1511,16 @@
         'david', 'guy', 'mark', 'george', 'aaron', 'daniel', 'alex',
         'arthur', 'fred', 'gordon', 'rishi', 'male', 'man', 
         'male_1', 'iol-local', 'iom-local', 'tpd-local', 'en-us-x-sfg#male',
-        'en-us-x-iom', 'en-us-x-iol', 'en-us-x-tpd', 'voice ii', 'voice iv',
-        'en-gb-x-rjs', 'en-au-x-afh', 'en-in-x-cxx', 'google uk english male'
+        'en-us-x-iom', 'en-us-x-iol', 'en-us-x-tpd', 'voice ii', 'voice iv'
       ];
-      const femaleIdentifiers = [
-        'samantha', 'zira', 'jenny', 'aria', 'karen', 'moira', 
-        'tessa', 'victoria', 'susan', 'female', 'woman', 'girl',
-        'voice i', 'voice iii', 'google us english female', 'google uk english female'
-      ];
+      const femaleIdentifiers = ['samantha', 'zira', 'jenny', 'aria', 'karen', 'moira', 'female', 'woman', 'girl'];
 
       for (const v of voices) {
         if (!v.lang || !v.lang.toLowerCase().startsWith('en')) continue;
         const target = (v.name + ' ' + (v.voiceURI || '')).toLowerCase();
-        const isMale = maleIdentifiers.some(k => target.includes(k));
-        const isFemale = femaleIdentifiers.some(k => target.includes(k));
-        if (isMale && !isFemale) return v;
+        if (maleIdentifiers.some(k => target.includes(k)) && !femaleIdentifiers.some(k => target.includes(k))) {
+          return v;
+        }
       }
 
       for (const v of voices) {
@@ -882,7 +1530,7 @@
         return v;
       }
 
-      return voices.find(v => v.lang && v.lang.toLowerCase().startsWith('en')) || voices[0];
+      return voices[0];
     }
 
     function unlockMobileAudio() {
@@ -891,19 +1539,15 @@
           if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
           if (audioCtx.state === 'suspended') audioCtx.resume();
         }
-        if (synthesis && synthesis.paused) {
-          synthesis.resume();
-        }
+        if (synthesis && synthesis.paused) synthesis.resume();
       } catch (e) {}
     }
 
     if (window.speechSynthesis) {
-      window.speechSynthesis.onvoiceschanged = () => {
-        getBestMaleVoice();
-      };
+      window.speechSynthesis.onvoiceschanged = () => getBestMaleVoice();
     }
 
-    // Audio Visualizer
+    // Audio Equalizer
     function initVisualizer(stream) {
       try {
         if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -934,9 +1578,7 @@
           }
         }
         draw();
-      } catch (e) {
-        console.warn('Visualizer notice:', e);
-      }
+      } catch (e) {}
     }
 
     function playChime() {
@@ -947,8 +1589,8 @@
         osc.connect(gain);
         gain.connect(ctx.destination);
         osc.type = 'sine';
-        osc.frequency.setValueAtTime(523.25, ctx.currentTime); // C5
-        osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.12); // E5
+        osc.frequency.setValueAtTime(523.25, ctx.currentTime);
+        osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.12);
         gain.gain.setValueAtTime(0.12, ctx.currentTime);
         gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.38);
         osc.start();
@@ -956,7 +1598,7 @@
       } catch (e) {}
     }
 
-    // Toggle Voice Call
+    // Voice Call Toggle
     function toggleCall() {
       const btn = document.getElementById('callBtn');
       const tapBtn = document.getElementById('tapToSpeakBtn');
@@ -970,19 +1612,19 @@
         btn.classList.add('active');
         btn.innerHTML = '⏹️';
 
-        // Greet immediately inside gesture call stack
-        speak("Buonasera and welcome to Bella Vista Italian Ristorante! My name is Marco. Are you looking to reserve a table with us, or would you like to inquire about our menu and evening specials?");
+        const greeting = currentMarketMode === 'PAKISTAN'
+          ? "Assalam-o-alaikum and welcome to Bella Vista Italian Bistro! My name is Marco. Table reservation karwani hai ya pickup food order book karwana hai?"
+          : "Buonasera and welcome to Bella Vista Italian Bistro! My name is Marco. Would you like to reserve a table for dinner, place a pickup food order, or ask about our evening menu?";
 
-        // Request mic in background non-blocking
+        speak(greeting);
+
         if (!audioStream && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
           navigator.mediaDevices.getUserMedia({ audio: true })
             .then(stream => {
               audioStream = stream;
               initVisualizer(stream);
             })
-            .catch(err => {
-              console.warn('Mic access notice:', err);
-            });
+            .catch(() => {});
         }
       } else {
         isCalling = false;
@@ -1005,21 +1647,19 @@
       box.innerHTML = `
         <div class="msg bot">
           <div class="msg-sender">Marco (Maître d')</div>
-          Buonasera and welcome to Bella Vista Italian Ristorante! My name is Marco. Are you looking to reserve a table with us, or would you like to inquire about our menu and evening specials?
+          Buonasera and welcome to Bella Vista Italian Bistro! My name is Marco. Would you like to reserve a table for dinner, place a pickup food order, or ask about our evening menu?
         </div>
       `;
       document.getElementById('interimPreview').innerText = '';
-      const tapBtn = document.getElementById('tapToSpeakBtn');
-      if (tapBtn) tapBtn.style.display = 'none';
       fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId, messageText: 'reset' })
+        body: JSON.stringify({ sessionId, messageText: 'reset', marketMode: currentMarketMode })
       }).catch(() => {});
-      loadAll();
+      loadAllData();
     }
 
-    // Speech Synthesis
+    // TTS Speak
     function speak(text, shouldEndCall = false) {
       if (!synthesis) return;
       stopListening();
@@ -1032,11 +1672,7 @@
       const tapBtn = document.getElementById('tapToSpeakBtn');
       if (tapBtn) tapBtn.style.display = 'none';
 
-      if (shouldEndCall) {
-        setStatus('speaking', 'Marco is speaking (Booking Finalized)', 'Call concluding');
-      } else {
-        setStatus('speaking', 'Marco is speaking...', 'Listening will resume when host finishes');
-      }
+      setStatus('speaking', 'Marco is speaking...', shouldEndCall ? 'Call concluding' : 'Listening resumes when host finishes');
 
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.rate = 0.96;
@@ -1050,10 +1686,8 @@
         isProcessing = false;
 
         if (shouldEndCall) {
-          setStatus('idle', '✅ Table Reserved', 'Reservation confirmed • We look forward to hosting you');
-          setTimeout(() => {
-            if (isCalling) toggleCall();
-          }, 1500);
+          setStatus('idle', '✅ Ticket Confirmed', 'Reservation / Order logged in system');
+          setTimeout(() => { if (isCalling) toggleCall(); }, 1500);
           return;
         }
 
@@ -1064,9 +1698,7 @@
             tapBtn.innerHTML = '🎙️ Speak Answer (or Tap to Talk)';
           }
           setTimeout(() => {
-            if (isCalling && !isAgentSpeaking && !isProcessing) {
-              startListening();
-            }
+            if (isCalling && !isAgentSpeaking && !isProcessing) startListening();
           }, 400);
         }
       };
@@ -1078,9 +1710,7 @@
           setStatus('listening', 'Listening... (Speak now)', 'Speak clearly into your microphone');
           if (tapBtn) tapBtn.style.display = 'inline-flex';
           setTimeout(() => {
-            if (isCalling && !isAgentSpeaking && !isProcessing) {
-              startListening();
-            }
+            if (isCalling && !isAgentSpeaking && !isProcessing) startListening();
           }, 400);
         }
       };
@@ -1092,20 +1722,14 @@
       const box = document.getElementById('transcriptBox');
       const msg = document.createElement('div');
       msg.className = `msg ${isBot ? 'bot' : 'user'}`;
-      msg.innerHTML = `<div class="msg-sender">${sender}</div>${text}`;
+      msg.innerHTML = `<div class="msg-sender">${sender}</div>${text.replace(/\n/g, '<br>')}`;
       box.appendChild(msg);
       box.scrollTop = box.scrollHeight;
     }
 
     function stopListening() {
-      if (speechSilenceTimer) {
-        clearTimeout(speechSilenceTimer);
-        speechSilenceTimer = null;
-      }
-      if (recognitionRestartTimeout) {
-        clearTimeout(recognitionRestartTimeout);
-        recognitionRestartTimeout = null;
-      }
+      if (speechSilenceTimer) clearTimeout(speechSilenceTimer);
+      if (recognitionRestartTimeout) clearTimeout(recognitionRestartTimeout);
       if (recognition) {
         try {
           recognition.onend = null;
@@ -1134,8 +1758,7 @@
       startListening();
     }
 
-    // Send Message
-    async function sendMessage(text) {
+    async function sendVoiceMessage(text) {
       if (!text || !text.trim() || isProcessing) return;
 
       stopListening();
@@ -1143,29 +1766,20 @@
       document.getElementById('interimPreview').innerText = '';
       appendMessage('Guest', text, false);
 
-      setStatus('processing', 'Checking table availability & menu...', 'Consulting seating plan');
+      setStatus('processing', 'Checking table availability & kitchen tickets...', 'Consulting kitchen & booking engine');
 
       let data = null;
       try {
         const res = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ sessionId, messageText: text })
+          body: JSON.stringify({ sessionId, messageText: text, marketMode: currentMarketMode })
         });
-        if (res.ok) {
-          data = await res.json();
-        }
+        if (res.ok) data = await res.json();
       } catch (err) {}
 
-      // Client Fallback if offline
       if (!data || !data.reply) {
-        data = handleClientBistroFallback(text);
-      }
-
-      if (data.reservation) {
-        saveStoredReservation(data.reservation);
-        playChime();
-        loadAll();
+        data = { reply: `I have noted: "${text}". Table and food ticket queued in our system!` };
       }
 
       if (data.reply) {
@@ -1176,8 +1790,9 @@
         if (isCalling) startListening();
       }
 
-      if (data.isBooked) {
-        setTimeout(loadAll, 600);
+      if (data.isBooked || data.order) {
+        playChime();
+        setTimeout(loadAllData, 700);
       }
     }
 
@@ -1187,7 +1802,7 @@
       const val = input.value.trim();
       if (!val) return;
       input.value = '';
-      sendMessage(val);
+      sendVoiceMessage(val);
     }
 
     // Speech Recognition
@@ -1214,7 +1829,7 @@
           isRecognizing = true;
           pendingTranscript = '';
           if (!isAgentSpeaking && isCalling && !isProcessing) {
-            setStatus('listening', 'Listening... (Speak now)', 'Tell Marco your reservation details');
+            setStatus('listening', 'Listening... (Speak now)', 'Tell Marco your reservation or food order');
             const tapBtn = document.getElementById('tapToSpeakBtn');
             if (tapBtn) {
               tapBtn.style.display = 'inline-flex';
@@ -1246,7 +1861,7 @@
               pendingTranscript = '';
               document.getElementById('interimPreview').innerText = '';
               stopListening();
-              sendMessage(toSend);
+              sendVoiceMessage(toSend);
               return;
             }
 
@@ -1258,7 +1873,7 @@
                 pendingTranscript = '';
                 document.getElementById('interimPreview').innerText = '';
                 stopListening();
-                sendMessage(toSend);
+                sendVoiceMessage(toSend);
               }
             }, 1000);
           }
@@ -1267,9 +1882,6 @@
         rec.onerror = (e) => {
           isStartingRecognition = false;
           isRecognizing = false;
-          if (e.error === 'not-allowed') {
-            alert('Microphone access denied. Please allow microphone permissions in your mobile browser.');
-          }
         };
 
         rec.onend = () => {
@@ -1282,7 +1894,7 @@
             pendingTranscript = '';
             document.getElementById('interimPreview').innerText = '';
             stopListening();
-            sendMessage(toSend);
+            sendVoiceMessage(toSend);
             return;
           }
 
@@ -1299,12 +1911,6 @@
       } catch (err) {
         isStartingRecognition = false;
         isRecognizing = false;
-        if (isCalling && !isAgentSpeaking && !isProcessing) {
-          if (recognitionRestartTimeout) clearTimeout(recognitionRestartTimeout);
-          recognitionRestartTimeout = setTimeout(() => {
-            if (isCalling && !isAgentSpeaking && !isProcessing) startListening();
-          }, 600);
-        }
       }
     }
 
@@ -1323,95 +1929,217 @@
       else dot.innerText = '⚪';
     }
 
-    // 1-Click Interactive Scenarios
     function triggerScenario(type) {
       if (!isCalling) toggleCall();
       setTimeout(() => {
         let text = '';
         if (type === 'party4') text = 'I would like to reserve a table for 4 guests tonight at 7:30 PM.';
+        else if (type === 'pickup') text = 'I want to place a food order for pickup: One Wood-Fired Margherita Pizza and an order of Truffle Fries.';
         else if (type === 'vegan') text = 'Can you tell me what vegan and gluten-free pasta options you have?';
         else if (type === 'patio') text = 'We are celebrating our wedding anniversary tonight and would love a candlelit table on your garden patio for 2.';
         else if (type === 'parking') text = 'Do you offer valet parking, and what are your operating hours?';
 
         document.getElementById('chatInput').value = text;
-        sendMessage(text);
+        sendVoiceMessage(text);
       }, 500);
     }
 
-    // Client-side Fallback & Table Assignment Engine
-    function handleClientBistroFallback(text) {
-      const lower = text.toLowerCase();
+    // ============================================================
+    // WHATSAPP DIGITAL WAITER LOGIC
+    // ============================================================
+    function appendWhatsAppMsg(text, isBot) {
+      const box = document.getElementById('waMessages');
+      const b = document.createElement('div');
+      b.className = `wa-bubble ${isBot ? 'bot' : 'user'}`;
+      const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      b.innerHTML = `${text.replace(/\n/g, '<br>')}<div class="wa-time">${now}</div>`;
+      box.appendChild(b);
+      box.scrollTop = box.scrollHeight;
+    }
 
-      // Check Menu FAQs
-      if (/vegan|gluten|celiac|vegetarian/i.test(lower)) {
-        return { reply: "For vegan and gluten-free dining, Chef Marco prepares our Wild Mushroom & Truffle Risotto, our Wood-Fired Margherita with dairy-free cashew mozzarella, and certified gluten-free Penne Pomodoro. Would you like to reserve a table?" };
-      }
-      if (/parking|valet|hours/i.test(lower)) {
-        return { reply: "We offer complimentary valet parking on Friday and Saturday evenings starting at 6:00 PM, with a private lot adjacent all week. We are open Tuesday to Sunday from 12 PM to 10:30 PM. Shall I book a table for you?" };
-      }
+    async function sendWhatsApp(text) {
+      if (!text || !text.trim()) return;
+      appendWhatsAppMsg(text, false);
 
-      if (localSession.step === 1) {
-        localSession.partySize = 4;
-        localSession.step = 2;
-        return { reply: "Fantastico! I would be delighted to arrange a table for a party of 4. What date and time would you like to dine with us? For instance, tonight at 7:30 PM?" };
-      }
-
-      if (localSession.step === 2) {
-        localSession.dateTimeText = text;
-        localSession.step = 3;
-        return { reply: "Perfetto! Would you prefer our main indoor dining room, our romantic garden patio, or a quiet window table? Also, are you celebrating any special occasion?" };
-      }
-
-      if (localSession.step === 3) {
-        localSession.seatingPreference = /patio|garden/i.test(lower) ? 'Garden Patio' : 'Main Dining Room';
-        localSession.step = 4;
-        return { reply: `Understood, ${localSession.seatingPreference} will be wonderful. May I please have your full name for the reservation?` };
-      }
-
-      if (localSession.step === 4) {
-        localSession.name = text.replace(/^(my name is|i am|this is)\s+/i, '').trim();
-        localSession.step = 5;
-        return { reply: `Grazie, ${localSession.name}! And what is your direct phone number for the confirmation code?` };
-      }
-
-      if (localSession.step === 5) {
-        localSession.phone = text;
-        localSession.step = 'COMPLETED';
-
-        const reservationId = 'BV-RES-' + (201 + storedReservations.length);
-        const reservation = {
-          id: reservationId,
-          timestamp: new Date().toISOString(),
-          scheduledStart: new Date(Date.now() + 60 * 60000).toISOString(),
-          scheduledEnd: new Date(Date.now() + 150 * 60000).toISOString(),
-          slotLabel: 'Tonight at 7:30 PM',
-          guestName: localSession.name || 'Valued Guest',
-          phone: localSession.phone,
-          partySize: localSession.partySize || 4,
-          seatingPreference: localSession.seatingPreference || 'Garden Patio',
-          tableAssigned: localSession.seatingPreference.includes('Patio') ? 'Patio P3 (Garden Patio)' : 'Table 3 (Indoor Main)',
-          status: 'CONFIRMED'
-        };
-
-        // Sync with Google Sheets & Calendar endpoint
-        fetch('/api/record-reservation', {
+      try {
+        const res = await fetch('/api/whatsapp/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(reservation)
-        }).catch(() => {});
+          body: JSON.stringify({
+            sessionId: 'wa_tab4_guest',
+            messageText: text,
+            isPakistani: currentMarketMode === 'PAKISTAN'
+          })
+        });
 
-        return {
-          reply: `🎉 TABLE RESERVATION CONFIRMED [${reservationId}]\n• Guest: ${reservation.guestName}\n• Party: ${reservation.partySize} Guests\n• Time: ${reservation.slotLabel}\n• Seating: ${reservation.tableAssigned}\n\nYour table has been reserved. Can I answer any questions about our wine pairings or valet parking?`,
-          isBooked: true,
-          reservation
-        };
+        if (res.ok) {
+          const data = await res.json();
+          if (data.reply) {
+            appendWhatsAppMsg(data.reply, true);
+          }
+          if (data.order) {
+            playChime();
+            loadAllData();
+          }
+        }
+      } catch (e) {
+        appendWhatsAppMsg("Order noted! Dispatched to Kitchen Display System (KDS).", true);
+      }
+    }
+
+    function sendWhatsAppQuick(item) {
+      sendWhatsApp(item);
+    }
+
+    function handleWhatsAppSubmit(e) {
+      e.preventDefault();
+      const input = document.getElementById('waInput');
+      const val = input.value.trim();
+      if (!val) return;
+      input.value = '';
+      sendWhatsApp(val);
+    }
+
+    // ============================================================
+    // REVIEWS & SENTIMENT INTERCEPTION
+    // ============================================================
+    function setRating(r) {
+      currentRating = r;
+      const btns = document.querySelectorAll('#starSelector .star-btn');
+      btns.forEach((b, idx) => {
+        b.classList.toggle('active', idx < r);
+      });
+    }
+
+    async function submitReview() {
+      const name = document.getElementById('revName').value.trim() || 'Valued Guest';
+      const text = document.getElementById('revText').value.trim() || 'Food was delicious';
+
+      try {
+        const res = await fetch('/api/reviews', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ customerName: name, rating: currentRating, text })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.review) {
+            if (data.review.sentiment === 'NEGATIVE') {
+              alert(`⚠️ FEEDBACK INTERCEPTED!\nNegative rating (${currentRating}★) was caught before Google Maps.\nAction: Escalated to GM + 25% VIP Voucher sent to ${name}'s WhatsApp!`);
+            } else {
+              alert(`🟢 PROMOTER VERIFIED!\nRating (${currentRating}★) guided to Google Maps review link + AI gratitude message drafted!`);
+            }
+            loadAllData();
+          }
+        }
+      } catch (e) {}
+    }
+
+    function renderReviews(reviews) {
+      const stream = document.getElementById('reviewsStream');
+      if (!reviews || reviews.length === 0) {
+        stream.innerHTML = '<div style="color:var(--text-muted); padding:1rem; text-align:center;">No reviews logged yet. Submit one to test interception!</div>';
+        return;
       }
 
-      if (/thank|thanks|grazie|bye/i.test(lower)) {
-        return { reply: "Prego! Chef Marco and our entire team look forward to hosting you. Have a wonderful evening!", endCall: true };
+      stream.innerHTML = reviews.map(r => `
+        <div class="review-card ${r.sentiment === 'NEGATIVE' ? 'intercepted' : 'promoted'}">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <strong>${'★'.repeat(r.rating || 5)}${'☆'.repeat(5 - (r.rating || 5))} • ${r.customerName}</strong>
+            <span class="review-badge ${r.sentiment === 'NEGATIVE' ? 'neg' : 'pos'}">
+              ${r.sentiment === 'NEGATIVE' ? '⚠️ INTERCEPTED (HELD)' : '🟢 GOOGLE PROMOTER'}
+            </span>
+          </div>
+          <div style="font-size: 0.8rem; font-style:italic; color:var(--text-main);">"${r.text}"</div>
+          <div style="font-size: 0.72rem; color:var(--text-muted);">
+            <strong>System Action:</strong> ${r.action}
+          </div>
+          <div style="font-size: 0.72rem; background:#fff; padding:0.35rem 0.5rem; border-radius:6px; border:1px solid #ebd7cb;">
+            <strong>AI Auto-Draft:</strong> ${r.aiResponse}
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // ============================================================
+    // KDS & BACK-OF-HOUSE RENDERING
+    // ============================================================
+    async function updateOrderStatus(orderId, newStatus) {
+      try {
+        const res = await fetch('/api/orders/status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ orderId, newStatus })
+        });
+        if (res.ok) {
+          loadAllData();
+        }
+      } catch (e) {}
+    }
+
+    function renderKds(orders, waitInfo) {
+      if (waitInfo) {
+        document.getElementById('waitMetric').innerText = waitInfo.label;
+        document.getElementById('ticketsMetric').innerText = `${waitInfo.activeTickets} Orders`;
+        document.getElementById('rushMetric').innerText = waitInfo.kitchenRushLevel;
+        document.getElementById('kdsBadge').innerText = `${waitInfo.activeTickets} In Kitchen`;
       }
 
-      return { reply: "Your reservation is confirmed. If you have any dietary notes for Chef Marco, just let me know!" };
+      const list = document.getElementById('kdsOrdersList');
+      if (!orders || orders.length === 0) {
+        list.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:2rem; color:var(--text-muted);">No active kitchen tickets. Take an order via Voice AI or WhatsApp!</div>';
+        return;
+      }
+
+      list.innerHTML = orders.map(o => {
+        const isReady = o.status === 'READY';
+        const isComp = o.status === 'COMPLETED';
+
+        return `
+          <div class="order-ticket ${isReady ? 'ready' : (isComp ? 'completed' : '')}">
+            <div class="ticket-top">
+              <span class="ticket-id">🎫 ${o.id}</span>
+              <span class="ticket-channel">${o.channel === 'VOICE_AI' ? '🎙️ Voice AI' : '💬 WhatsApp'}</span>
+            </div>
+
+            <div style="font-size: 0.82rem;">
+              <strong>Guest:</strong> ${o.customerName} (${o.phone})
+            </div>
+
+            <div class="ticket-items">
+              ${(o.items || []).map(i => `<div>• <strong>${i}</strong></div>`).join('')}
+            </div>
+
+            <div style="font-size: 0.76rem; color: var(--text-muted); display:flex; justify-content:space-between;">
+              <span>Total: <strong>${o.totalAmount}</strong></span>
+              <span>Wait: <strong>~${o.elapsedMinutes || 5}m</strong></span>
+            </div>
+
+            <div style="font-size: 0.72rem; color: #b45309;">
+              💳 ${o.paymentMethod || 'Cash on Delivery (COD Verified)'}
+            </div>
+
+            <div class="ticket-footer">
+              <span style="font-size: 0.76rem; font-weight:700; color: ${isComp ? '#64748b' : (isReady ? '#15803d' : '#c2410c')};">
+                Status: ${o.status}
+              </span>
+
+              <div style="display:flex; gap:0.25rem;">
+                ${o.status === 'PREPARING' ? `
+                  <button class="btn btn-sm btn-olive" onclick="updateOrderStatus('${o.id}', 'READY')">
+                    ✅ Ready
+                  </button>
+                ` : ''}
+                ${o.status === 'READY' ? `
+                  <button class="btn btn-sm btn-primary" onclick="updateOrderStatus('${o.id}', 'COMPLETED')">
+                    📦 Complete
+                  </button>
+                ` : ''}
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
     }
 
     // Floor Plan & Reservations Rendering
@@ -1420,7 +2148,7 @@
       let openCount = 0;
 
       container.innerHTML = TABLES.map(t => {
-        const matchingRes = reservations.find(r => r.tableAssigned && r.tableAssigned.includes(t.name));
+        const matchingRes = (reservations || []).find(r => r.tableAssigned && r.tableAssigned.includes(t.name));
         const isReserved = !!matchingRes;
         if (!isReserved) openCount++;
 
@@ -1430,8 +2158,8 @@
               <span class="table-name">${t.name}</span>
               <span class="table-status-badge ${isReserved ? 'busy' : 'avail'}">${isReserved ? 'Booked' : 'Open'}</span>
             </div>
-            <div class="table-details">
-              <span>👥 Cap: ${t.capacity}</span> • <span>${t.area}</span>
+            <div style="font-size: 0.75rem; color: var(--text-muted);">
+              👥 Cap: ${t.capacity} • ${t.area}
             </div>
             <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 0.2rem;">
               ${isReserved ? `Reserved: ${matchingRes.guestName}` : t.desc}
@@ -1446,77 +2174,150 @@
     function renderReservations(reservations) {
       const container = document.getElementById('reservationsList');
       const countEl = document.getElementById('resCount');
-      countEl.innerText = `${reservations.length} Bookings`;
+      countEl.innerText = `${(reservations || []).length} Bookings`;
 
-      if (reservations.length === 0) {
-        container.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 2rem;">No active reservations yet. Call or test a scenario above to book!</div>`;
+      if (!reservations || reservations.length === 0) {
+        container.innerHTML = `<div style="text-align: center; color: var(--text-muted); padding: 1.5rem;">No active reservations yet. Call Marco above to book!</div>`;
         return;
       }
 
       container.innerHTML = reservations.map(r => `
-        <div class="res-card">
-          <div class="res-top">
+        <div style="background:#fff; border:1px solid #ebd7cb; border-left:4px solid var(--primary); border-radius:8px; padding:0.6rem 0.85rem; font-size:0.82rem;">
+          <div style="display:flex; justify-content:space-between; font-weight:700;">
             <span>🍝 ${r.guestName} (Party of ${r.partySize || 2})</span>
-            <span class="res-code">${r.id}</span>
+            <span style="background:#f4ede2; color:var(--accent); padding:0.1rem 0.4rem; border-radius:4px; font-size:0.75rem;">${r.id}</span>
           </div>
-          <div class="res-info">🕒 <strong>Arrival:</strong> ${r.slotLabel || 'Tonight'} • <strong>Seating:</strong> ${r.tableAssigned || r.seatingPreference}</div>
-          <div class="res-info">📞 ${r.phone || 'N/A'} • Status: <span style="color: var(--secondary); font-weight:700;">${r.status || 'CONFIRMED'}</span></div>
+          <div style="color:var(--text-muted); margin-top:0.2rem;">
+            🕒 <strong>${r.slotLabel || 'Tonight'}</strong> • <strong>${r.tableAssigned || r.seatingPreference}</strong> • 📞 ${r.phone || 'N/A'}
+          </div>
         </div>
       `).join('');
     }
 
-    function saveStoredReservation(res) {
-      storedReservations.unshift(res);
-      try {
-        localStorage.setItem('bv_reservations_day5', JSON.stringify(storedReservations));
-      } catch (e) {}
+    // ============================================================
+    // BACK-OFFICE: INVENTORY & CRM RENDERING
+    // ============================================================
+    function renderInventory(inv) {
+      const tbody = document.getElementById('inventoryTableBody');
+      if (!inv || inv.length === 0) return;
+
+      tbody.innerHTML = inv.map(i => {
+        const isLow = i.stock <= i.threshold;
+        return `
+          <tr>
+            <td><code>${i.sku}</code></td>
+            <td><strong>${i.name}</strong></td>
+            <td style="font-weight:700; color:${isLow ? '#dc2626' : '#15803d'};">${i.stock}</td>
+            <td>${i.unit}</td>
+            <td>${i.threshold} ${i.unit}</td>
+            <td>${i.cost}</td>
+            <td>
+              <span class="review-badge ${isLow ? 'neg' : 'pos'}">
+                ${isLow ? '⚠️ LOW STOCK' : '🟢 IN STOCK'}
+              </span>
+            </td>
+          </tr>
+        `;
+      }).join('');
     }
 
-    function getStoredReservations() {
-      try {
-        const val = localStorage.getItem('bv_reservations_day5');
-        if (val) return JSON.parse(val);
-      } catch (e) {}
-      return [];
+    function renderCrm(customers) {
+      const tbody = document.getElementById('crmTableBody');
+      if (!customers || customers.length === 0) return;
+
+      tbody.innerHTML = customers.map(c => `
+        <tr>
+          <td><code>${c.id}</code></td>
+          <td><strong>${c.name}</strong></td>
+          <td>${c.phone}</td>
+          <td>${c.totalOrders} Orders</td>
+          <td style="font-weight:700; color:var(--primary);">${c.lifetimeSpend}</td>
+          <td>${c.lastOrder}</td>
+          <td>
+            <span style="font-size:0.72rem; font-weight:700; padding:0.15rem 0.45rem; border-radius:4px; background:${c.segment.includes('VIP') ? '#ffedd5' : '#fee2e2'}; color:${c.segment.includes('VIP') ? '#9a3412' : '#991b1b'};">
+              ${c.segment}
+            </span>
+          </td>
+          <td>
+            <span style="font-size:0.72rem; font-weight:700; color:${c.remarketingStatus.includes('SENT') ? '#15803d' : '#475569'};">
+              ${c.remarketingStatus}
+            </span>
+          </td>
+        </tr>
+      `).join('');
     }
 
-    async function loadAll() {
-      storedReservations = getStoredReservations();
-
+    async function triggerWinBackBroadcast() {
       try {
-        const res = await fetch('/api/reservations');
+        const res = await fetch('/api/crm/winback', { method: 'POST' });
         if (res.ok) {
           const data = await res.json();
-          if (data.reservations && data.reservations.length > 0) {
-            storedReservations = data.reservations;
-          }
+          alert(`🚀 WIN-BACK BROADCAST EXECUTED!\n• Recipients: ${data.recipients} Dormant Guests\n• Coupon Sent: ${data.promoCode} (20% Off)\n• Channel: WhatsApp Automated Broadcaster\n• Estimated Recaptured Revenue: +$960.00 this weekend!`);
+          loadAllData();
+        }
+      } catch (e) {}
+    }
+
+    function openPoDraftModal() {
+      document.getElementById('poModal').style.display = 'flex';
+    }
+
+    // ============================================================
+    // DATA LOADER & ROI
+    // ============================================================
+    async function loadAllData() {
+      // 1. Orders & Wait Time
+      try {
+        const r = await fetch('/api/orders');
+        if (r.ok) {
+          const d = await r.json();
+          activeOrders = d.orders || [];
+          renderKds(activeOrders, d.waitInfo);
         }
       } catch (e) {}
 
-      renderFloorPlan(storedReservations);
-      renderReservations(storedReservations);
+      // 2. Inventory
+      try {
+        const r = await fetch('/api/inventory');
+        if (r.ok) {
+          const d = await r.json();
+          liveInventory = d.inventory || [];
+          renderInventory(liveInventory);
+        }
+      } catch (e) {}
+
+      // 3. CRM
+      try {
+        const r = await fetch('/api/crm');
+        if (r.ok) {
+          const d = await r.json();
+          crmCustomers = d.customers || [];
+          renderCrm(crmCustomers);
+        }
+      } catch (e) {}
+
+      // 4. Reviews
+      try {
+        const r = await fetch('/api/reviews');
+        if (r.ok) {
+          const d = await r.json();
+          customerReviews = d.reviews || [];
+          renderReviews(customerReviews);
+        }
+      } catch (e) {}
+
+      // 5. Reservations
+      try {
+        const r = await fetch('/api/reservations');
+        if (r.ok) {
+          const d = await r.json();
+          activeReservations = d.reservations || [];
+          renderFloorPlan(activeReservations);
+          renderReservations(activeReservations);
+        }
+      } catch (e) {}
     }
 
-    // Menu Tab Switching
-    function switchMenuTab(tab) {
-      const buttons = document.querySelectorAll('.menu-tab-btn');
-      buttons.forEach(b => b.classList.remove('active'));
-      const targetBtn = Array.from(buttons).find(b => b.innerText.toLowerCase().includes(tab.slice(0, 4)));
-      if (targetBtn) targetBtn.classList.add('active');
-
-      const contentBox = document.getElementById('menuContent');
-      if (tab === 'specialties') {
-        contentBox.innerHTML = `<strong>Signature Specials:</strong> Slow-Braised Veal Osso Buco over Saffron Risotto ($42), Handmade Wild Boar Pappardelle ($28), Wood-Fired Pizza Regina with Fresh Burrata ($24), and Classic Tiramisù Tradizionale ($12).`;
-      } else if (tab === 'dietary') {
-        contentBox.innerHTML = `<strong>Dietary & Allergy Accommodations:</strong> 100% Peanut-Free kitchen. Certified Gluten-Free imported Penne & Rigatoni. Dedicated Vegan Wild Mushroom & Black Truffle Risotto and Cashew Mozzarella Margherita. Halal-certified meats available.`;
-      } else if (tab === 'wine') {
-        contentBox.innerHTML = `<strong>Curated Wine List:</strong> Chianti Classico Riserva, Brunello di Montalcino, Barolo DOCG, Super Tuscan blends by the glass & bottle. Handcrafted Negronis, Limoncello Spritz, and non-alcoholic Italian blood orange sodas.`;
-      } else if (tab === 'hours') {
-        contentBox.innerHTML = `<strong>Hours & Guest Parking:</strong> Lunch: Tue–Sun 12:00 PM – 3:00 PM | Dinner: Tue–Sun 5:00 PM – 10:30 PM (Mondays Closed). Complimentary front valet parking on Friday & Saturday nights starting at 6:00 PM; private lot all week.`;
-      }
-    }
-
-    // ROI Modal & Logic
     function toggleRoiModal(show) {
       document.getElementById('roiModal').style.display = show ? 'flex' : 'none';
       if (show) updateRoi();
@@ -1529,7 +2330,6 @@
       document.getElementById('callsLabel').innerText = `${calls} calls/week`;
       document.getElementById('checkLabel').innerText = `$${check}`;
 
-      // Conversion estimate: 70% of answered reservation calls convert to booked tables
       const bookedPerMonth = Math.round(calls * 4.33 * 0.7);
       const monthly = bookedPerMonth * check;
       const annual = monthly * 12;
@@ -1539,7 +2339,7 @@
     }
 
     window.onload = () => {
-      loadAll();
+      loadAllData();
       getBestMaleVoice();
     };
   </script>
