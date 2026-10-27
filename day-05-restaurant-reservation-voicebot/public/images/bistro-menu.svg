@@ -1,0 +1,124 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1120" width="800" height="1120">
+  <defs>
+    <style>
+      .bg { fill: #fdfbf7; }
+      .border-outer { fill: none; stroke: #c8b69b; stroke-width: 2; }
+      .border-inner { fill: none; stroke: #8c6d46; stroke-width: 1; }
+      .title { font-family: 'Playfair Display', Georgia, serif; font-weight: bold; fill: #1f1b18; }
+      .subtitle { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 13px; fill: #7d6b55; letter-spacing: 3px; text-transform: uppercase; font-weight: 600; }
+      .section-head { font-family: 'Playfair Display', Georgia, serif; font-size: 22px; font-weight: bold; fill: #8c6d46; }
+      .item-name { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 15px; font-weight: 700; fill: #221d19; }
+      .item-price { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 15px; font-weight: 700; fill: #8c6d46; text-anchor: end; }
+      .item-desc { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; font-size: 12px; fill: #6e6459; }
+      .line { stroke: #e3d7c5; stroke-width: 1; }
+      .dot-line { stroke: #d4c7b4; stroke-width: 1; stroke-dasharray: 2, 4; }
+    </style>
+  </defs>
+
+  <!-- Background and Framing -->
+  <rect width="800" height="1120" class="bg"/>
+  <rect x="25" y="25" width="750" height="1070" rx="8" class="border-outer"/>
+  <rect x="33" y="33" width="734" height="1054" rx="6" class="border-inner"/>
+
+  <!-- Header -->
+  <text x="400" y="80" text-anchor="middle" class="subtitle">Artisanal Farm-to-Table Fare</text>
+  <text x="400" y="125" text-anchor="middle" class="title" font-size="38">The Heritage Bistro</text>
+  <text x="400" y="152" text-anchor="middle" font-family="'Playfair Display', Georgia, serif" font-style="italic" font-size="14" fill="#7d6b55">Daily Fresh Seasonal Specialties • Est. 2018</text>
+  <line x1="120" y1="172" x2="680" y2="172" class="line" stroke-width="1.5" stroke="#8c6d46"/>
+
+  <!-- SECTION 1: APPETIZERS -->
+  <text x="60" y="215" class="section-head">Appetizers &amp; Starters</text>
+  <line x1="60" y1="225" x2="740" y2="225" class="line"/>
+
+  <!-- Item 1 -->
+  <text x="60" y="255" class="item-name">French Onion Soup</text>
+  <line x1="220" y1="250" x2="675" y2="250" class="dot-line"/>
+  <text x="740" y="255" class="item-price">$9.00</text>
+  <text x="60" y="275" class="item-desc">Caramelized sweet onions, rich simmered beef broth, toasted baguette, melted Gruyère</text>
+
+  <!-- Item 2 -->
+  <text x="60" y="308" class="item-name">Baked Gulf Oysters</text>
+  <line x1="210" y1="303" x2="675" y2="303" class="dot-line"/>
+  <text x="740" y="308" class="item-price">$13.00</text>
+  <text x="60" y="328" class="item-desc">Fresh oysters baked with minced garlic, shallots, creamy spinach, buttered herb breadcrumbs</text>
+
+  <!-- Item 3 -->
+  <text x="60" y="361" class="item-name">Crispy Fried Green Tomatoes</text>
+  <line x1="285" y1="356" x2="675" y2="356" class="dot-line"/>
+  <text x="740" y="361" class="item-price">$7.00</text>
+  <text x="60" y="381" class="item-desc">Cornmeal crust, pickled okra, sweet peach-jalapeño relish, house Creole remoulade</text>
+
+  <!-- Item 4 -->
+  <text x="60" y="414" class="item-name">Classic Caesar Salad</text>
+  <line x1="225" y1="409" x2="675" y2="409" class="dot-line"/>
+  <text x="740" y="414" class="item-price">$11.00</text>
+  <text x="60" y="434" class="item-desc">Crisp romaine hearts, shaved 24-month Parmesan, artisanal sourdough croutons, creamy Caesar</text>
+
+  <!-- Item 5 -->
+  <text x="60" y="467" class="item-name">Bistro Spinach &amp; Artichoke Dip</text>
+  <line x1="300" y1="462" x2="675" y2="462" class="dot-line"/>
+  <text x="740" y="467" class="item-price">$8.00</text>
+  <text x="60" y="487" class="item-desc">Warm blend of artisan cheeses, roasted garlic, tender artichoke hearts, crispy tortilla chips</text>
+
+  <!-- SECTION 2: ENTREES -->
+  <text x="60" y="535" class="section-head">Signature Entrées</text>
+  <line x1="60" y1="545" x2="740" y2="545" class="line"/>
+
+  <!-- Item 6 -->
+  <text x="60" y="575" class="item-name">Bistro Steak Frites</text>
+  <line x1="205" y1="570" x2="675" y2="570" class="dot-line"/>
+  <text x="740" y="575" class="item-price">$22.00</text>
+  <text x="60" y="595" class="item-desc">Pan-seared flank steak, compound garlic herb butter, golden shoestring fries, arugula salad</text>
+
+  <!-- Item 7 -->
+  <text x="60" y="628" class="item-name">Shrimp &amp; Grits</text>
+  <line x1="185" y1="623" x2="675" y2="623" class="dot-line"/>
+  <text x="740" y="628" class="item-price">$19.00</text>
+  <text x="60" y="648" class="item-desc">Sautéed wild gulf shrimp, heirloom tomatoes, scallions, aged cheddar grits, white wine reduction</text>
+
+  <!-- Item 8 -->
+  <text x="60" y="681" class="item-name">Hand-Made Truffle Pasta</text>
+  <line x1="250" y1="676" x2="675" y2="676" class="dot-line"/>
+  <text x="740" y="681" class="item-price">$17.00</text>
+  <text x="60" y="701" class="item-desc">House-made fettuccine, black truffle cream, roasted garlic, shaved aged Parmigiano-Reggiano</text>
+
+  <!-- Item 9 -->
+  <text x="60" y="734" class="item-name">Classic Bistro Burger</text>
+  <line x1="225" y1="729" x2="675" y2="729" class="dot-line"/>
+  <text x="740" y="734" class="item-price">$15.00</text>
+  <text x="60" y="754" class="item-desc">Half-pound ground chuck, toasted brioche, Vermont sharp white cheddar, house dill pickles, fries</text>
+
+  <!-- Item 10 -->
+  <text x="60" y="787" class="item-name">Grilled Catch of the Day</text>
+  <line x1="250" y1="782" x2="675" y2="782" class="dot-line"/>
+  <text x="740" y="787" class="item-price">$21.00</text>
+  <text x="60" y="807" class="item-desc">Fresh wild market fish, steamed fingerling potatoes, charred asparagus, lemon-herb reduction</text>
+
+  <!-- SECTION 3: DESSERTS & DRINKS -->
+  <text x="60" y="855" class="section-head">Desserts &amp; Refreshments</text>
+  <line x1="60" y1="865" x2="740" y2="865" class="line"/>
+
+  <!-- Item 11 -->
+  <text x="60" y="895" class="item-name">Caramelized Banana Cheesecake</text>
+  <line x1="305" y1="890" x2="675" y2="890" class="dot-line"/>
+  <text x="740" y="895" class="item-price">$10.00</text>
+  <text x="60" y="915" class="item-desc">Silky NY cheesecake, flambéed caramelized bananas, crushed graham crust, vanilla chantilly</text>
+
+  <!-- Item 12 -->
+  <text x="60" y="948" class="item-name">Classic Crème Brûlée</text>
+  <line x1="225" y1="943" x2="675" y2="943" class="dot-line"/>
+  <text x="740" y="948" class="item-price">$9.00</text>
+  <text x="60" y="968" class="item-desc">Rich Madagascar vanilla bean custard beneath a delicate caramelized sugar crust</text>
+
+  <!-- Item 13 -->
+  <text x="60" y="1001" class="item-name">Fresh Mint Lemonade</text>
+  <line x1="225" y1="996" x2="675" y2="996" class="dot-line"/>
+  <text x="740" y="1001" class="item-price">$5.00</text>
+  <text x="60" y="1021" class="item-desc">Freshly squeezed organic lemons, steeped garden spearmint, chilled cane sugar water</text>
+
+  <!-- Footer -->
+  <line x1="120" y1="1045" x2="680" y2="1045" class="line"/>
+  <text x="400" y="1070" text-anchor="middle" font-family="'Plus Jakarta Sans', sans-serif" font-size="12" fill="#8c775f">
+    The Heritage Bistro • 100% Certified Farm-Fresh Ingredients • Kitchen Hours: 11:30 AM – 10:00 PM
+  </text>
+</svg>

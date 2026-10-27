@@ -1,119 +1,74 @@
-# 🍝 Day 05: Bella Vista Bistro — Autonomous AI Restaurant Ecosystem
+# 🍽️ The Heritage Bistro — AI Restaurant Operating System
 
-> **Full-Stack Autonomous Restaurant Operations & Voice AI Platform featuring 3 Core Pillars: Front-of-House (Voice AI Receptionist + WhatsApp Digital Waiter + Review Interception), Back-of-House (Omnichannel KDS + Dynamic Wait Times + 11-Table Matrix), and Back-Office (AI Inventory & Predictive Purchasing + CRM 30-Day Win-Back Remarketing). Engineered with dual-market adaptability for Western POS & Pakistani Cash-on-Delivery markets.**
+> **A modern, clean, uncluttered AI Restaurant Operating System featuring three distinct portals: Public Customer Portal with an AI order chatbot, a password-protected Kitchen Portal for order fulfillment, and a password-protected Admin Dashboard for real-time financial tracking and expense logging.**
 
 [![Live Local Server](https://img.shields.io/badge/Port-3005-orange?style=for-the-badge&logo=node.js)](http://localhost:3005)
-[![Google Calendar](https://img.shields.io/badge/Google%20Calendar-Conflict--Free%20Seating-blue?style=for-the-badge&logo=googlecalendar)](https://calendar.google.com)
-[![Google Sheets](https://img.shields.io/badge/Google%20Sheets-5%20Synchronized%20Tabs-success?style=for-the-badge&logo=googlesheets)](https://sheets.google.com)
-[![Market Adaptation](https://img.shields.io/badge/Market%20Modes-🇺🇸%20Western%20|%20🇵🇰%20Pakistan-purple?style=for-the-badge)](http://localhost:3005)
+[![Google Sheets Database](https://img.shields.io/badge/Google%20Sheets-Live%20Database-success?style=for-the-badge&logo=googlesheets)](https://docs.google.com/spreadsheets/d/1Rpb9XQsymoDDSEl0n1EChgi8KY7BgmajFXctwreAMjo)
+[![n8n Workflow](https://img.shields.io/badge/n8n-Active%20Chatbot%20Engine-red?style=for-the-badge&logo=n8n)](https://n8n.srv1767318.hstgr.cloud)
 
 ---
 
-## 📌 Executive Summary & Architecture Overview
+## 📌 Three Distinct Portals
 
-Hospitality venues lose upwards of **28% of incoming customer calls** during peak dinner hours (6:00 PM – 9:00 PM), drop orders due to chaotic multi-channel entry points, and suffer margin losses from un-intercepted negative public reviews and dormant guests.
+### 1. 🌐 Customer Portal (Public Access)
+- **Header:** Navigation links (Home, Menu, Contact, and Portal unlocks).
+- **Hero Section:** Smooth automated image carousel featuring artisanal dishes (Steak Frites, Truffle Pasta, Bistro Burger, Crème Brûlée).
+- **Content Sections:** Curated menu items with descriptions & prices, restaurant hours, and contact details.
+- **Text-Based Order Chatbot:**
+  - **No Voice:** Strictly text-based conversational interface.
+  - **Conversational Simplicity:** Zero annoying upsell spam; direct, natural assistance.
+  - **Step-by-Step Flow:** Asks exactly ONE question at a time (Item ➔ Additional items / That's all ➔ Name ➔ Phone ➔ Pickup/Delivery ➔ Confirmation).
+  - **Menu Image:** When the user asks for the menu, replies with the high-resolution menu graphic (`bistro-menu.png`).
+  - **Strict Validation:** Cross-references all requests against the database. Unlisted items are rejected politely.
+  - **Data Routing:** Pushes confirmed orders straight to the Kitchen Portal and logs revenue to the Admin Dashboard.
 
-This Day 5 system transforms the restaurant into an **autonomous, self-directing hospitality ecosystem**:
+### 2. 👨‍🍳 Kitchen Portal (Password Protected)
+- **Default Password:** `chef123`
+- Clean, focused display screen designed for kitchen tablet / desktop operations.
+- Real-time queue of incoming orders showing: Order ID, Timestamp, Customer Name, Phone, Items breakdown, and Delivery/Pickup preferences.
+- Workflow Progression: `[🍳 Start Cooking]` ➔ `[✅ Mark Ready for Pickup]` ➔ `[📦 Complete Order]`.
+- Directly updates the Google Sheets kitchen database and local cache.
 
-```mermaid
-flowchart TD
-    subgraph FOH["🎙️ 1. FRONT-OF-HOUSE"]
-        A["📞 Voice AI Receptionist ('Marco')\n• Phone Reservations\n• Pickup Food Orders\n• Dietary RAG"]
-        B["💬 WhatsApp Digital Waiter\n• Table 4 QR Ordering\n• Dynamic Upsells\n• Status Broadcast"]
-        C["⭐ Sentiment & Review Manager\n• Intercepts 1-3★ Before Google\n• VIP Voucher Apology to GM\n• Promotes 4-5★ to Google Maps"]
-    end
-
-    subgraph BOH["🍳 2. BACK-OF-HOUSE"]
-        D["⚡ Omnichannel KDS Normalizer\n(Voice + WhatsApp + Web)"]
-        E["⏱️ Dynamic Wait Calculator\n15m + (Preparing Tickets × 3m)"]
-        F["🪑 11-Table Conflict-Free Matrix\nIndoor Window, Main, Patio, Cellar"]
-    end
-
-    subgraph BACKOFFICE["📊 3. BACK-OFFICE & REMARKETING"]
-        G["📦 AI Inventory & PO Generator\n• Auto-Deduction per Dish\n• Threshold Alerts\n• 1-Click Vendor Email Draft"]
-        H["👥 Zero-Effort CRM & Win-Back\n• Fingerprints All Callers\n• 30-Day Dormant Identification\n• Automated 20% WhatsApp Blast"]
-    end
-
-    FOH --> D
-    D --> E
-    D --> G
-    FOH --> H
-    FOH --> F
-```
-
----
-
-## 🏛️ The Three Architectural Pillars
-
-### 1. Front-of-House: Customer Interaction & Ordering
-* **Voice AI Receptionist & Order Taker ("Marco"):**
-  * Built on Web Speech API with pitch-tuned warm Italian baritone register (`0.72` pitch).
-  * Takes both **table reservations** across 11 tables and **food pickup orders** with dynamic wait time updates.
-  * Deep dietary RAG engine: Answers questions on Celiac/gluten-free substitutions, vegan risotto, Halal meats, peanut-free kitchen protocols, and valet parking.
-  * Full mobile resilience: 1000ms silence debounce on speech recognition + buffer flush so mobile speech is never dropped.
-* **WhatsApp Automation ("The Digital Waiter"):**
-  * Instant QR-code ordering for seated guests (e.g. Table 4).
-  * Interactive recommendation and upselling engine (*"Would you like extra Truffle Parmesan Fries (+$6) or an Italian Limoncello Spritz (+$10)?"*).
-  * Dispatches tickets straight into the Kitchen Display System (KDS).
-* **Automated Review & Sentiment Management:**
-  * Post-dining feedback interceptor.
-  * **1–3 Star Negative Feedback:** Intercepted **before** reaching Google Maps, dispatches urgent alert to the General Manager, and delivers an automated 25% VIP apology voucher.
-  * **4–5 Star Promoters:** Guided to Google Maps review page with pre-drafted gratitude response.
-
-### 2. Back-of-House: Kitchen & Order Sync
-* **Omnichannel Order Consolidation (KDS):**
-  * Unifies tickets from Voice AI, WhatsApp Digital Waiter, and Web into a single live visual ticket board.
-  * Interactive status toggles: `[🍳 PREPARING]` ➔ `[✅ READY FOR PLATING]` ➔ `[📦 COMPLETED]`.
-* **Dynamic Wait Time Calculation:**
-  * Formula: `Base 15 Mins + (Active PREPARING Tickets × 3 Mins)`.
-  * Communicated in real time to both voice callers and WhatsApp diners so expectations are managed accurately.
-* **11-Table Seating Floor Plan Matrix:**
-  * 11 distinct zones: Indoor Window 2-tops, Main Dining family booths, Garden Patio fairy-light tables, and Private Wine Cellar Suites (up to 14 guests).
-
-### 3. Back-Office: Admin, Inventory & Remarketing
-* **AI Inventory & Predictive Purchasing:**
-  * Real-time ingredient tracking (San Marzano Tomatoes, Carnaroli Rice, White Truffle Oil, Fior di Latte Mozzarella).
-  * Auto-decrementing stock upon order submission.
-  * Predictive Purchase Order (PO) drafting: Generates pre-formatted supplier email for low-stock items with quantities, pricing, and required delivery window.
-* **Zero-Effort CRM & 30-Day Win-Back Remarketing:**
-  * Automatically profiles every phone caller and WhatsApp guest (lifetime spend, total orders, last visit date).
-  * Segments diners into *VIP Diners* vs *Dormant (>30 Days)*.
-  * One-Click **30-Day Win-Back WhatsApp Broadcast**: Dispatches personalized 20% discount code `WELCOMEBACK20` to re-engage past customers.
+### 3. 📊 Admin Dashboard (Password Protected)
+- **Default Password:** `admin123`
+- Comprehensive business analytics:
+  - 💰 **Total Revenue** (Calculated from all fulfilled orders)
+  - 📉 **Total Expenses** (Operating costs, vendor invoices, utilities)
+  - 📈 **Net Operating Profit** (Revenue minus Expenses)
+  - 📦 **Total Orders Count**
+  - 🏷️ **Average Order Value (AOV)**
+- **Two Tab Views:**
+  1. **Order History Table:** Complete breakdown of customer orders, timestamps, totals, and fulfillment status.
+  2. **Operating Expenses Log:** Logged restaurant expenses with a quick **"➕ Log New Expense"** modal to record new supplier invoices.
 
 ---
 
-## 🌍 Dual-Market Adaptability Engine
-
-| Dimension | 🇺🇸 Western Market Mode (US / UK / EU) | 🇵🇰 Pakistani Market Mode (Pakistan) |
-| :--- | :--- | :--- |
-| **Primary Channel** | Voice AI Front Desk + POS Direct Sync | WhatsApp-First ("WATI" Style) Digital Experience |
-| **Language Nuance** | Polite English / Hospitality Maître d' | Roman Urdu / Minglish (*"G bilkul", "shukriya", "bhai"*) |
-| **POS & Kitchen** | Toast / Square POS REST API Integration | Kitchen Display System + WhatsApp Kitchen Alerts |
-| **Payment Workflow**| Voice Pre-Authorized Credit Card Checkout | **Automated Cash-on-Delivery (COD) Phone Verification** |
-| **Dietary Focus** | Gluten-Free, Celiac, Vegan, Nut-Free | 100% Certified Halal, Zero-Pork, Zero-Alcohol kitchen |
-| **Agency Pitch** | Hostess Labor Cost Reduction ($18+/hr saved) | WhatsApp Order Automation + Elimination of Fake COD Orders |
-
----
-
-## 📊 5 Synchronized Google Sheets Tabs
+## 🗄️ Database Schema (Google Sheets)
 
 Spreadsheet ID: `1Rpb9XQsymoDDSEl0n1EChgi8KY7BgmajFXctwreAMjo`
 
-1. `Restaurant_Reservations_Day5`: Reservation ID, Guest Name, Phone, Dining Time, Party Size, Table Assigned, Status.
-2. `Restaurant_Orders_Day5`: Order ID, Channel (Voice AI / WhatsApp), Guest, Phone, Items, Total Amount, Payment Method, Status, Wait Time.
-3. `Restaurant_Inventory_Day5`: SKU, Ingredient Name, Current Stock, Unit, Reorder Threshold, Unit Cost, Status.
-4. `Restaurant_CRM_Day5`: Customer ID, Name, Phone, Total Orders, Lifetime Spend, Last Order Date, Segment, Remarketing Status.
-5. `Restaurant_Reviews_Day5`: Timestamp, Customer Name, Star Rating, Feedback Text, Sentiment, Interception Action, AI Response Draft.
+1. **`Restaurant_Menu`**:
+   `Item_ID`, `Category`, `Item_Name`, `Description`, `Price`, `Is_Available`
+2. **`Restaurant_Kitchen_Orders`**:
+   `Order_ID`, `Timestamp`, `Customer_Name`, `Phone`, `Items`, `Special_Instructions`, `Total_Price`, `Status`
+3. **`Restaurant_Admin_Financials`**:
+   `Record_ID`, `Date`, `Type` (REVENUE/EXPENSE), `Category`, `Description`, `Amount`, `Order_ID`
 
 ---
 
-## 🚀 Running Locally & Verification
+## ⚡ Active n8n Workflow
+
+- **Workflow Name:** `AI Restaurant Chatbot & Order Routing Engine`
+- **Workflow ID:** `48dlUbDbToXx0tEw`
+- **Production Webhook:** `https://n8n.srv1767318.hstgr.cloud/webhook/restaurant-chatbot`
+- **Status:** 🟢 Active & Live
+
+---
+
+## 🚀 Running Locally
 
 ```bash
-# 1. Navigate to directory
-cd d:/AI_ASSISANT/day-05-restaurant-reservation-voicebot
-
-# 2. Start server
+# Start the local server
 node server.js
 ```
-Open `http://localhost:3005` in your browser. All tabs (Front-of-House, Back-of-House, Back-Office) are fully operational and synchronized.
+Open [`http://localhost:3005`](http://localhost:3005) in any browser.
