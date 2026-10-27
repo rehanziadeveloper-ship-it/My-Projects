@@ -748,7 +748,7 @@
         <div class="call-box">
           <button id="callBtn" class="mic-button" onclick="toggleCall()">📞</button>
 
-          <div id="statusPill" class="status-pill idle">
+          <div id="statusPill" class="status-pill idle" onclick="if(isCalling) tapToSpeak()" style="cursor: pointer;" title="Tap to toggle microphone">
             <span id="statusDot">⚪</span>
             <span id="statusLabel">Click Call to Test 24/7 Dispatch</span>
           </div>
@@ -760,6 +760,11 @@
           </div>
 
           <div id="interimPreview" class="interim-preview"></div>
+
+          <!-- Mobile & Universal Tap-to-Speak Button -->
+          <button id="tapToSpeakBtn" class="btn btn-danger" style="display: none; margin-top: 0.65rem; width: 100%; max-width: 280px; font-size: 0.88rem; padding: 0.65rem 1rem; align-items: center; justify-content: center; gap: 0.4rem; box-shadow: 0 4px 12px rgba(220, 38, 38, 0.25);" onclick="tapToSpeak()">
+            🎙️ Tap to Speak Answer
+          </button>
         </div>
 
         <div id="containmentAlert" class="containment-alert">
@@ -891,7 +896,11 @@
     const sessionId = 'session_dispatch_' + Math.floor(Math.random() * 1000000);
     let isCalling = false;
     let isAgentSpeaking = false;
+    let isProcessing = false;
     let recognition = null;
+    let isRecognizing = false;
+    let isStartingRecognition = false;
+    let recognitionRestartTimeout = null;
     let synthesis = window.speechSynthesis;
 
     // Web Audio API for Real-Time Microphone Decibels & Sound FX
@@ -899,6 +908,72 @@
     let analyser = null;
     let audioStream = null;
     let animFrameId = null;
+
+    // Global Male Voice Catalog Selector (Cross-Platform Android, iOS, Windows, Mac)
+    function getBestMaleVoice() {
+      if (!synthesis) return null;
+      const voices = synthesis.getVoices();
+      if (!voices || voices.length === 0) return null;
+
+      const maleIdentifiers = [
+        'david', 'guy', 'mark', 'george', 'aaron', 'daniel', 'alex',
+        'arthur', 'fred', 'gordon', 'rishi', 'male', 'man', 
+        'male_1', 'iol-local', 'iom-local', 'tpd-local', 'en-us-x-sfg#male',
+        'en-us-x-iom', 'en-us-x-iol', 'en-us-x-tpd', 'voice ii', 'voice iv'
+      ];
+      const femaleIdentifiers = [
+        'samantha', 'zira', 'jenny', 'aria', 'karen', 'moira', 
+        'tessa', 'victoria', 'susan', 'female', 'woman', 'girl',
+        'voice i', 'voice iii', 'google us english female', 'google uk english female'
+      ];
+
+      // 1. Search for explicit male English voice (matching name or voiceURI)
+      for (const v of voices) {
+        if (!v.lang || !v.lang.toLowerCase().startsWith('en')) continue;
+        const target = (v.name + ' ' + (v.voiceURI || '')).toLowerCase();
+        const isExplicitMale = maleIdentifiers.some(k => target.includes(k));
+        const isExplicitFemale = femaleIdentifiers.some(k => target.includes(k));
+        if (isExplicitMale && !isExplicitFemale) {
+          return v;
+        }
+      }
+
+      // 2. Search for English voice that is not explicitly female
+      // (Avoid generic 'Google US English' on Android because it defaults to female)
+      for (const v of voices) {
+        if (!v.lang || !v.lang.toLowerCase().startsWith('en')) continue;
+        const target = (v.name + ' ' + (v.voiceURI || '')).toLowerCase();
+        if (target.includes('google us english') || target.includes('google uk english female')) continue;
+        if (!femaleIdentifiers.some(k => target.includes(k))) {
+          return v;
+        }
+      }
+
+      // 3. Fallback: return first English voice
+      return voices.find(v => v.lang && v.lang.toLowerCase().startsWith('en')) || voices[0];
+    }
+
+    // Warmup Mobile Audio & Speech Engines on User Gesture
+    function unlockMobileAudio() {
+      try {
+        if (window.AudioContext || window.webkitAudioContext) {
+          if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+        if (synthesis) {
+          synthesis.cancel();
+          const warm = new SpeechSynthesisUtterance(' ');
+          warm.volume = 0.01;
+          synthesis.speak(warm);
+        }
+      } catch (e) {}
+    }
+
+    if (window.speechSynthesis) {
+      window.speechSynthesis.onvoiceschanged = () => {
+        getBestMaleVoice();
+      };
+    }
 
     // Radio Dispatch Audio Chimes
     function playRadioChime() {
@@ -1177,38 +1252,47 @@
       loadCalendar();
     }
 
-    // Toggle Voice Call
-    async function toggleCall() {
+    // Toggle Voice Call (Instant 0ms Start on Mobile & Desktop)
+    function toggleCall() {
       const btn = document.getElementById('callBtn');
+      const tapBtn = document.getElementById('tapToSpeakBtn');
 
       if (!isCalling) {
-        try {
-          if (!audioStream) {
-            audioStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            initVisualizer(audioStream);
-          }
-        } catch (err) {
-          alert('Please allow microphone permissions to speak with the emergency dispatcher.');
-          return;
-        }
-
+        // 1. Immediately unlock mobile audio within the synchronous user tap gesture!
+        unlockMobileAudio();
         playRadioChime();
+
         isCalling = true;
+        isProcessing = false;
         btn.classList.add('active');
         btn.innerHTML = '⏹️';
 
+        // 2. Start Marcus's opening greeting IMMEDIATELY without awaiting getUserMedia!
+        // This guarantees 0ms delay on Android & iOS mobile devices.
         speak("Thank you for calling Apex 24/7 Emergency Home Services. My name is Marcus. Are you calling with an urgent plumbing, heating, or electrical emergency, or looking to schedule standard service?");
+
+        // 3. Request mic in background asynchronously for the visualizer
+        if (!audioStream && navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+          navigator.mediaDevices.getUserMedia({ audio: true })
+            .then(stream => {
+              audioStream = stream;
+              initVisualizer(stream);
+            })
+            .catch(err => {
+              console.warn("Visualizer mic access skipped or denied:", err);
+            });
+        }
       } else {
         isCalling = false;
         isAgentSpeaking = false;
+        isProcessing = false;
         btn.classList.remove('active');
         btn.innerHTML = '📞';
+        if (tapBtn) tapBtn.style.display = 'none';
         setStatus('idle', 'Call Ended', 'Click Call to Start 24/7 Dispatch');
         document.getElementById('interimPreview').innerText = '';
 
-        if (recognition) {
-          try { recognition.abort(); } catch (e) {}
-        }
+        stopListening();
         if (synthesis) synthesis.cancel();
       }
     }
@@ -1224,6 +1308,8 @@
       `;
       document.getElementById('containmentAlert').style.display = 'none';
       document.getElementById('interimPreview').innerText = '';
+      const tapBtn = document.getElementById('tapToSpeakBtn');
+      if (tapBtn) tapBtn.style.display = 'none';
       closeSmsToast();
       fetch('/api/chat', {
         method: 'POST',
@@ -1233,32 +1319,38 @@
       loadAll();
     }
 
-    // Speech Synthesis
+    // Speech Synthesis with Deep Male Tone & Mobile Hardware Sequencing
     function speak(text, shouldEndCall = false) {
       if (!synthesis) return;
-      synthesis.cancel();
 
+      // Stop speech recognition while Marcus is speaking so he does not transcribe his own voice
+      stopListening();
+
+      synthesis.cancel();
       isAgentSpeaking = true;
+
+      const tapBtn = document.getElementById('tapToSpeakBtn');
+      if (tapBtn) tapBtn.style.display = 'none';
+
       if (shouldEndCall) {
         setStatus('speaking', 'Marcus is speaking (Dispatch Finalized)', 'Call concluding');
       } else {
         setStatus('speaking', 'Marcus is speaking...', 'Listening will resume when dispatcher finishes');
       }
 
-      if (recognition) {
-        try { recognition.abort(); } catch (e) {}
-      }
-
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 1.05;
-      utterance.pitch = 0.95;
+      utterance.rate = 1.0;
+      utterance.pitch = 0.82; // Deep, confident baritone emergency dispatcher voice
 
-      const voices = synthesis.getVoices();
-      const maleVoice = voices.find(v => (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('David') || v.name.includes('Guy') || v.name.includes('Male')) && v.lang.startsWith('en'));
-      if (maleVoice) utterance.voice = maleVoice;
+      const maleVoice = getBestMaleVoice();
+      if (maleVoice) {
+        utterance.voice = maleVoice;
+      }
 
       utterance.onend = () => {
         isAgentSpeaking = false;
+        isProcessing = false;
+
         if (shouldEndCall) {
           setStatus('idle', '✅ Dispatch Confirmed', 'Emergency ticket active • Technician rolling truck');
           setTimeout(() => {
@@ -1266,14 +1358,24 @@
           }, 1500);
           return;
         }
+
         if (isCalling) {
           setStatus('listening', 'Listening... (Speak now)', 'Speak clearly into your microphone');
-          startListening();
+          if (tapBtn) tapBtn.style.display = 'inline-flex';
+          // Small delay (350ms) to allow mobile audio hardware to switch cleanly from speaker to mic
+          setTimeout(() => {
+            if (isCalling && !isAgentSpeaking && !isProcessing) {
+              startListening();
+            }
+          }, 350);
         }
       };
 
-      utterance.onerror = () => {
+      utterance.onerror = (e) => {
+        console.warn("Speech synthesis error or interrupted:", e);
         isAgentSpeaking = false;
+        isProcessing = false;
+
         if (shouldEndCall) {
           setStatus('idle', '✅ Dispatch Confirmed', 'Emergency ticket active • Technician rolling truck');
           setTimeout(() => {
@@ -1281,9 +1383,15 @@
           }, 1500);
           return;
         }
+
         if (isCalling) {
           setStatus('listening', 'Listening... (Speak now)', 'Speak clearly into your microphone');
-          startListening();
+          if (tapBtn) tapBtn.style.display = 'inline-flex';
+          setTimeout(() => {
+            if (isCalling && !isAgentSpeaking && !isProcessing) {
+              startListening();
+            }
+          }, 350);
         }
       };
 
@@ -1487,9 +1595,49 @@
       return { reply: "Your ticket is active on our dispatch board. If you need anything else, just let me know!" };
     }
 
+    // Stop Listening Cleanly (Prevents Race Conditions & Mic Lockups)
+    function stopListening() {
+      if (recognitionRestartTimeout) {
+        clearTimeout(recognitionRestartTimeout);
+        recognitionRestartTimeout = null;
+      }
+      if (recognition) {
+        try {
+          recognition.onend = null;
+          recognition.onerror = null;
+          recognition.onresult = null;
+          recognition.abort();
+        } catch (e) {}
+        recognition = null;
+      }
+      isRecognizing = false;
+      isStartingRecognition = false;
+    }
+
+    // Tap-to-Speak Touch Fallback for Mobile Phones & Push-to-Talk
+    function tapToSpeak() {
+      if (!isCalling) {
+        toggleCall();
+        return;
+      }
+      if (isAgentSpeaking) {
+        if (synthesis) synthesis.cancel();
+        isAgentSpeaking = false;
+      }
+      stopListening();
+      isProcessing = false;
+      setStatus('listening', 'Listening... (Speak now)', 'Microphone activated • Speak your answer');
+      startListening();
+    }
+
     // Send Message
     async function sendMessage(text) {
-      if (!text || !text.trim()) return;
+      if (!text || !text.trim() || isProcessing) return;
+
+      // Stop recognition immediately so the mic doesn't capture background noise or echo while processing
+      stopListening();
+      isProcessing = true;
+
       document.getElementById('interimPreview').innerText = '';
       appendMessage('Caller', text, false);
 
@@ -1529,6 +1677,12 @@
       if (data.reply) {
         appendMessage('Marcus (Dispatch Coordinator)', data.reply, true);
         speak(data.reply, data.endCall);
+      } else {
+        isProcessing = false;
+        if (isCalling) {
+          setStatus('listening', 'Listening... (Speak now)', 'Speak clearly into your microphone');
+          startListening();
+        }
       }
 
       if (data.isBooked) {
@@ -1545,34 +1699,36 @@
       sendMessage(val);
     }
 
-    // Speech Recognition
+    // Speech Recognition (Mobile & Desktop Hardened)
     function startListening() {
-      if (!isCalling || isAgentSpeaking) return;
+      if (!isCalling || isAgentSpeaking || isProcessing || isRecognizing || isStartingRecognition) return;
 
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SpeechRecognition) {
-        alert('Speech recognition requires Google Chrome or Microsoft Edge.');
         return;
       }
 
+      isStartingRecognition = true;
+
       try {
-        if (recognition) {
-          try { recognition.abort(); } catch (e) {}
-        }
+        stopListening();
 
-        recognition = new SpeechRecognition();
-        recognition.continuous = false;
-        recognition.interimResults = true;
-        recognition.lang = 'en-US';
+        const rec = new SpeechRecognition();
+        rec.continuous = false;
+        rec.interimResults = true;
+        rec.lang = 'en-US';
+        rec.maxAlternatives = 1;
 
-        recognition.onstart = () => {
-          if (!isAgentSpeaking && isCalling) {
+        rec.onstart = () => {
+          isStartingRecognition = false;
+          isRecognizing = true;
+          if (!isAgentSpeaking && isCalling && !isProcessing) {
             setStatus('listening', 'Listening... (Speak now)', 'Speak your emergency details');
           }
         };
 
-        recognition.onresult = (event) => {
-          if (isAgentSpeaking) return;
+        rec.onresult = (event) => {
+          if (isAgentSpeaking || isProcessing) return;
 
           let interim = '';
           let final = '';
@@ -1589,29 +1745,45 @@
 
           if (final && final.trim()) {
             document.getElementById('interimPreview').innerText = '';
+            stopListening();
             sendMessage(final.trim());
           }
         };
 
-        recognition.onerror = (e) => {
-          if (e.error === 'no-speech') return;
+        rec.onerror = (e) => {
+          isStartingRecognition = false;
+          isRecognizing = false;
           if (e.error === 'not-allowed') {
-            alert('Microphone access was denied. Please allow microphone permissions.');
-            toggleCall();
+            alert('Microphone access was denied. Please allow microphone permissions in your mobile browser settings.');
             return;
           }
         };
 
-        recognition.onend = () => {
-          if (isCalling && !isAgentSpeaking) {
-            setTimeout(startListening, 150);
+        rec.onend = () => {
+          isStartingRecognition = false;
+          isRecognizing = false;
+          if (isCalling && !isAgentSpeaking && !isProcessing) {
+            if (recognitionRestartTimeout) clearTimeout(recognitionRestartTimeout);
+            recognitionRestartTimeout = setTimeout(() => {
+              if (isCalling && !isAgentSpeaking && !isProcessing) {
+                startListening();
+              }
+            }, 450);
           }
         };
 
-        recognition.start();
+        recognition = rec;
+        rec.start();
       } catch (err) {
-        if (isCalling && !isAgentSpeaking) {
-          setTimeout(startListening, 300);
+        isStartingRecognition = false;
+        isRecognizing = false;
+        if (isCalling && !isAgentSpeaking && !isProcessing) {
+          if (recognitionRestartTimeout) clearTimeout(recognitionRestartTimeout);
+          recognitionRestartTimeout = setTimeout(() => {
+            if (isCalling && !isAgentSpeaking && !isProcessing) {
+              startListening();
+            }
+          }, 600);
         }
       }
     }
