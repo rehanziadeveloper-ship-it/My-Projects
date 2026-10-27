@@ -165,13 +165,8 @@ function findNextAvailableSlot(existingEvents, isEmergency, trade, preferredTime
 async function createDispatchCalendarEvent(ticket) {
   try {
     const token = await getGoogleAccessToken();
-    const existingEvents = await listUpcomingCalendarDispatches();
-    const isEmerg = ticket.urgency.includes('CRITICAL EMERGENCY');
-    const slot = findNextAvailableSlot(existingEvents, isEmerg, ticket.trade || 'General');
-
-    const startIso = slot.start.toISOString();
-    const endIso = slot.end.toISOString();
-    ticket.eta = slot.slotLabel; // Update ticket ETA to the actual conflict-free window
+    const startIso = ticket.scheduledStart || new Date().toISOString();
+    const endIso = ticket.scheduledEnd || new Date(Date.now() + 45 * 60000).toISOString();
 
     const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CAL_ID)}/events`, {
       method: 'POST',
@@ -180,7 +175,7 @@ async function createDispatchCalendarEvent(ticket) {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        summary: `${ticket.urgency.includes('CRITICAL') ? '🚨 EMERGENCY' : '🔧 SERVICE'}: ${ticket.customerName} (${ticket.trade})`,
+        summary: `${ticket.urgency.includes('CRITICAL') ? '🚨 EMERGENCY' : '🔧 SERVICE'}: ${ticket.customerName} (${ticket.trade || 'General'})`,
         location: ticket.address,
         description: [
           `Ticket ID: ${ticket.id}`,
@@ -676,6 +671,32 @@ const server = http.createServer(async (req, res) => {
         res.end(JSON.stringify(result));
       } catch (err) {
         console.error('API Error:', err);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // API Route: Direct Ticket Sync to Google Sheets & Calendar
+  if (req.url === '/api/record-ticket' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      try {
+        const ticket = JSON.parse(body || '{}');
+        if (ticket && ticket.id) {
+          dispatchTickets.unshift(ticket);
+          await appendTicketToGoogleSheet(ticket);
+          await createDispatchCalendarEvent(ticket);
+          forwardToN8n({ event: 'emergency_dispatch_created', ticket });
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: true, message: 'Ticket logged to Google Sheets and Calendar' }));
+          return;
+        }
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Invalid ticket data' }));
+      } catch (err) {
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: err.message }));
       }

@@ -919,7 +919,8 @@
         'david', 'guy', 'mark', 'george', 'aaron', 'daniel', 'alex',
         'arthur', 'fred', 'gordon', 'rishi', 'male', 'man', 
         'male_1', 'iol-local', 'iom-local', 'tpd-local', 'en-us-x-sfg#male',
-        'en-us-x-iom', 'en-us-x-iol', 'en-us-x-tpd', 'voice ii', 'voice iv'
+        'en-us-x-iom', 'en-us-x-iol', 'en-us-x-tpd', 'voice ii', 'voice iv',
+        'en-gb-x-rjs', 'en-au-x-afh', 'en-in-x-cxx', 'google uk english male'
       ];
       const femaleIdentifiers = [
         'samantha', 'zira', 'jenny', 'aria', 'karen', 'moira', 
@@ -938,33 +939,27 @@
         }
       }
 
-      // 2. Search for English voice that is not explicitly female
-      // (Avoid generic 'Google US English' on Android because it defaults to female)
+      // 2. Search for any English voice that is not explicitly female
       for (const v of voices) {
         if (!v.lang || !v.lang.toLowerCase().startsWith('en')) continue;
         const target = (v.name + ' ' + (v.voiceURI || '')).toLowerCase();
-        if (target.includes('google us english') || target.includes('google uk english female')) continue;
-        if (!femaleIdentifiers.some(k => target.includes(k))) {
-          return v;
-        }
+        if (femaleIdentifiers.some(k => target.includes(k))) continue;
+        return v;
       }
 
       // 3. Fallback: return first English voice
       return voices.find(v => v.lang && v.lang.toLowerCase().startsWith('en')) || voices[0];
     }
 
-    // Warmup Mobile Audio & Speech Engines on User Gesture
+    // Warmup Mobile Audio & Speech Engines on User Gesture (Safe & Stall-Free)
     function unlockMobileAudio() {
       try {
         if (window.AudioContext || window.webkitAudioContext) {
           if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
           if (audioCtx.state === 'suspended') audioCtx.resume();
         }
-        if (synthesis) {
-          synthesis.cancel();
-          const warm = new SpeechSynthesisUtterance(' ');
-          warm.volume = 0.01;
-          synthesis.speak(warm);
+        if (synthesis && synthesis.paused) {
+          synthesis.resume();
         }
       } catch (e) {}
     }
@@ -1339,8 +1334,8 @@
       }
 
       const utterance = new SpeechSynthesisUtterance(text);
-      utterance.rate = 1.0;
-      utterance.pitch = 0.82; // Deep, confident baritone emergency dispatcher voice
+      utterance.rate = 0.95; // Calm, clear emergency dispatcher cadence
+      utterance.pitch = 0.68; // Deep baritone male pitch across Android, iOS, Windows, Mac
 
       const maleVoice = getBestMaleVoice();
       if (maleVoice) {
@@ -1361,13 +1356,16 @@
 
         if (isCalling) {
           setStatus('listening', 'Listening... (Speak now)', 'Speak clearly into your microphone');
-          if (tapBtn) tapBtn.style.display = 'inline-flex';
-          // Small delay (350ms) to allow mobile audio hardware to switch cleanly from speaker to mic
+          if (tapBtn) {
+            tapBtn.style.display = 'inline-flex';
+            tapBtn.innerHTML = '🎙️ Speak Answer (or Tap to Talk)';
+          }
+          // 400ms delay to allow mobile audio hardware to switch cleanly from speaker to mic
           setTimeout(() => {
             if (isCalling && !isAgentSpeaking && !isProcessing) {
               startListening();
             }
-          }, 350);
+          }, 400);
         }
       };
 
@@ -1386,12 +1384,15 @@
 
         if (isCalling) {
           setStatus('listening', 'Listening... (Speak now)', 'Speak clearly into your microphone');
-          if (tapBtn) tapBtn.style.display = 'inline-flex';
+          if (tapBtn) {
+            tapBtn.style.display = 'inline-flex';
+            tapBtn.innerHTML = '🎙️ Speak Answer (or Tap to Talk)';
+          }
           setTimeout(() => {
             if (isCalling && !isAgentSpeaking && !isProcessing) {
               startListening();
             }
-          }, 350);
+          }, 400);
         }
       };
 
@@ -1581,6 +1582,13 @@
         saveStoredTicket(ticket);
         loadAll();
 
+        // Sync ticket directly to Google Sheets CRM & Google Calendar
+        fetch('/api/record-ticket', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(ticket)
+        }).catch(err => console.warn('Record ticket sync fallback error:', err));
+
         return {
           reply: `🚨 DISPATCH TICKET GENERATED [${ticketId}]\n• Urgency: ${ticket.urgency}\n• Homeowner: ${ticket.customerName}\n• Location: ${ticket.address}\n• Assigned: ${ticket.assignedTech}\n• Confirmed Arrival Window: ${ticket.eta}\n\nOur on-call technician has been directly paged with zero scheduling conflicts. Is there anything else you need immediate help with?`,
           isBooked: true,
@@ -1595,8 +1603,15 @@
       return { reply: "Your ticket is active on our dispatch board. If you need anything else, just let me know!" };
     }
 
+    let speechSilenceTimer = null;
+    let pendingTranscript = '';
+
     // Stop Listening Cleanly (Prevents Race Conditions & Mic Lockups)
     function stopListening() {
+      if (speechSilenceTimer) {
+        clearTimeout(speechSilenceTimer);
+        speechSilenceTimer = null;
+      }
       if (recognitionRestartTimeout) {
         clearTimeout(recognitionRestartTimeout);
         recognitionRestartTimeout = null;
@@ -1699,7 +1714,7 @@
       sendMessage(val);
     }
 
-    // Speech Recognition (Mobile & Desktop Hardened)
+    // Speech Recognition (Mobile & Desktop Hardened with Interim Fallback)
     function startListening() {
       if (!isCalling || isAgentSpeaking || isProcessing || isRecognizing || isStartingRecognition) return;
 
@@ -1709,6 +1724,7 @@
       }
 
       isStartingRecognition = true;
+      pendingTranscript = '';
 
       try {
         stopListening();
@@ -1722,8 +1738,14 @@
         rec.onstart = () => {
           isStartingRecognition = false;
           isRecognizing = true;
+          pendingTranscript = '';
           if (!isAgentSpeaking && isCalling && !isProcessing) {
             setStatus('listening', 'Listening... (Speak now)', 'Speak your emergency details');
+            const tapBtn = document.getElementById('tapToSpeakBtn');
+            if (tapBtn) {
+              tapBtn.style.display = 'inline-flex';
+              tapBtn.innerHTML = '🎙️ Listening to you... (Speak now)';
+            }
           }
         };
 
@@ -1735,18 +1757,40 @@
 
           for (let i = 0; i < event.results.length; i++) {
             const transcript = event.results[i][0].transcript;
-            if (event.results[i].isFinal) final += transcript;
-            else interim += transcript;
+            if (event.results[i].isFinal) {
+              final += transcript;
+            } else {
+              interim += transcript;
+            }
           }
 
-          if (interim) {
-            document.getElementById('interimPreview').innerText = `🎙️ "${interim}"...`;
-          }
+          const currentText = (final || interim).trim();
+          if (currentText) {
+            pendingTranscript = currentText;
+            document.getElementById('interimPreview').innerText = `🎙️ "${currentText}"...`;
 
-          if (final && final.trim()) {
-            document.getElementById('interimPreview').innerText = '';
-            stopListening();
-            sendMessage(final.trim());
+            // If browser emitted an explicit final result, commit immediately
+            if (final && final.trim()) {
+              if (speechSilenceTimer) clearTimeout(speechSilenceTimer);
+              const toSend = final.trim();
+              pendingTranscript = '';
+              document.getElementById('interimPreview').innerText = '';
+              stopListening();
+              sendMessage(toSend);
+              return;
+            }
+
+            // Mobile-first silence debounce: if mobile emits interim and user pauses for 1000ms, commit!
+            if (speechSilenceTimer) clearTimeout(speechSilenceTimer);
+            speechSilenceTimer = setTimeout(() => {
+              if (pendingTranscript && pendingTranscript.trim() && !isProcessing && !isAgentSpeaking) {
+                const toSend = pendingTranscript.trim();
+                pendingTranscript = '';
+                document.getElementById('interimPreview').innerText = '';
+                stopListening();
+                sendMessage(toSend);
+              }
+            }, 1000);
           }
         };
 
@@ -1762,6 +1806,18 @@
         rec.onend = () => {
           isStartingRecognition = false;
           isRecognizing = false;
+
+          // If mobile speech finished while uncommitted words exist, dispatch them NOW!
+          if (pendingTranscript && pendingTranscript.trim() && !isProcessing && !isAgentSpeaking) {
+            if (speechSilenceTimer) clearTimeout(speechSilenceTimer);
+            const toSend = pendingTranscript.trim();
+            pendingTranscript = '';
+            document.getElementById('interimPreview').innerText = '';
+            stopListening();
+            sendMessage(toSend);
+            return;
+          }
+
           if (isCalling && !isAgentSpeaking && !isProcessing) {
             if (recognitionRestartTimeout) clearTimeout(recognitionRestartTimeout);
             recognitionRestartTimeout = setTimeout(() => {
