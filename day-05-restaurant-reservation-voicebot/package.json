@@ -1,0 +1,21 @@
+{
+  "name": "day-05-restaurant-reservation-voicebot",
+  "version": "1.0.0",
+  "description": "Day 05: Autonomous Voice AI Restaurant Reservation & Menu Q&A Agent with Google Sheets CRM & Google Calendar Seating Engine",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": [
+    "voice-ai",
+    "restaurant-reservations",
+    "table-booking",
+    "menu-rag",
+    "google-sheets",
+    "google-calendar",
+    "n8n"
+  ],
+  "author": "Muhammad Rehan",
+  "license": "MIT"
+}

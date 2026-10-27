@@ -14,7 +14,8 @@ A comprehensive sprint building 1 production-ready voice and automation system e
 | **02** | **Sub-60s Missed-Call Auto-Recovery & AI Lead Qualification** | WhatsApp Gateway, n8n, Google Sheets CRM | [View Day 2](day-02-missed-call-recovery/) | 🟢 **Production Live** | [Portal](day-02-missed-call-recovery/) |
 | **03** | **Dental & Clinic Real-Time Calendar Booking Voicebot** | Web Speech API, Google Calendar API (Free/Busy), n8n | [View Day 3](day-03-calendar-voicebot/) | 🟢 **Production Live** | [Portal](day-03-calendar-voicebot/) |
 | **04** | **Home Services Emergency Dispatch Voicebot (Plumbing/HVAC/Electrical)** | Netlify Serverless, Web Speech API, Google Calendar & Sheets CRM, Conflict Prevention | [View Day 4](day-04-emergency-dispatch-voicebot/) | 🟢 **Production Live** | [⚡ Live App](https://apex-emergency-dispatch.netlify.app) |
-| **05** | **Restaurant Table Reservation & Menu Q&A Voicebot** | Multi-Turn Voice AI, Menu RAG, Seating Inventory Sync | Day 5 | 🚀 Next Sprint | Coming Soon |
+| **05** | **Restaurant Table Reservation & Menu Q&A Voicebot (Bella Vista Bistro)** | Web Speech API, Menu RAG Engine, 11-Table Floor Matrix, Google Sheets & Calendar Sync | [View Day 5](day-05-restaurant-reservation-voicebot/) | 🟢 **Production Live** | [Portal](day-05-restaurant-reservation-voicebot/) |
+| **06** | **Real Estate Inbound Buyer Qualification Voicebot** | Inbound Lead Scorer, Twilio / WebRTC, CRM Pipeline, Slack Hot Leads | Day 6 | 🚀 Next Sprint | Coming Soon |
 | **...** | *30 Days Roadmap* | n8n, Groq, Claude 3.5, Gemini, Supabase | [Full Roadmap](memory/02_PROJECTS/30_DAYS_BUILD_CHALLENGE.md) | 🚀 In Progress | — |
 
 ---
@@ -42,6 +43,13 @@ A comprehensive sprint building 1 production-ready voice and automation system e
 * **Conflict-Free Scheduling Engine:** Guarantees zero technician overlap by cross-checking active dispatches and locking the next available window.
 * **Serverless Dual-Write Architecture:** Powered by Netlify functions with direct RS256 JWT writes to Google Sheets (`Emergency_Dispatch_Day4`) and Google Calendar.
 * **Mobile-Hardened Web Audio:** 0ms instant start delay, deep baritone dispatcher voice, 1000ms silence debounce, and tactile push-to-talk controls.
+
+### 📍 [Day 05: Restaurant Table Reservation & Menu Q&A Voice Agent](day-05-restaurant-reservation-voicebot/)
+* **24/7 Voice AI Host ("Marco"):** Sophisticated Italian Maître d' managing peak-hour reservation calls and table seating.
+* **Menu & Dietary RAG Assistant:** Instant spoken answers on vegan options (Wild Mushroom & Black Truffle Risotto), certified gluten-free pastas, nut-free kitchen protocols, operating hours, and complimentary valet parking.
+* **11-Table Floor Matrix & Conflict-Free Seating:** Allocates 2-top romantic tables, heated garden patio seating, family booths, and a private 14-guest Wine Cellar Suite with zero double-booking.
+* **Dual-Write Operations Sync:** Real-time logging to Google Sheets (`Restaurant_Reservations_Day5`) and Google Calendar seating blocks.
+* **Interactive Hospitality Operations Console:** Live interactive table occupancy map, audio equalizer canvas, and restaurant revenue recapture ROI calculator.
 
 ---
 
