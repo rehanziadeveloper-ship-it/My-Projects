@@ -8,12 +8,14 @@
 
 A comprehensive sprint building 1 production-ready voice and automation system every day for 30 days.
 
-| Day | Project | Core Tech Stack | Deliverables & Docs | Status |
-| :---: | :--- | :--- | :--- | :---: |
-| **01** | **24/7 AI Dental Clinic Receptionist & Call Triage** | Vapi (WebRTC), n8n, Google Sheets, Groq | [View Day 1](day-01-dental-voice-receptionist/) | 🟢 **Production Live** |
-| **02** | **Sub-60s Missed-Call Auto-Recovery & AI Lead Qualification** | WhatsApp Gateway, n8n, Google Sheets CRM | [View Day 2](day-02-missed-call-recovery/) | 🟢 **Production Live** |
-| **03** | **Dental & Clinic Real-Time Calendar Booking Voicebot** | Vapi, n8n, Google Calendar API | Day 3 | 🟡 Next Sprint |
-| **...** | *30 Days Roadmap* | n8n, Groq, Claude 3.5, Lovable, Qdrant | [Full Roadmap](memory/02_PROJECTS/30_DAYS_BUILD_CHALLENGE.md) | 🚀 In Progress |
+| Day | Project | Core Tech Stack | Deliverables & Docs | Status | Live Demo |
+| :---: | :--- | :--- | :--- | :---: | :---: |
+| **01** | **24/7 AI Dental Clinic Receptionist & Call Triage** | Vapi (WebRTC), n8n, Google Sheets, Groq | [View Day 1](day-01-dental-voice-receptionist/) | 🟢 **Production Live** | [Portal](day-01-dental-voice-receptionist/) |
+| **02** | **Sub-60s Missed-Call Auto-Recovery & AI Lead Qualification** | WhatsApp Gateway, n8n, Google Sheets CRM | [View Day 2](day-02-missed-call-recovery/) | 🟢 **Production Live** | [Portal](day-02-missed-call-recovery/) |
+| **03** | **Dental & Clinic Real-Time Calendar Booking Voicebot** | Web Speech API, Google Calendar API (Free/Busy), n8n | [View Day 3](day-03-calendar-voicebot/) | 🟢 **Production Live** | [Portal](day-03-calendar-voicebot/) |
+| **04** | **Home Services Emergency Dispatch Voicebot (Plumbing/HVAC/Electrical)** | Netlify Serverless, Web Speech API, Google Calendar & Sheets CRM, Conflict Prevention | [View Day 4](day-04-emergency-dispatch-voicebot/) | 🟢 **Production Live** | [⚡ Live App](https://apex-emergency-dispatch.netlify.app) |
+| **05** | **Restaurant Table Reservation & Menu Q&A Voicebot** | Multi-Turn Voice AI, Menu RAG, Seating Inventory Sync | Day 5 | 🚀 Next Sprint | Coming Soon |
+| **...** | *30 Days Roadmap* | n8n, Groq, Claude 3.5, Gemini, Supabase | [Full Roadmap](memory/02_PROJECTS/30_DAYS_BUILD_CHALLENGE.md) | 🚀 In Progress | — |
 
 ---
 
@@ -29,14 +31,27 @@ A comprehensive sprint building 1 production-ready voice and automation system e
 * **Intelligent Clinical Triage:** Classifies urgency into emergency toothaches vs routine hygiene checkups.
 * **Zero-Cost Architecture:** Complete local-bridge + webhook automation with 0 API cost and no credit card requirement.
 
+### 📍 [Day 03: Dental Real-Time Voice Appointment Booking & Google Calendar Engine](day-03-calendar-voicebot/)
+* **Zero Double-Booking:** Real-time Google Calendar Free/Busy slot verification prevents overlapping bookings.
+* **Natural Dialogue Flow:** Dynamic date/time parsing with reschedule handling and doctor availability FAQ handler.
+* **Dual-Write Architecture:** Writes confirmed appointments directly to Google Calendar and syncs patient records into Google Sheets.
+
+### 📍 [Day 04: Home Services Emergency Dispatch Voicebot](day-04-emergency-dispatch-voicebot/) — [🌐 Live Demo](https://apex-emergency-dispatch.netlify.app)
+* **24/7 Voice AI Dispatcher ("Marcus"):** Autonomous dispatcher triaging high-ticket emergencies (plumbing floods, freezing furnaces, sparking panels) vs. standard daytime service.
+* **Life & Property Containment Advice:** Immediate spoken safety guidance (e.g. main water shutoff valve, electrical breaker distance).
+* **Conflict-Free Scheduling Engine:** Guarantees zero technician overlap by cross-checking active dispatches and locking the next available window.
+* **Serverless Dual-Write Architecture:** Powered by Netlify functions with direct RS256 JWT writes to Google Sheets (`Emergency_Dispatch_Day4`) and Google Calendar.
+* **Mobile-Hardened Web Audio:** 0ms instant start delay, deep baritone dispatcher voice, 1000ms silence debounce, and tactile push-to-talk controls.
+
 ---
 
 ## 🛠️ Global Tech Stack
-* **Voice & Telephony:** Vapi.ai (WebRTC & VoIP), Twilio
+* **Voice & Telephony:** Web Speech API, Vapi.ai (WebRTC & VoIP), Web Audio API
+* **Hosting & Serverless:** Netlify Functions (Node.js 24)
 * **Messaging & Chat:** WhatsApp (Baileys WebRTC Gateway), Webhooks
 * **Workflow Automation:** `n8n` (Self-hosted on Cloud VPS)
-* **AI Models:** OpenAI GPT-4o-mini, Anthropic Claude 3.5 Sonnet, Groq Llama 3.3
-* **Data & CRM:** Google Sheets, Google Calendar API, Supabase
+* **AI Models:** OpenAI GPT-4o-mini, Anthropic Claude 3.5 Sonnet, Groq Llama 3.3, Google Gemini Flash
+* **Data & CRM:** Google Sheets API, Google Calendar API (v3), Supabase
 
 ---
 
