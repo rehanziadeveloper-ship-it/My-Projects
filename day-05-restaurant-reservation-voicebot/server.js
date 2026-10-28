@@ -244,6 +244,7 @@ function runFallbackChatbotEngine(rawMessage, sessionState, occupiedTables = [3,
     name: '',
     phone: '',
     fulfillmentType: '',
+    deliveryAddress: '',
     tableNumber: '',
     paymentMethod: ''
   };
@@ -258,6 +259,7 @@ function runFallbackChatbotEngine(rawMessage, sessionState, occupiedTables = [3,
       name: '',
       phone: '',
       fulfillmentType: '',
+      deliveryAddress: '',
       tableNumber: '',
       paymentMethod: ''
     };
@@ -287,7 +289,17 @@ function runFallbackChatbotEngine(rawMessage, sessionState, occupiedTables = [3,
     };
   }
 
-  // 4. STEP 1: Select Dish
+  // 4. Generic Order Intent: "I want to order", "place an order", etc.
+  if ((state.step === 'START' || state.step === 'AWAITING_ITEM') && /^(i want to order|i'?d like to order|i want to make an order|can i order|order food|let me order|order something|place an order|start order|i wanna order|i want food|order)\b/i.test(lower) && !findMenuItem(lower)) {
+    state.step = 'AWAITING_ITEM';
+    return {
+      reply: "We would love to take your order! Which dish would you like to order today? (You can also ask to see the menu anytime.)",
+      menuImage: null,
+      sessionState: state
+    };
+  }
+
+  // 5. STEP 1: Select Dish
   if (state.step === 'START' || state.step === 'AWAITING_ITEM') {
     const matched = findMenuItem(lower);
     if (!matched) {
@@ -322,7 +334,7 @@ function runFallbackChatbotEngine(rawMessage, sessionState, occupiedTables = [3,
     };
   }
 
-  // 5. STEP 2: Quantity Input
+  // 6. STEP 2: Quantity Input
   if (state.step === 'AWAITING_QUANTITY') {
     const item = state.pendingItem;
     if (!item) {
@@ -347,7 +359,7 @@ function runFallbackChatbotEngine(rawMessage, sessionState, occupiedTables = [3,
     };
   }
 
-  // 6. STEP 3: Add More Dishes or Proceed
+  // 7. STEP 3: Add More Dishes or Proceed
   if (state.step === 'AWAITING_ADD_MORE') {
     const isCheckout = /no\b|that'?s all|thats all|done\b|it'?s done|its done|nothing|none|no thanks|checkout|proceed|ready|finish|that is all|enough/i.test(lower);
     if (isCheckout) {
@@ -387,7 +399,7 @@ function runFallbackChatbotEngine(rawMessage, sessionState, occupiedTables = [3,
     };
   }
 
-  // 7. STEP 4: Customer Name
+  // 8. STEP 4: Customer Name
   if (state.step === 'AWAITING_NAME') {
     const name = message.replace(/^(my name is|i am|it's|this is|call me)\s+/i, '').trim();
     state.name = name || 'Valued Guest';
@@ -399,7 +411,7 @@ function runFallbackChatbotEngine(rawMessage, sessionState, occupiedTables = [3,
     };
   }
 
-  // 8. STEP 5: Phone Number
+  // 9. STEP 5: Phone Number
   if (state.step === 'AWAITING_PHONE') {
     state.phone = message.trim();
     state.step = 'AWAITING_FULFILLMENT';
@@ -410,10 +422,11 @@ function runFallbackChatbotEngine(rawMessage, sessionState, occupiedTables = [3,
     };
   }
 
-  // 9. STEP 6: Fulfillment Type
+  // 10. STEP 6: Fulfillment Type (Strict branching: NO table shown for Pickup/Delivery!)
   if (state.step === 'AWAITING_FULFILLMENT') {
     if (/din|table|here|dine/i.test(lower)) {
       state.fulfillmentType = 'Dining';
+      state.deliveryAddress = 'N/A';
       state.step = 'AWAITING_TABLE_NO';
 
       const available = ALL_TABLES.filter(t => !occupiedTables.includes(t)).map(t => `Table ${t}`);
@@ -424,17 +437,19 @@ function runFallbackChatbotEngine(rawMessage, sessionState, occupiedTables = [3,
     } else if (/deliv/i.test(lower)) {
       state.fulfillmentType = 'Delivery';
       state.tableNumber = 'N/A';
-      state.waitTime = '30-40 minutes';
-      state.step = 'AWAITING_PAYMENT';
+      state.step = 'AWAITING_DELIVERY_ADDRESS';
+
       return {
-        reply: `Got it, Delivery! Your estimated delivery wait time is ${state.waitTime}.\n\nWould you like to pay Online or Cash on Delivery?`,
+        reply: "Got it, Delivery! What is your full delivery address?",
         sessionState: state
       };
     } else {
       state.fulfillmentType = 'Pickup';
       state.tableNumber = 'N/A';
+      state.deliveryAddress = 'N/A';
       state.waitTime = '15-20 minutes';
       state.step = 'AWAITING_PAYMENT';
+
       return {
         reply: `Got it, Pickup! Your estimated pickup wait time is ${state.waitTime}.\n\nWould you like to pay Online or Cash at pickup?`,
         sessionState: state
@@ -442,7 +457,19 @@ function runFallbackChatbotEngine(rawMessage, sessionState, occupiedTables = [3,
     }
   }
 
-  // 10. STEP 7: Table Reservation Check (Dining)
+  // 11. STEP 7A: Delivery Address (Delivery ONLY)
+  if (state.step === 'AWAITING_DELIVERY_ADDRESS') {
+    state.deliveryAddress = message.trim() || 'Address Provided';
+    state.waitTime = '30-40 minutes';
+    state.step = 'AWAITING_PAYMENT';
+
+    return {
+      reply: `Thank you! We will deliver to:\n📍 ${state.deliveryAddress}\n\nYour estimated delivery wait time is ${state.waitTime}.\n\nWould you like to pay Online or Cash on Delivery?`,
+      sessionState: state
+    };
+  }
+
+  // 12. STEP 7B: Table Reservation Check (Dining ONLY)
   if (state.step === 'AWAITING_TABLE_NO') {
     const requestedTableNum = parseTableNumber(message);
     if (!requestedTableNum) {
@@ -453,7 +480,6 @@ function runFallbackChatbotEngine(rawMessage, sessionState, occupiedTables = [3,
       };
     }
 
-    // CHECK IF TABLE IS ALREADY RESERVED!
     if (occupiedTables.includes(requestedTableNum)) {
       const available = ALL_TABLES.filter(t => !occupiedTables.includes(t)).map(t => `Table ${t}`);
       return {
@@ -462,7 +488,6 @@ function runFallbackChatbotEngine(rawMessage, sessionState, occupiedTables = [3,
       };
     }
 
-    // Table is free!
     state.tableNumber = `Table ${requestedTableNum}`;
     state.waitTime = '15-20 minutes';
     state.step = 'AWAITING_PAYMENT';
@@ -473,13 +498,36 @@ function runFallbackChatbotEngine(rawMessage, sessionState, occupiedTables = [3,
     };
   }
 
-  // 11. STEP 8: Payment & Comprehensive Order Summary
+  // 13. STEP 8: Payment & Comprehensive Order Summary
   if (state.step === 'AWAITING_PAYMENT') {
     const isCash = /cash|cod/i.test(lower);
-    state.paymentMethod = isCash ? 'Cash' : 'Online';
+    state.paymentMethod = isCash ? (state.fulfillmentType === 'Delivery' ? 'Cash on Delivery' : 'Cash') : 'Online';
 
     const orderId = 'ORD-' + Math.floor(1000 + Math.random() * 9000);
-    const fulfillmentLabel = state.fulfillmentType === 'Dining' ? `Dining (${state.tableNumber})` : state.fulfillmentType;
+    const isDelivery = state.fulfillmentType === 'Delivery';
+    const isDining = state.fulfillmentType === 'Dining';
+
+    let fulfillmentLabel = '';
+    let specialInstructions = '';
+    let fulfillmentMetaLine = '';
+    let closingNote = '';
+
+    if (isDelivery) {
+      fulfillmentLabel = 'Delivery';
+      specialInstructions = `Delivery to: ${state.deliveryAddress} | 🛵 Delivery Rider Alerted | Payment: ${state.paymentMethod}`;
+      fulfillmentMetaLine = `• Order Type: Delivery\n• Delivery Address: ${state.deliveryAddress}\n• Dispatch Alert: 🛵 Delivery driver notified with your address & assigned for pickup!`;
+      closingNote = "Our kitchen is preparing your food, and our delivery driver has been dispatched with your delivery address.";
+    } else if (isDining) {
+      fulfillmentLabel = `Dining (${state.tableNumber})`;
+      specialInstructions = `Dining (${state.tableNumber}) | Payment: ${state.paymentMethod}`;
+      fulfillmentMetaLine = `• Order Type: Dining\n• Table Reserved: ${state.tableNumber}`;
+      closingNote = "Our kitchen team has received your ticket and is preparing your meal now.";
+    } else {
+      fulfillmentLabel = 'Pickup';
+      specialInstructions = `Pickup (Counter Collection) | Payment: ${state.paymentMethod}`;
+      fulfillmentMetaLine = `• Order Type: Pickup (Counter Collection)`;
+      closingNote = `Your order has been sent to our kitchen and will be packed and ready for pickup in ${state.waitTime}.`;
+    }
 
     const itemsSummaryList = (state.items || []).map((item, idx) =>
       `  ${idx + 1}. ${item.quantity}x ${item.name} ($${item.price.toFixed(2)} each) — Subtotal: $${item.subtotal.toFixed(2)}`
@@ -491,9 +539,11 @@ function runFallbackChatbotEngine(rawMessage, sessionState, occupiedTables = [3,
       customerName: state.name,
       phone: state.phone,
       fulfillmentType: state.fulfillmentType,
-      tableNumber: state.tableNumber || 'N/A',
+      tableNumber: isDining ? state.tableNumber : 'N/A',
+      deliveryAddress: isDelivery ? state.deliveryAddress : 'N/A',
+      deliveryPersonNotified: isDelivery,
       deliveryType: fulfillmentLabel,
-      specialInstructions: `${fulfillmentLabel} | Payment: ${state.paymentMethod}`,
+      specialInstructions: specialInstructions,
       items: state.items,
       itemSummary: (state.items || []).map(i => `${i.quantity}x ${i.name} ($${i.subtotal.toFixed(2)})`).join(', '),
       totalPrice: (state.totalBill || 0).toFixed(2),
@@ -513,8 +563,7 @@ function runFallbackChatbotEngine(rawMessage, sessionState, occupiedTables = [3,
 • Order ID: #${orderId}
 • Customer Name: ${state.name}
 • Contact Phone: ${state.phone}
-• Order Type: ${fulfillmentLabel}
-• Table Reserved: ${state.tableNumber || 'N/A (Pickup/Delivery)'}
+${fulfillmentMetaLine}
 • Payment Method: ${state.paymentMethod}
 • Estimated Wait Time: ${confirmedOrder.waitTime}
 • Order Status: PENDING (Sent to Kitchen)
@@ -528,7 +577,7 @@ ${itemsSummaryList}
 💰 TOTAL BILL: $${confirmedOrder.totalPrice}
 ========================================
 
-Thank you for choosing The Heritage Bistro! Our kitchen team has received your ticket and is preparing your meal now.`;
+Thank you for choosing The Heritage Bistro! ${closingNote}`;
 
     return {
       reply: summaryText,
@@ -547,6 +596,7 @@ Thank you for choosing The Heritage Bistro! Our kitchen team has received your t
         name: '',
         phone: '',
         fulfillmentType: '',
+        deliveryAddress: '',
         tableNumber: '',
         paymentMethod: ''
       };
