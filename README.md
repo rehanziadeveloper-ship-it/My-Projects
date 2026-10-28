@@ -15,7 +15,8 @@ A comprehensive sprint building 1 production-ready voice and automation system e
 | **03** | **Dental & Clinic Real-Time Calendar Booking Voicebot** | Web Speech API, Google Calendar API (Free/Busy), n8n | [View Day 3](day-03-calendar-voicebot/) | 🟢 **Production Live** | [Portal](day-03-calendar-voicebot/) |
 | **04** | **Home Services Emergency Dispatch Voicebot (Plumbing/HVAC/Electrical)** | Netlify Serverless, Web Speech API, Google Calendar & Sheets CRM, Conflict Prevention | [View Day 4](day-04-emergency-dispatch-voicebot/) | 🟢 **Production Live** | [⚡ Live App](https://apex-emergency-dispatch.netlify.app) |
 | **05** | **The Heritage Bistro — AI Restaurant Operating System** | Clean 3-Portal Architecture (Customer, Kitchen `chef123`, Admin `admin123`), n8n Chatbot, Multi-Dish & Delivery Engine, Google Sheets DB | [View Day 5](day-05-restaurant-reservation-voicebot/) | 🟢 **Production Live** | [⚡ Live App](https://heritage-bistro-ai.netlify.app) |
-| **06** | **Real Estate Inbound Buyer Qualification Voicebot** | Inbound Lead Scorer, Twilio / WebRTC, CRM Pipeline, Slack Hot Leads | Day 6 | 🚀 Next Sprint | Coming Soon |
+| **06** | **Real Estate Inbound Buyer Qualification & Lead Triage Voicebot** | Web Speech API, 4-Vector Purchasing Scoring Matrix, n8n Engine, Google Sheets CRM | [View Day 6](day-06-real-estate-buyer-qualification/) | 🟢 **Production Live** | [⚡ Live App](https://apex-realty-ai.netlify.app) |
+| **07** | **Post-Call Intelligence Pipeline (Audio Summarizer + Sentiment)** | Twilio Recording Callback, n8n, Groq Whisper, Gemini Summarizer, Slack Alert | Day 7 | 🚀 Next Sprint | Coming Soon |
 | **...** | *30 Days Roadmap* | n8n, Groq, Claude 3.5, Gemini, Supabase | [Full Roadmap](memory/02_PROJECTS/30_DAYS_BUILD_CHALLENGE.md) | 🚀 In Progress | — |
 
 ---
@@ -49,8 +50,13 @@ A comprehensive sprint building 1 production-ready voice and automation system e
 * **Conversational Ordering Chatbot:** Seamless order intake supporting natural intents ("i want to order"), multi-dish loops, on-demand menu image delivery, delivery address capture & automated rider dispatch alerts.
 * **Strict Dining Table Isolation & Conflict Prevention:** Researches and locks available tables only for dining guests against active Google Sheets orders.
 * **Dual-Write Architecture:** Syncs incoming orders to kitchen ticket queues and restaurant financials to Google Sheets in real-time.
-* **Dual-Write Operations Sync:** Real-time logging to Google Sheets (`Restaurant_Reservations_Day5`) and Google Calendar seating blocks.
-* **Interactive Hospitality Operations Console:** Live interactive table occupancy map, audio equalizer canvas, and restaurant revenue recapture ROI calculator.
+
+### 📍 [Day 06: Apex Realty AI — Inbound Buyer Qualification & Lead Triage](day-06-real-estate-buyer-qualification/) — [🌐 Live Demo](https://apex-realty-ai.netlify.app)
+* **Hands-Free Inbound Voice & Chatbot Screening:** Conversational intake via Web Speech API (Push-to-Talk) and chat for incoming luxury real estate inquiries.
+* **4-Vector Purchasing Power Matrix:** Dynamic weighted scoring across Financing (Cash vs Jumbo Pre-Approved, 40%), Timeline (<30d vs 1-3mo, 30%), Budget Realism (20%), and Intent / Relocation (10%).
+* **Lead Tier Classification:** Automatically categorizes buyers into `🔥 HOT` (80–100 pts), `⚡ WARM` (50–79 pts), and `❄️ NURTURE` (<50 pts).
+* **Broker & Agent CRM Portal (Password: `broker123`):** Filterable buyer feed, one-click lead status tracking (`NEW` -> `SHOWING SCHEDULED` -> `UNDER CONTRACT`), and detailed scorecard popups.
+* **Google Sheets Real-Time Sync:** Ingests qualified buyer profiles directly into `Real_Estate_Qualified_Leads` in Google Sheets.
 
 ---
 

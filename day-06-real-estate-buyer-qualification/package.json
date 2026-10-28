@@ -1,0 +1,21 @@
+{
+  "name": "day-06-real-estate-buyer-qualification",
+  "version": "1.0.0",
+  "description": "Day 06: Real Estate Inbound Buyer Qualification & Lead Triage Voicebot with n8n Scoring Matrix and Google Sheets CRM",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": [
+    "voice-ai",
+    "real-estate",
+    "lead-qualification",
+    "lead-scoring",
+    "crm",
+    "n8n",
+    "google-sheets"
+  ],
+  "author": "Muhammad Rehan",
+  "license": "MIT"
+}
