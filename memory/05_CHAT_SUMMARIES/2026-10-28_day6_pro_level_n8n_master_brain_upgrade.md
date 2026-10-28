@@ -82,6 +82,21 @@
    - *Issue:* Regex previously assigned full sentences like "I want to buy the Bel-Air Estate" into `fullName`.
    - *Fix:* Added strict heuristic requiring explicit introductory phrases or isolating name parsing only after the 4 property/financial vectors are locked in.
 
+### E. Pro-Level Floating Chat Widget & 5-Phase Slot-Filling Brain Upgrade
+- **Floating Chat Widget (Bottom-Right):**
+  - Default State: Discreet circular floating trigger bubble with animated online badge and hover tooltip ("Talk with AI Advisor"). Zero obstruction of luxury portfolio listings.
+  - Open State: Compact 380px wide glassmorphic obsidian window with gold borders, voice mute toggle, reset session button, and minimize button.
+  - Push-to-Talk Voice Integration: Seamlessly integrated into widget footer using Web Speech API with pulsing ring animation and hands-free spoken speech synthesis.
+  - Dumb UI: Stripped 100% of local logic from frontend. Formatted in modular files: [`index.html`](file:///d:/AI_ASSISANT/day-06-real-estate-buyer-qualification/public/index.html), [`styles.css`](file:///d:/AI_ASSISANT/day-06-real-estate-buyer-qualification/public/styles.css), and [`api.js`](file:///d:/AI_ASSISANT/day-06-real-estate-buyer-qualification/public/api.js).
+- **5-Phase Slot-Filling State Machine (`TNibBZ9eGODuEUhC`):**
+  - Strict 1-question rule: asks only one question at a time and automatically skips questions for slots already provided.
+  - Phase 1: Opening & Intent (Buy / Rent / Sell / Rent out / Invest).
+  - Phase 2: Contact Details (Name, Phone/WhatsApp, Email, Preferred contact method/time).
+  - Phase 3A: Buyer/Renter Criteria (Purpose, Property Type, Location, Budget, Bedrooms, Payment Method, Timeline, Must-Haves).
+  - Phase 3B: Seller/Landlord Criteria (Property Type, Location, Size/Condition, Asking Price, Document Readiness, Occupancy, Timeline).
+  - Phase 4: Google Calendar Booking (Site visit or appraisal call scheduling; reserves slot via Google Calendar OAuth2 node `AW7YkPBa2mAXEwWO`).
+  - Phase 5: Confirmation & Storage (Summary prompt "Is everything correct?", user confirmation, Lead Score calculation, Reference ID `#APX-XXXX` generation, and append to Google Sheets CRM `Real_Estate_Qualified_Leads` via service account `AqyKDLuwANoDYrEw`).
+
 ---
 
 ## 4. Verification & Testing
