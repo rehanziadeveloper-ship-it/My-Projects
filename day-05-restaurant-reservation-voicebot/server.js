@@ -158,27 +158,30 @@ const MENU = [
   { id: 'BEV-03', category: 'Beverages', name: 'House Roasted Iced Coffee', desc: 'Cold-brewed artisanal espresso with Madagascar vanilla cream', price: 4.50 }
 ];
 
+const ALL_TABLES = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+
 function findMenuItem(text) {
   const t = (text || '').toLowerCase();
   for (const item of MENU) {
     if (t.includes(item.name.toLowerCase())) return item;
-    if (t.includes('steak') && item.name.includes('Steak')) return item;
-    if (t.includes('shrimp') && item.name.includes('Shrimp')) return item;
-    if (t.includes('truffle') && item.name.includes('Truffle')) return item;
-    if (t.includes('burger') && item.name.includes('Burger')) return item;
-    if (t.includes('oyster') && item.name.includes('Oyster')) return item;
-    if (t.includes('onion') || t.includes('french onion')) return item;
-    if (t.includes('caesar') && item.name.includes('Caesar')) return item;
-    if (t.includes('spinach') && item.name.includes('Spinach')) return item;
-    if (t.includes('cheesecake') && item.name.includes('Cheesecake')) return item;
-    if (t.includes('creme brulee') || t.includes('crème brûlée') || t.includes('brulee')) return item;
-    if (t.includes('brownie') && item.name.includes('Brownie')) return item;
-    if (t.includes('cobbler') && item.name.includes('Cobbler')) return item;
-    if (t.includes('lemonade') && item.name.includes('Lemonade')) return item;
-    if (t.includes('coffee') && item.name.includes('Coffee')) return item;
-    if (t.includes('water') && item.name.includes('Water')) return item;
-    if (t.includes('catch') || (t.includes('fish') && item.name.includes('Catch'))) return item;
   }
+  if (t.includes('steak') || t.includes('frites')) return MENU.find(i => i.id === 'ENT-01');
+  if (t.includes('shrimp') || t.includes('grits')) return MENU.find(i => i.id === 'ENT-02');
+  if (t.includes('truffle') || t.includes('fettuccine')) return MENU.find(i => i.id === 'ENT-03');
+  if (t.includes('burger')) return MENU.find(i => i.id === 'ENT-04');
+  if (t.includes('catch') || t.includes('fish')) return MENU.find(i => i.id === 'ENT-05');
+  if (t.includes('onion') || t.includes('french onion') || t.includes('soup')) return MENU.find(i => i.id === 'APP-01');
+  if (t.includes('oyster')) return MENU.find(i => i.id === 'APP-02');
+  if (t.includes('tomato') || t.includes('green tomatoes')) return MENU.find(i => i.id === 'APP-03');
+  if (t.includes('caesar') || t.includes('salad')) return MENU.find(i => i.id === 'APP-04');
+  if (t.includes('spinach') || t.includes('artichoke') || t.includes('dip')) return MENU.find(i => i.id === 'APP-05');
+  if (t.includes('cheesecake') || t.includes('banana')) return MENU.find(i => i.id === 'DES-01');
+  if (t.includes('cobbler') || t.includes('apple')) return MENU.find(i => i.id === 'DES-02');
+  if (t.includes('brownie') || t.includes('sundae')) return MENU.find(i => i.id === 'DES-03');
+  if (t.includes('creme brulee') || t.includes('crème brûlée') || t.includes('brulee')) return MENU.find(i => i.id === 'DES-04');
+  if (t.includes('lemonade') || t.includes('mint')) return MENU.find(i => i.id === 'BEV-01');
+  if (t.includes('sparkling') || t.includes('san pellegrino') || t.includes('water')) return MENU.find(i => i.id === 'BEV-02');
+  if (t.includes('coffee') || t.includes('espresso') || t.includes('iced coffee')) return MENU.find(i => i.id === 'BEV-03');
   return null;
 }
 
@@ -200,44 +203,97 @@ function parseQuantity(text) {
   return 1;
 }
 
-function runFallbackChatbotEngine(rawMessage, sessionState) {
+function parseTableNumber(text) {
+  const match = (text || '').match(/\b(10|[1-9])\b/);
+  return match ? parseInt(match[0], 10) : null;
+}
+
+async function getActiveOccupiedTables() {
+  const occupied = new Set();
+  for (const o of memoryOrders) {
+    if (o.status === 'PENDING' || o.status === 'COOKING') {
+      const match = ((o.tableNumber || '') + ' ' + (o.specialInstructions || '') + ' ' + (o.deliveryType || '')).match(/Table\s*(\d+)/i);
+      if (match) occupied.add(parseInt(match[1], 10));
+    }
+  }
+
+  try {
+    const rows = await readSheetValues('Restaurant_Kitchen_Orders');
+    if (rows && rows.length > 1) {
+      for (const r of rows.slice(1)) {
+        const status = (r[7] || '').toUpperCase();
+        if (status === 'PENDING' || status === 'COOKING') {
+          const match = ((r[5] || '') + ' ' + (r[4] || '')).match(/Table\s*(\d+)/i);
+          if (match) occupied.add(parseInt(match[1], 10));
+        }
+      }
+    }
+  } catch (e) {}
+
+  return Array.from(occupied);
+}
+
+function runFallbackChatbotEngine(rawMessage, sessionState, occupiedTables = [3, 9]) {
   const message = (rawMessage || '').trim();
   const lower = message.toLowerCase();
-  let state = sessionState || { step: 'AWAITING_ITEM', items: [], pendingItem: null, totalBill: 0, name: '', phone: '', fulfillmentType: '', tableNumber: '', paymentMethod: '' };
+  let state = sessionState || {
+    step: 'AWAITING_ITEM',
+    items: [],
+    pendingItem: null,
+    totalBill: 0,
+    name: '',
+    phone: '',
+    fulfillmentType: '',
+    tableNumber: '',
+    paymentMethod: ''
+  };
 
+  // 1. Reset / Restart
   if (/reset|start over|restart|new order|clear/i.test(lower)) {
-    state = { step: 'AWAITING_ITEM', items: [], pendingItem: null, totalBill: 0, name: '', phone: '', fulfillmentType: '', tableNumber: '', paymentMethod: '' };
+    state = {
+      step: 'AWAITING_ITEM',
+      items: [],
+      pendingItem: null,
+      totalBill: 0,
+      name: '',
+      phone: '',
+      fulfillmentType: '',
+      tableNumber: '',
+      paymentMethod: ''
+    };
     return {
-      reply: "Welcome to The Heritage Bistro! Here is our menu. What would you like to order today?",
-      menuImage: "/images/bistro-menu.png",
+      reply: "Welcome to The Heritage Bistro! What would you like to order today?",
+      menuImage: null,
       sessionState: state
     };
   }
 
+  // 2. Menu Image Request ONLY when user asks for menu
   if (/menu|options|food list|what do you have|dishes/i.test(lower) && !findMenuItem(lower)) {
     return {
-      reply: "Welcome to The Heritage Bistro! Here is our menu. What would you like to order today?",
+      reply: "Here is our menu. What would you like to order today?",
       menuImage: "/images/bistro-menu.png",
       sessionState: state
     };
   }
 
+  // 3. Greeting on START: NO menu image by default
   if ((state.step === 'START' || state.step === 'AWAITING_ITEM') && /^hi\b|^hello\b|^hey\b|^good morning|^good evening/i.test(lower) && !findMenuItem(lower)) {
     state.step = 'AWAITING_ITEM';
     return {
-      reply: "Welcome to The Heritage Bistro! Here is our menu. What would you like to order today?",
-      menuImage: "/images/bistro-menu.png",
+      reply: "Welcome to The Heritage Bistro! What would you like to order today? (You can type your order or ask for the menu anytime.)",
+      menuImage: null,
       sessionState: state
     };
   }
 
-  // STEP 1: Select Dish
+  // 4. STEP 1: Select Dish
   if (state.step === 'START' || state.step === 'AWAITING_ITEM') {
     const matched = findMenuItem(lower);
     if (!matched) {
       return {
-        reply: "Sorry, that item is not on our menu. Please check our menu above and let me know which dish you would like to order.",
-        menuImage: "/images/bistro-menu.png",
+        reply: "Sorry, that item is not on our menu. What would you like to order? (Ask for the menu if you would like to see our dishes.)",
+        menuImage: null,
         sessionState: state
       };
     }
@@ -250,9 +306,10 @@ function runFallbackChatbotEngine(rawMessage, sessionState) {
       state.items.push({ ...matched, quantity: qty, subtotal });
       state.totalBill = state.items.reduce((s, i) => s + i.subtotal, 0);
       state.pendingItem = null;
-      state.step = 'AWAITING_NAME';
+      state.step = 'AWAITING_ADD_MORE';
+
       return {
-        reply: `Added ${qty}x ${matched.name}. Your total bill is $${state.totalBill.toFixed(2)}. May I have your full name for the order?`,
+        reply: `Added ${qty}x ${matched.name} ($${subtotal.toFixed(2)}). Your current total is $${state.totalBill.toFixed(2)}.\n\nWould you like to order another dish, or are you ready to checkout? (Reply with a dish name, or say "No, that's all" to proceed.)`,
         sessionState: state
       };
     }
@@ -265,7 +322,7 @@ function runFallbackChatbotEngine(rawMessage, sessionState) {
     };
   }
 
-  // STEP 2: Quantity
+  // 5. STEP 2: Quantity Input
   if (state.step === 'AWAITING_QUANTITY') {
     const item = state.pendingItem;
     if (!item) {
@@ -282,26 +339,56 @@ function runFallbackChatbotEngine(rawMessage, sessionState) {
     state.items.push({ ...item, quantity: qty, subtotal });
     state.totalBill = state.items.reduce((s, i) => s + i.subtotal, 0);
     state.pendingItem = null;
-    state.step = 'AWAITING_NAME';
+    state.step = 'AWAITING_ADD_MORE';
 
     return {
-      reply: `Your total bill is $${state.totalBill.toFixed(2)} (${qty}x ${item.name}). May I have your full name for the order?`,
+      reply: `Added ${qty}x ${item.name} ($${subtotal.toFixed(2)}). Your current total is $${state.totalBill.toFixed(2)}.\n\nWould you like to order another dish, or are you ready to checkout? (Reply with a dish name, or say "No, that's all" to proceed.)`,
       sessionState: state
     };
   }
 
-  // STEP 3: Customer Name
-  if (state.step === 'AWAITING_NAME') {
-    const extraItem = findMenuItem(lower);
-    if (extraItem && /add|also|and/i.test(lower)) {
-      state.pendingItem = extraItem;
-      state.step = 'AWAITING_QUANTITY';
+  // 6. STEP 3: Add More Dishes or Proceed
+  if (state.step === 'AWAITING_ADD_MORE') {
+    const isCheckout = /no\b|that'?s all|thats all|done\b|it'?s done|its done|nothing|none|no thanks|checkout|proceed|ready|finish|that is all|enough/i.test(lower);
+    if (isCheckout) {
+      state.step = 'AWAITING_NAME';
       return {
-        reply: `How many orders of ${extraItem.name} would you like?`,
+        reply: "Great! May I have your full name for the order?",
         sessionState: state
       };
     }
 
+    const matched = findMenuItem(lower);
+    if (matched) {
+      const hasExplicitQty = /\b\d+\b|\b(one|two|three|four|five|six|seven|eight|nine|ten)\b/i.test(lower);
+      if (hasExplicitQty) {
+        const qty = parseQuantity(lower);
+        const subtotal = matched.price * qty;
+        state.items.push({ ...matched, quantity: qty, subtotal });
+        state.totalBill = state.items.reduce((s, i) => s + i.subtotal, 0);
+
+        return {
+          reply: `Added ${qty}x ${matched.name} ($${subtotal.toFixed(2)}). Your updated total is $${state.totalBill.toFixed(2)}.\n\nWould you like to add another dish, or say "No, that's all" to proceed to checkout?`,
+          sessionState: state
+        };
+      }
+
+      state.pendingItem = matched;
+      state.step = 'AWAITING_QUANTITY';
+      return {
+        reply: `How many orders of ${matched.name} would you like?`,
+        sessionState: state
+      };
+    }
+
+    return {
+      reply: `Would you like to add another dish from our menu, or are you ready to checkout? (Reply with a dish name, or say "No, that's all" to proceed.)`,
+      sessionState: state
+    };
+  }
+
+  // 7. STEP 4: Customer Name
+  if (state.step === 'AWAITING_NAME') {
     const name = message.replace(/^(my name is|i am|it's|this is|call me)\s+/i, '').trim();
     state.name = name || 'Valued Guest';
     state.step = 'AWAITING_PHONE';
@@ -312,7 +399,7 @@ function runFallbackChatbotEngine(rawMessage, sessionState) {
     };
   }
 
-  // STEP 4: Phone Number
+  // 8. STEP 5: Phone Number
   if (state.step === 'AWAITING_PHONE') {
     state.phone = message.trim();
     state.step = 'AWAITING_FULFILLMENT';
@@ -323,13 +410,15 @@ function runFallbackChatbotEngine(rawMessage, sessionState) {
     };
   }
 
-  // STEP 5: Fulfillment Type
+  // 9. STEP 6: Fulfillment Type
   if (state.step === 'AWAITING_FULFILLMENT') {
     if (/din|table|here|dine/i.test(lower)) {
       state.fulfillmentType = 'Dining';
       state.step = 'AWAITING_TABLE_NO';
+
+      const available = ALL_TABLES.filter(t => !occupiedTables.includes(t)).map(t => `Table ${t}`);
       return {
-        reply: "Wonderful! What is your table number?",
+        reply: `Wonderful! What table number would you like to sit at?\n(Available tables: ${available.join(', ')})`,
         sessionState: state
       };
     } else if (/deliv/i.test(lower)) {
@@ -338,7 +427,7 @@ function runFallbackChatbotEngine(rawMessage, sessionState) {
       state.waitTime = '30-40 minutes';
       state.step = 'AWAITING_PAYMENT';
       return {
-        reply: `Got it, Delivery! Your estimated wait time is ${state.waitTime}. Would you like to pay Online or Cash?`,
+        reply: `Got it, Delivery! Your estimated delivery wait time is ${state.waitTime}.\n\nWould you like to pay Online or Cash on Delivery?`,
         sessionState: state
       };
     } else {
@@ -347,33 +436,54 @@ function runFallbackChatbotEngine(rawMessage, sessionState) {
       state.waitTime = '15-20 minutes';
       state.step = 'AWAITING_PAYMENT';
       return {
-        reply: `Got it, Pickup! Your estimated wait time is ${state.waitTime}. Would you like to pay Online or Cash?`,
+        reply: `Got it, Pickup! Your estimated pickup wait time is ${state.waitTime}.\n\nWould you like to pay Online or Cash at pickup?`,
         sessionState: state
       };
     }
   }
 
-  // STEP 6: Table Number (if Dining)
+  // 10. STEP 7: Table Reservation Check (Dining)
   if (state.step === 'AWAITING_TABLE_NO') {
-    const digit = message.match(/\d+/);
-    state.tableNumber = digit ? `Table ${digit[0]}` : message.trim();
+    const requestedTableNum = parseTableNumber(message);
+    if (!requestedTableNum) {
+      const available = ALL_TABLES.filter(t => !occupiedTables.includes(t)).map(t => `Table ${t}`);
+      return {
+        reply: `Please specify a valid table number from 1 to 10.\nAvailable tables: ${available.join(', ')}`,
+        sessionState: state
+      };
+    }
+
+    // CHECK IF TABLE IS ALREADY RESERVED!
+    if (occupiedTables.includes(requestedTableNum)) {
+      const available = ALL_TABLES.filter(t => !occupiedTables.includes(t)).map(t => `Table ${t}`);
+      return {
+        reply: `⚠️ Table ${requestedTableNum} is already reserved by another guest!\n\nPlease select from our currently available tables:\n${available.join(', ')}`,
+        sessionState: state
+      };
+    }
+
+    // Table is free!
+    state.tableNumber = `Table ${requestedTableNum}`;
     state.waitTime = '15-20 minutes';
     state.step = 'AWAITING_PAYMENT';
 
     return {
-      reply: `Thank you! We have you seated at ${state.tableNumber}. Your estimated wait time is ${state.waitTime}. Would you like to pay Online or Cash?`,
+      reply: `Great! We have reserved ${state.tableNumber} for you.\nYour estimated wait time is ${state.waitTime}.\n\nWould you like to pay Online or Cash?`,
       sessionState: state
     };
   }
 
-  // STEP 7: Payment & Order Confirmation
+  // 11. STEP 8: Payment & Comprehensive Order Summary
   if (state.step === 'AWAITING_PAYMENT') {
     const isCash = /cash|cod/i.test(lower);
     state.paymentMethod = isCash ? 'Cash' : 'Online';
 
     const orderId = 'ORD-' + Math.floor(1000 + Math.random() * 9000);
-    const itemSummary = (state.items || []).map(i => `${i.quantity}x ${i.name} ($${(i.price * i.quantity).toFixed(2)})`).join(', ');
     const fulfillmentLabel = state.fulfillmentType === 'Dining' ? `Dining (${state.tableNumber})` : state.fulfillmentType;
+
+    const itemsSummaryList = (state.items || []).map((item, idx) =>
+      `  ${idx + 1}. ${item.quantity}x ${item.name} ($${item.price.toFixed(2)} each) — Subtotal: $${item.subtotal.toFixed(2)}`
+    ).join('\n');
 
     const confirmedOrder = {
       orderId,
@@ -385,7 +495,7 @@ function runFallbackChatbotEngine(rawMessage, sessionState) {
       deliveryType: fulfillmentLabel,
       specialInstructions: `${fulfillmentLabel} | Payment: ${state.paymentMethod}`,
       items: state.items,
-      itemSummary,
+      itemSummary: (state.items || []).map(i => `${i.quantity}x ${i.name} ($${i.subtotal.toFixed(2)})`).join(', '),
       totalPrice: (state.totalBill || 0).toFixed(2),
       paymentMethod: state.paymentMethod,
       waitTime: state.waitTime || '15-20 minutes',
@@ -395,8 +505,33 @@ function runFallbackChatbotEngine(rawMessage, sessionState) {
     state.step = 'CONFIRMED';
     state.lastOrder = confirmedOrder;
 
+    const summaryText = `🎉 ORDER CONFIRMED SUCCESSFULLY!
+
+========================================
+📋 THE HERITAGE BISTRO — ORDER SUMMARY
+========================================
+• Order ID: #${orderId}
+• Customer Name: ${state.name}
+• Contact Phone: ${state.phone}
+• Order Type: ${fulfillmentLabel}
+• Table Reserved: ${state.tableNumber || 'N/A (Pickup/Delivery)'}
+• Payment Method: ${state.paymentMethod}
+• Estimated Wait Time: ${confirmedOrder.waitTime}
+• Order Status: PENDING (Sent to Kitchen)
+
+----------------------------------------
+🍽️ ORDERED ITEMS:
+----------------------------------------
+${itemsSummaryList}
+
+----------------------------------------
+💰 TOTAL BILL: $${confirmedOrder.totalPrice}
+========================================
+
+Thank you for choosing The Heritage Bistro! Our kitchen team has received your ticket and is preparing your meal now.`;
+
     return {
-      reply: `Thank you, ${state.name}! Your order #${orderId} is confirmed!\n\nOrder Details:\n• Items: ${itemSummary}\n• Total Bill: $${confirmedOrder.totalPrice}\n• Fulfillment: ${fulfillmentLabel}\n• Payment: ${state.paymentMethod}\n• Estimated Wait Time: ${confirmedOrder.waitTime}\n\nOur kitchen has received your order and is preparing it now!`,
+      reply: summaryText,
       order: confirmedOrder,
       sessionState: state
     };
@@ -404,15 +539,25 @@ function runFallbackChatbotEngine(rawMessage, sessionState) {
 
   if (state.step === 'CONFIRMED') {
     if (/order|again|menu|new|another/i.test(lower)) {
-      state = { step: 'AWAITING_ITEM', items: [], pendingItem: null, totalBill: 0, name: '', phone: '', fulfillmentType: '', tableNumber: '', paymentMethod: '' };
+      state = {
+        step: 'AWAITING_ITEM',
+        items: [],
+        pendingItem: null,
+        totalBill: 0,
+        name: '',
+        phone: '',
+        fulfillmentType: '',
+        tableNumber: '',
+        paymentMethod: ''
+      };
       return {
-        reply: "Welcome to The Heritage Bistro! Here is our menu. What would you like to order today?",
-        menuImage: "/images/bistro-menu.png",
+        reply: "Welcome back! What would you like to order today?",
+        menuImage: null,
         sessionState: state
       };
     }
     return {
-      reply: "Your order has been sent to our kitchen. If you would like to place another order, just let me know!",
+      reply: "Your order is with our kitchen! If you would like to place a new order, just let me know.",
       sessionState: state
     };
   }
@@ -501,8 +646,10 @@ const server = http.createServer(async (req, res) => {
   // ==========================================
   if (req.url === '/api/chat' && req.method === 'POST') {
     const payload = await getBody();
-    let n8nResponse = null;
+    const occupiedTables = await getActiveOccupiedTables();
+    payload.occupiedTables = occupiedTables;
 
+    let n8nResponse = null;
     try {
       const n8nRes = await fetch(N8N_CHATBOT_WEBHOOK, {
         method: 'POST',
@@ -518,7 +665,7 @@ const server = http.createServer(async (req, res) => {
 
     // Fallback if n8n is processing or down
     if (!n8nResponse || !n8nResponse.reply) {
-      n8nResponse = runFallbackChatbotEngine(payload.message, payload.sessionState);
+      n8nResponse = runFallbackChatbotEngine(payload.message, payload.sessionState, occupiedTables);
     }
 
     // Strict Rule 6: If an order was confirmed by chatbot, route to Kitchen & Admin DB

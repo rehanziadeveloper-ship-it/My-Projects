@@ -854,9 +854,7 @@
 
           <div id="chatMessages" class="chat-messages">
             <div class="chat-bubble bot">
-              Welcome to The Heritage Bistro! Here is our menu. What would you like to order today?
-              <br>
-              <img src="/images/bistro-menu.png" class="chat-menu-img" onclick="openMenuImageModal()" title="Click to view full menu" alt="The Heritage Bistro Menu">
+              Welcome to The Heritage Bistro! What would you like to order today? (You can type your order or ask for the menu anytime.)
             </div>
           </div>
 
@@ -1303,13 +1301,7 @@
     function resetChat() {
       chatSessionState = { step: 'AWAITING_ITEM', items: [], pendingItem: null, totalBill: 0, name: '', phone: '', fulfillmentType: '', tableNumber: '', paymentMethod: '' };
       const box = document.getElementById('chatMessages');
-      box.innerHTML = `
-        <div class="chat-bubble bot">
-          Welcome to The Heritage Bistro! Here is our menu. What would you like to order today?
-          <br>
-          <img src="/images/bistro-menu.png" class="chat-menu-img" onclick="openMenuImageModal()" title="Click to view full menu" alt="The Heritage Bistro Menu">
-        </div>
-      `;
+      box.innerHTML = `<div class="chat-bubble bot">Welcome to The Heritage Bistro! What would you like to order today? (You can type your order or ask for the menu anytime.)</div>`;
     }
 
     // ========================================================
