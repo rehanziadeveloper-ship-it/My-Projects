@@ -854,7 +854,9 @@
 
           <div id="chatMessages" class="chat-messages">
             <div class="chat-bubble bot">
-              Hello! What would you like to order today?
+              Welcome to The Heritage Bistro! Here is our menu. What would you like to order today?
+              <br>
+              <img src="/images/bistro-menu.png" class="chat-menu-img" onclick="openMenuImageModal()" title="Click to view full menu" alt="The Heritage Bistro Menu">
             </div>
           </div>
 
@@ -1117,7 +1119,7 @@
     // State
     let currentPortal = 'customer';
     let targetProtectedPortal = null;
-    let chatSessionState = { step: 'START', items: [], name: '', phone: '', deliveryType: '' };
+    let chatSessionState = { step: 'AWAITING_ITEM', items: [], pendingItem: null, totalBill: 0, name: '', phone: '', fulfillmentType: '', tableNumber: '', paymentMethod: '' };
     let kitchenOrders = [];
     let adminRecords = [];
 
@@ -1226,11 +1228,21 @@
     // ========================================================
     // CHATBOT LOGIC (Clean & Simple)
     // ========================================================
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
     function appendChatMessage(text, isUser, menuImage = null) {
       const box = document.getElementById('chatMessages');
       const b = document.createElement('div');
       b.className = `chat-bubble ${isUser ? 'user' : 'bot'}`;
-      b.innerText = text;
+      b.innerHTML = escapeHtml(text).replace(/\n/g, '<br>');
 
       if (menuImage) {
         const img = document.createElement('img');
@@ -1289,9 +1301,15 @@
     }
 
     function resetChat() {
-      chatSessionState = { step: 'START', items: [], name: '', phone: '', deliveryType: '' };
+      chatSessionState = { step: 'AWAITING_ITEM', items: [], pendingItem: null, totalBill: 0, name: '', phone: '', fulfillmentType: '', tableNumber: '', paymentMethod: '' };
       const box = document.getElementById('chatMessages');
-      box.innerHTML = `<div class="chat-bubble bot">Hello! What would you like to order today?</div>`;
+      box.innerHTML = `
+        <div class="chat-bubble bot">
+          Welcome to The Heritage Bistro! Here is our menu. What would you like to order today?
+          <br>
+          <img src="/images/bistro-menu.png" class="chat-menu-img" onclick="openMenuImageModal()" title="Click to view full menu" alt="The Heritage Bistro Menu">
+        </div>
+      `;
     }
 
     // ========================================================

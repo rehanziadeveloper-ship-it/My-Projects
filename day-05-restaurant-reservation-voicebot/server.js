@@ -158,8 +158,275 @@ const MENU = [
   { id: 'BEV-03', category: 'Beverages', name: 'House Roasted Iced Coffee', desc: 'Cold-brewed artisanal espresso with Madagascar vanilla cream', price: 4.50 }
 ];
 
+function findMenuItem(text) {
+  const t = (text || '').toLowerCase();
+  for (const item of MENU) {
+    if (t.includes(item.name.toLowerCase())) return item;
+    if (t.includes('steak') && item.name.includes('Steak')) return item;
+    if (t.includes('shrimp') && item.name.includes('Shrimp')) return item;
+    if (t.includes('truffle') && item.name.includes('Truffle')) return item;
+    if (t.includes('burger') && item.name.includes('Burger')) return item;
+    if (t.includes('oyster') && item.name.includes('Oyster')) return item;
+    if (t.includes('onion') || t.includes('french onion')) return item;
+    if (t.includes('caesar') && item.name.includes('Caesar')) return item;
+    if (t.includes('spinach') && item.name.includes('Spinach')) return item;
+    if (t.includes('cheesecake') && item.name.includes('Cheesecake')) return item;
+    if (t.includes('creme brulee') || t.includes('crème brûlée') || t.includes('brulee')) return item;
+    if (t.includes('brownie') && item.name.includes('Brownie')) return item;
+    if (t.includes('cobbler') && item.name.includes('Cobbler')) return item;
+    if (t.includes('lemonade') && item.name.includes('Lemonade')) return item;
+    if (t.includes('coffee') && item.name.includes('Coffee')) return item;
+    if (t.includes('water') && item.name.includes('Water')) return item;
+    if (t.includes('catch') || (t.includes('fish') && item.name.includes('Catch'))) return item;
+  }
+  return null;
+}
+
+function parseQuantity(text) {
+  const t = (text || '').toLowerCase();
+  const digitMatch = t.match(/\b\d+\b/);
+  if (digitMatch) {
+    const num = parseInt(digitMatch[0], 10);
+    if (num > 0) return num;
+  }
+  const words = {
+    'one': 1, 'single': 1, 'two': 2, 'three': 3, 'four': 4,
+    'five': 5, 'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10
+  };
+  for (const [w, n] of Object.entries(words)) {
+    const reg = new RegExp(`\\b${w}\\b`, 'i');
+    if (reg.test(t)) return n;
+  }
+  return 1;
+}
+
+function runFallbackChatbotEngine(rawMessage, sessionState) {
+  const message = (rawMessage || '').trim();
+  const lower = message.toLowerCase();
+  let state = sessionState || { step: 'AWAITING_ITEM', items: [], pendingItem: null, totalBill: 0, name: '', phone: '', fulfillmentType: '', tableNumber: '', paymentMethod: '' };
+
+  if (/reset|start over|restart|new order|clear/i.test(lower)) {
+    state = { step: 'AWAITING_ITEM', items: [], pendingItem: null, totalBill: 0, name: '', phone: '', fulfillmentType: '', tableNumber: '', paymentMethod: '' };
+    return {
+      reply: "Welcome to The Heritage Bistro! Here is our menu. What would you like to order today?",
+      menuImage: "/images/bistro-menu.png",
+      sessionState: state
+    };
+  }
+
+  if (/menu|options|food list|what do you have|dishes/i.test(lower) && !findMenuItem(lower)) {
+    return {
+      reply: "Welcome to The Heritage Bistro! Here is our menu. What would you like to order today?",
+      menuImage: "/images/bistro-menu.png",
+      sessionState: state
+    };
+  }
+
+  if ((state.step === 'START' || state.step === 'AWAITING_ITEM') && /^hi\b|^hello\b|^hey\b|^good morning|^good evening/i.test(lower) && !findMenuItem(lower)) {
+    state.step = 'AWAITING_ITEM';
+    return {
+      reply: "Welcome to The Heritage Bistro! Here is our menu. What would you like to order today?",
+      menuImage: "/images/bistro-menu.png",
+      sessionState: state
+    };
+  }
+
+  // STEP 1: Select Dish
+  if (state.step === 'START' || state.step === 'AWAITING_ITEM') {
+    const matched = findMenuItem(lower);
+    if (!matched) {
+      return {
+        reply: "Sorry, that item is not on our menu. Please check our menu above and let me know which dish you would like to order.",
+        menuImage: "/images/bistro-menu.png",
+        sessionState: state
+      };
+    }
+
+    const hasExplicitQty = /\b\d+\b|\b(one|two|three|four|five|six|seven|eight|nine|ten)\b/i.test(lower);
+    if (hasExplicitQty) {
+      const qty = parseQuantity(lower);
+      const subtotal = matched.price * qty;
+      state.items = state.items || [];
+      state.items.push({ ...matched, quantity: qty, subtotal });
+      state.totalBill = state.items.reduce((s, i) => s + i.subtotal, 0);
+      state.pendingItem = null;
+      state.step = 'AWAITING_NAME';
+      return {
+        reply: `Added ${qty}x ${matched.name}. Your total bill is $${state.totalBill.toFixed(2)}. May I have your full name for the order?`,
+        sessionState: state
+      };
+    }
+
+    state.pendingItem = matched;
+    state.step = 'AWAITING_QUANTITY';
+    return {
+      reply: `How many orders of ${matched.name} would you like?`,
+      sessionState: state
+    };
+  }
+
+  // STEP 2: Quantity
+  if (state.step === 'AWAITING_QUANTITY') {
+    const item = state.pendingItem;
+    if (!item) {
+      state.step = 'AWAITING_ITEM';
+      return {
+        reply: "What dish would you like to order today?",
+        sessionState: state
+      };
+    }
+
+    const qty = parseQuantity(lower);
+    const subtotal = item.price * qty;
+    state.items = state.items || [];
+    state.items.push({ ...item, quantity: qty, subtotal });
+    state.totalBill = state.items.reduce((s, i) => s + i.subtotal, 0);
+    state.pendingItem = null;
+    state.step = 'AWAITING_NAME';
+
+    return {
+      reply: `Your total bill is $${state.totalBill.toFixed(2)} (${qty}x ${item.name}). May I have your full name for the order?`,
+      sessionState: state
+    };
+  }
+
+  // STEP 3: Customer Name
+  if (state.step === 'AWAITING_NAME') {
+    const extraItem = findMenuItem(lower);
+    if (extraItem && /add|also|and/i.test(lower)) {
+      state.pendingItem = extraItem;
+      state.step = 'AWAITING_QUANTITY';
+      return {
+        reply: `How many orders of ${extraItem.name} would you like?`,
+        sessionState: state
+      };
+    }
+
+    const name = message.replace(/^(my name is|i am|it's|this is|call me)\s+/i, '').trim();
+    state.name = name || 'Valued Guest';
+    state.step = 'AWAITING_PHONE';
+
+    return {
+      reply: `Thank you, ${state.name}! What is your phone number?`,
+      sessionState: state
+    };
+  }
+
+  // STEP 4: Phone Number
+  if (state.step === 'AWAITING_PHONE') {
+    state.phone = message.trim();
+    state.step = 'AWAITING_FULFILLMENT';
+
+    return {
+      reply: "Is this order for Pickup, Delivery, or Dining?",
+      sessionState: state
+    };
+  }
+
+  // STEP 5: Fulfillment Type
+  if (state.step === 'AWAITING_FULFILLMENT') {
+    if (/din|table|here|dine/i.test(lower)) {
+      state.fulfillmentType = 'Dining';
+      state.step = 'AWAITING_TABLE_NO';
+      return {
+        reply: "Wonderful! What is your table number?",
+        sessionState: state
+      };
+    } else if (/deliv/i.test(lower)) {
+      state.fulfillmentType = 'Delivery';
+      state.tableNumber = 'N/A';
+      state.waitTime = '30-40 minutes';
+      state.step = 'AWAITING_PAYMENT';
+      return {
+        reply: `Got it, Delivery! Your estimated wait time is ${state.waitTime}. Would you like to pay Online or Cash?`,
+        sessionState: state
+      };
+    } else {
+      state.fulfillmentType = 'Pickup';
+      state.tableNumber = 'N/A';
+      state.waitTime = '15-20 minutes';
+      state.step = 'AWAITING_PAYMENT';
+      return {
+        reply: `Got it, Pickup! Your estimated wait time is ${state.waitTime}. Would you like to pay Online or Cash?`,
+        sessionState: state
+      };
+    }
+  }
+
+  // STEP 6: Table Number (if Dining)
+  if (state.step === 'AWAITING_TABLE_NO') {
+    const digit = message.match(/\d+/);
+    state.tableNumber = digit ? `Table ${digit[0]}` : message.trim();
+    state.waitTime = '15-20 minutes';
+    state.step = 'AWAITING_PAYMENT';
+
+    return {
+      reply: `Thank you! We have you seated at ${state.tableNumber}. Your estimated wait time is ${state.waitTime}. Would you like to pay Online or Cash?`,
+      sessionState: state
+    };
+  }
+
+  // STEP 7: Payment & Order Confirmation
+  if (state.step === 'AWAITING_PAYMENT') {
+    const isCash = /cash|cod/i.test(lower);
+    state.paymentMethod = isCash ? 'Cash' : 'Online';
+
+    const orderId = 'ORD-' + Math.floor(1000 + Math.random() * 9000);
+    const itemSummary = (state.items || []).map(i => `${i.quantity}x ${i.name} ($${(i.price * i.quantity).toFixed(2)})`).join(', ');
+    const fulfillmentLabel = state.fulfillmentType === 'Dining' ? `Dining (${state.tableNumber})` : state.fulfillmentType;
+
+    const confirmedOrder = {
+      orderId,
+      timestamp: new Date().toLocaleString(),
+      customerName: state.name,
+      phone: state.phone,
+      fulfillmentType: state.fulfillmentType,
+      tableNumber: state.tableNumber || 'N/A',
+      deliveryType: fulfillmentLabel,
+      specialInstructions: `${fulfillmentLabel} | Payment: ${state.paymentMethod}`,
+      items: state.items,
+      itemSummary,
+      totalPrice: (state.totalBill || 0).toFixed(2),
+      paymentMethod: state.paymentMethod,
+      waitTime: state.waitTime || '15-20 minutes',
+      status: 'PENDING'
+    };
+
+    state.step = 'CONFIRMED';
+    state.lastOrder = confirmedOrder;
+
+    return {
+      reply: `Thank you, ${state.name}! Your order #${orderId} is confirmed!\n\nOrder Details:\n• Items: ${itemSummary}\n• Total Bill: $${confirmedOrder.totalPrice}\n• Fulfillment: ${fulfillmentLabel}\n• Payment: ${state.paymentMethod}\n• Estimated Wait Time: ${confirmedOrder.waitTime}\n\nOur kitchen has received your order and is preparing it now!`,
+      order: confirmedOrder,
+      sessionState: state
+    };
+  }
+
+  if (state.step === 'CONFIRMED') {
+    if (/order|again|menu|new|another/i.test(lower)) {
+      state = { step: 'AWAITING_ITEM', items: [], pendingItem: null, totalBill: 0, name: '', phone: '', fulfillmentType: '', tableNumber: '', paymentMethod: '' };
+      return {
+        reply: "Welcome to The Heritage Bistro! Here is our menu. What would you like to order today?",
+        menuImage: "/images/bistro-menu.png",
+        sessionState: state
+      };
+    }
+    return {
+      reply: "Your order has been sent to our kitchen. If you would like to place another order, just let me know!",
+      sessionState: state
+    };
+  }
+
+  return {
+    reply: "Welcome to The Heritage Bistro! What would you like to order today?",
+    sessionState: state
+  };
+}
+
 // Helper: Push confirmed order to Kitchen & Admin database
 async function routeConfirmedOrder(order) {
+  const fulfillmentInfo = order.specialInstructions || order.deliveryType || 'Dining / Pickup';
+
   // 1. Kitchen Portal Memory
   memoryOrders.unshift({
     orderId: order.orderId,
@@ -167,7 +434,7 @@ async function routeConfirmedOrder(order) {
     customerName: order.customerName,
     phone: order.phone,
     items: order.itemSummary,
-    specialInstructions: order.deliveryType || 'Standard Dine-In/Pickup',
+    specialInstructions: fulfillmentInfo,
     totalPrice: parseFloat(order.totalPrice),
     status: 'PENDING'
   });
@@ -190,7 +457,7 @@ async function routeConfirmedOrder(order) {
     order.customerName,
     order.phone,
     order.itemSummary,
-    order.deliveryType || 'Pickup',
+    fulfillmentInfo,
     parseFloat(order.totalPrice),
     'PENDING'
   ]);
@@ -251,21 +518,7 @@ const server = http.createServer(async (req, res) => {
 
     // Fallback if n8n is processing or down
     if (!n8nResponse || !n8nResponse.reply) {
-      const msg = (payload.message || '').trim().toLowerCase();
-      let state = payload.sessionState || { step: 'START', items: [], name: '', phone: '' };
-
-      if (/menu|dishes|options|what do you have/i.test(msg)) {
-        n8nResponse = {
-          reply: "Here is our menu. What would you like to order today?",
-          menuImage: "/images/bistro-menu.png",
-          sessionState: state
-        };
-      } else {
-        n8nResponse = {
-          reply: "Hello! What would you like to order today?",
-          sessionState: state
-        };
-      }
+      n8nResponse = runFallbackChatbotEngine(payload.message, payload.sessionState);
     }
 
     // Strict Rule 6: If an order was confirmed by chatbot, route to Kitchen & Admin DB
