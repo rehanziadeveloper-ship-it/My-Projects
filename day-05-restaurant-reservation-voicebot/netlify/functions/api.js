@@ -417,7 +417,7 @@ function runFallbackChatbotEngine(rawMessage, sessionState, occupiedTables = [3,
 
       const available = ALL_TABLES.filter(t => !occupiedTables.includes(t)).map(t => `Table ${t}`);
       return {
-        reply: `Wonderful! What table number would you like to sit at?\n(Available tables: ${available.join(', ')})\`,
+        reply: `Wonderful! What table number would you like to sit at?\n(Available tables: ${available.join(', ')})`,
         sessionState: state
       };
     } else if (/deliv/i.test(lower)) {
