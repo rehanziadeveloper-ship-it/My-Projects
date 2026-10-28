@@ -49,6 +49,26 @@
   - `GET /api/listings` -> `https://n8n.srv1767318.hstgr.cloud/webhook/apex-listings`
 - Kept zero-downtime fallback engines for production resilience.
 
+### D. Vector Extraction & Output Simplification Refinement
+- **Clean Budget Extraction:** Stripped phone numbers and email addresses prior to budget evaluation to prevent numbers like `970-555` matching numeric ranges. Implemented strict currency and unit regex matching (`$`, `Million`, `M`, `k`, `Billion`, ranges like `$5 to 6 Million`, or `$4.2M`). Raw user messages are strictly prevented from ever saving into `budgetRange`.
+- **Response Format Simplification:** Replaced heavy ASCII borders (`===` and `---`) with the exact clean, bulleted template requested by the user:
+  ```text
+  ✅ Buyer Qualification Complete!
+
+  Here is the summary of your inquiry:
+  • Client: [Name]
+  • Target Property: [Property Name]
+  • Budget: [Clean Extracted Amount]
+  • Financing: [Financing Status]
+  • Timeline: [Timeline]
+  • Intent: [Intent]
+
+  Lead Score: [Score]/100 ([Tier])
+  Action: [Recommended Broker Action]
+
+  Thank you! Our managing broker has received your file and will be in touch shortly.
+  ```
+
 ---
 
 ## 3. Blockers & Technical Resolves

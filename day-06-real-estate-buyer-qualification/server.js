@@ -335,7 +335,38 @@ function runFallbackQualificationEngine(rawMessage, sessionState) {
 
   // 3. Target Budget
   if (state.step === 'AWAITING_BUDGET') {
-    state.budgetRange = message;
+    const cleanForBudget = message
+      .replace(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g, '')
+      .replace(/(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/g, '');
+
+    let extractedBudget = '';
+    const dollarRange = cleanForBudget.match(/\$[\d,.]+\s*(?:million|m|billion|b|k)?\s*(?:to|-|–)\s*\$?[\d,.]+\s*(?:million|m|billion|b|k)?/i);
+    if (dollarRange) {
+      extractedBudget = dollarRange[0].trim();
+    } else {
+      const singleDollar = cleanForBudget.match(/\$[\d,.]+\s*(?:million|m|billion|b|thousand|k)?/i);
+      if (singleDollar) {
+        extractedBudget = singleDollar[0].trim();
+      } else {
+        const unitRange = cleanForBudget.match(/\b\d+(?:\.\d+)?\s*(?:million|m|billion|b|k)?\s*(?:to|-|–)\s*\d+(?:\.\d+)?\s*(?:million|m|billion|b|k)\b/i);
+        if (unitRange) {
+          extractedBudget = '$' + unitRange[0].trim();
+        } else {
+          const singleUnit = cleanForBudget.match(/\b\d+(?:\.\d+)?\s*(?:million|m|billion|b|thousand|k)\b/i);
+          if (singleUnit) {
+            extractedBudget = '$' + singleUnit[0].trim();
+          } else {
+            extractedBudget = '$' + (message.replace(/[^0-9.]/g, '') || '2,000,000');
+          }
+        }
+      }
+    }
+
+    state.budgetRange = extractedBudget
+      .replace(/\s+/g, ' ')
+      .replace(/million/gi, 'Million')
+      .replace(/\bm\b/gi, 'M')
+      .replace(/\bk\b/gi, 'K');
     
     const numMatch = lower.replace(/,/g, '').match(/\d+(\.\d+)?/);
     let estAmount = numMatch ? parseFloat(numMatch[0]) : 0;
@@ -478,32 +509,22 @@ function runFallbackQualificationEngine(rawMessage, sessionState) {
 
     state.lastLead = qualifiedLead;
 
-    const scorecardReply = `✅ BUYER QUALIFICATION COMPLETE!
+    const cleanPropertyName = (state.propertyInterest || 'Luxury Residential Portfolio').split('(')[0].trim();
 
-========================================
-🏛️ APEX REALTY — LEAD SCORECARD
-========================================
-• Lead ID: #${leadId}
-• Lead Tier: ${tierIcon} ${tier} (Score: ${totalScore}/100)
-• Client: ${state.fullName}
-• Contact: ${state.phone || 'On file'} | ${state.email || 'On file'}
+    const scorecardReply = `✅ Buyer Qualification Complete!
 
-----------------------------------------
-📊 QUALIFICATION BREAKDOWN:
-----------------------------------------
-• Target Property: ${state.propertyInterest}
-• Budget Range: ${state.budgetRange} (Score: ${state.budgetScore}/20)
-• Financing Status: ${state.financingStatus} (Score: ${state.financingScore}/40)
-• Timeline: ${state.timeline} (Score: ${state.timelineScore}/30)
-• Acquisition Intent: ${state.buyerType} (Score: ${state.readinessScore}/10)
+Here is the summary of your inquiry:
+• Client: ${state.fullName || 'Private Client'}
+• Target Property: ${cleanPropertyName}
+• Budget: ${state.budgetRange}
+• Financing: ${state.financingStatus}
+• Timeline: ${state.timeline}
+• Intent: ${state.buyerType}
 
-----------------------------------------
-🎯 RECOMMENDED BROKER ACTION:
-----------------------------------------
-${action}
-========================================
+Lead Score: ${totalScore}/100 (${tier})
+Action: ${action}
 
-Thank you, ${state.fullName}! Our managing broker has been alerted with your profile and will be in touch shortly.`;
+Thank you! Our managing broker has received your file and will be in touch shortly.`;
 
     return {
       reply: scorecardReply,
