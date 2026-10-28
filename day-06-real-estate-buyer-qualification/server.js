@@ -5,7 +5,9 @@ const crypto = require('crypto');
 
 const PORT = process.env.PORT || 3006;
 const SPREADSHEET_ID = '1Rpb9XQsymoDDSEl0n1EChgi8KY7BgmajFXctwreAMjo';
-const N8N_WEBHOOK_URL = 'https://n8n.srv1767318.hstgr.cloud/webhook/real-estate-qualification';
+const N8N_WEBHOOK_URL = 'https://n8n.srv1767318.hstgr.cloud/webhook/apex-buyer-chat';
+const N8N_CRM_LEADS_URL = 'https://n8n.srv1767318.hstgr.cloud/webhook/apex-crm-leads';
+const N8N_LISTINGS_URL = 'https://n8n.srv1767318.hstgr.cloud/webhook/apex-listings';
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -569,7 +571,7 @@ const server = http.createServer(async (req, res) => {
   });
 
   // ==========================================
-  // 1. CHATBOT / VOICEBOT QUALIFICATION ENDPOINT
+  // 1. CHATBOT / VOICEBOT QUALIFICATION ENDPOINT (PROXIES TO n8n MASTER BRAIN)
   // ==========================================
   if (req.url === '/api/chat' && req.method === 'POST') {
     const payload = await getBody();
@@ -579,7 +581,12 @@ const server = http.createServer(async (req, res) => {
       const n8nRes = await fetch(N8N_WEBHOOK_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({
+          sessionId: payload.sessionId || ('sess_' + Date.now()),
+          userMessage: payload.userMessage || payload.message || '',
+          targetProperty: payload.targetProperty || '',
+          sessionState: payload.sessionState || payload.state || {}
+        })
       });
       if (n8nRes.ok) {
         n8nResponse = await n8nRes.json();
@@ -590,7 +597,7 @@ const server = http.createServer(async (req, res) => {
 
     if (!n8nResponse || !n8nResponse.reply) {
       const sessionState = payload.sessionState || payload.state;
-      n8nResponse = runFallbackQualificationEngine(payload.message, sessionState);
+      n8nResponse = runFallbackQualificationEngine(payload.userMessage || payload.message, sessionState);
     }
 
     // Ensure sessionState & state compatibility
@@ -600,20 +607,29 @@ const server = http.createServer(async (req, res) => {
       n8nResponse.sessionState = n8nResponse.state;
     }
 
-    // Lead completion detected -> sync to Google Sheets CRM & memory
-    if (n8nResponse.lead && n8nResponse.lead.leadId) {
-      await routeQualifiedLead(n8nResponse.lead);
-    }
-
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(n8nResponse));
     return;
   }
 
   // ==========================================
-  // 2. LUXURY LISTINGS ENDPOINT
+  // 2. LUXURY LISTINGS ENDPOINT (PROXIES TO n8n)
   // ==========================================
   if (req.url === '/api/listings' && req.method === 'GET') {
+    try {
+      const n8nRes = await fetch(N8N_LISTINGS_URL);
+      if (n8nRes.ok) {
+        const data = await n8nRes.json();
+        if (data.listings && data.listings.length > 0) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify(data));
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('[n8n Listings Proxy Notice]:', err.message);
+    }
+
     const rows = await readSheetValues('Real_Estate_Listings');
     if (rows && rows.length > 1) {
       const listings = rows.slice(1).map(r => ({
@@ -639,9 +655,23 @@ const server = http.createServer(async (req, res) => {
   }
 
   // ==========================================
-  // 3. BROKER CRM LEADS ENDPOINT
+  // 3. BROKER CRM LEADS ENDPOINT (PROXIES TO n8n)
   // ==========================================
   if (req.url === '/api/leads' && req.method === 'GET') {
+    try {
+      const n8nRes = await fetch(N8N_CRM_LEADS_URL);
+      if (n8nRes.ok) {
+        const data = await n8nRes.json();
+        if (data.leads && data.leads.length > 0) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify(data));
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('[n8n CRM Proxy Notice]:', err.message);
+    }
+
     const rows = await readSheetValues('Real_Estate_Qualified_Leads');
     if (rows && rows.length > 1) {
       const leads = rows.slice(1).map(r => ({

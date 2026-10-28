@@ -1,0 +1,361 @@
+{
+  "name": "Day 6 - Apex Realty Master Brain (Pro-Level Backend)",
+  "nodes": [
+    {
+      "id": "webhook-chat",
+      "name": "Buyer_Inbound_Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        100,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "apex-buyer-chat",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "engine-brain",
+      "name": "AI_Acquisition_Brain",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        340,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const input = $json.body || $json;\nconst userMessage = (input.userMessage || input.message || '').trim();\nconst targetProperty = (input.targetProperty || '').trim();\nconst sessionId = input.sessionId || ('sess_' + Math.floor(Math.random() * 1000000));\n\nlet state = input.sessionState || input.state || {\n  sessionId,\n  propertyInterest: targetProperty || '',\n  financingStatus: '',\n  financingScore: 0,\n  budgetRange: '',\n  budgetScore: 0,\n  timeline: '',\n  timelineScore: 0,\n  buyerType: '',\n  readinessScore: 0,\n  fullName: '',\n  phone: '',\n  email: '',\n  leadScore: 0,\n  leadTier: 'COLD',\n  recommendedAction: '',\n  turnCount: 0\n};\n\nstate.turnCount = (state.turnCount || 0) + 1;\nif (targetProperty && !state.propertyInterest) {\n  state.propertyInterest = targetProperty;\n}\n\nconst lower = userMessage.toLowerCase();\n\nconst PROPERTIES = [\n  { id: 'PROP-01', name: 'The Bel-Air Modern Estate', city: 'Bel Air, Los Angeles, CA', price: '$4.25M', keywords: ['bel-air', 'bel air', 'los angeles', 'estate', 'california'] },\n  { id: 'PROP-02', name: 'Tribeca Sky Penthouse', city: 'Tribeca, New York, NY', price: '$3.10M', keywords: ['tribeca', 'penthouse', 'new york', 'manhattan', 'nyc'] },\n  { id: 'PROP-03', name: 'Austin Lakefront Contemporary', city: 'Austin, TX', price: '$1.85M', keywords: ['austin', 'lakefront', 'texas', 'westlake'] },\n  { id: 'PROP-04', name: 'Miami Brickell Skyline Residence', city: 'Miami, FL', price: '$1.25M', keywords: ['miami', 'brickell', 'florida', 'condo'] },\n  { id: 'PROP-05', name: 'Aspen Pinecrest Alpine Retreat', city: 'Aspen, CO', price: '$5.80M', keywords: ['aspen', 'colorado', 'chalet', 'alpine', 'mountain'] }\n];\n\nfor (const p of PROPERTIES) {\n  if (lower.includes(p.name.toLowerCase()) || p.keywords.some(k => lower.includes(k))) {\n    if (!state.propertyInterest) {\n      state.propertyInterest = `${p.name} (${p.city} — ${p.price})`;\n    }\n    break;\n  }\n}\n\n// Extraction Vector 1: Financing (40 pts max)\nif (!state.financingStatus) {\n  if (/cash|all cash|liquid|funds ready|no mortgage|proof of funds/i.test(lower)) {\n    state.financingStatus = 'Cash Buyer (Verified Proof of Funds)';\n    state.financingScore = 40;\n  } else if (/pre-approv|preapprov|letter in hand|pre approved|jumbo approved|chase|wells/i.test(lower)) {\n    state.financingStatus = 'Pre-Approved (Lender Letter in Hand)';\n    state.financingScore = 35;\n  } else if (/working with|talking to lender|in process|broker|loan application/i.test(lower)) {\n    state.financingStatus = 'Working with Mortgage Broker';\n    state.financingScore = 20;\n  } else if (/need financing|need loan|not approved|mortgage/i.test(lower)) {\n    state.financingStatus = 'Needs Mortgage Financing / Unverified';\n    state.financingScore = 10;\n  }\n}\n\n// Extraction Vector 2: Budget (20 pts max)\nif (!state.budgetRange) {\n  const numMatch = lower.replace(/,/g, '').match(/\\d+(\\.\\d+)?/);\n  if (numMatch && (lower.includes('$') || lower.includes('m') || lower.includes('million') || lower.includes('k') || lower.includes('budget') || lower.includes('price'))) {\n    state.budgetRange = userMessage;\n    let est = parseFloat(numMatch[0]);\n    if (lower.includes('m') || lower.includes('million')) {\n      if (est < 100) est = est * 1000000;\n    } else if (lower.includes('k')) {\n      if (est < 1000) est = est * 1000;\n    }\n\n    if (est >= 2000000) state.budgetScore = 20;\n    else if (est >= 1000000) state.budgetScore = 18;\n    else if (est >= 500000) state.budgetScore = 14;\n    else state.budgetScore = 10;\n  }\n}\n\n// Extraction Vector 3: Timeline (30 pts max)\nif (!state.timeline) {\n  if (/immediate|30 day|asap|now|this month|ready now|urgent|fast/i.test(lower)) {\n    state.timeline = 'Immediate (< 30 days)';\n    state.timelineScore = 30;\n  } else if (/1|2|3|few month|60 day|90 day|soon/i.test(lower)) {\n    state.timeline = '1 to 3 months';\n    state.timelineScore = 20;\n  } else if (/3 to 6|6 month|half year|summer|fall|end of year/i.test(lower)) {\n    state.timeline = '3 to 6 months';\n    state.timelineScore = 10;\n  } else if (/brows|explor|looking around|just looking|next year/i.test(lower)) {\n    state.timeline = 'Just Browsing (> 6 months)';\n    state.timelineScore = 5;\n  }\n}\n\n// Extraction Vector 4: Buyer Intent / Property Type (10 pts max)\nif (!state.buyerType) {\n  if (/primary|live in|our home|family home|main home/i.test(lower)) {\n    state.buyerType = 'Primary Luxury Residence';\n    state.readinessScore = 10;\n  } else if (/relocat|moving to|transfer/i.test(lower)) {\n    state.buyerType = 'Corporate / Family Relocation';\n    state.readinessScore = 10;\n  } else if (/vacation|second|retreat|holiday|getaway/i.test(lower)) {\n    state.buyerType = 'Vacation & Secondary Home';\n    state.readinessScore = 8;\n  } else if (/invest|rental|portfolio|roi|tenant/i.test(lower)) {\n    state.buyerType = 'Investment / Portfolio Addition';\n    state.readinessScore = 7;\n  }\n}\n\n// Contact Extraction\nconst emailMatch = userMessage.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}/);\nconst phoneMatch = userMessage.match(/(?:\\+?\\d{1,3}[-.\\s]?)?\\(?\\d{3}\\)?[-.\\s]?\\d{3}[-.\\s]?\\d{4}/);\nif (emailMatch && !state.email) state.email = emailMatch[0];\nif (phoneMatch && !state.phone) state.phone = phoneMatch[0];\n\n// Safe Name Extraction\nif (!state.fullName) {\n  const explicitNameMatch = userMessage.match(/(?:my name is|i am|i'm|this is|call me)\\s+([A-Za-z]+(?:\\s+[A-Za-z]+)?)/i);\n  if (explicitNameMatch && !/^(cash|interested|looking|ready|yes|no|urgent)/i.test(explicitNameMatch[1])) {\n    state.fullName = explicitNameMatch[1].trim();\n  } else if (state.propertyInterest && state.financingStatus && state.budgetRange && state.timeline && state.buyerType) {\n    let clean = userMessage\n      .replace(emailMatch ? emailMatch[0] : '', '')\n      .replace(phoneMatch ? phoneMatch[0] : '', '')\n      .replace(/(?:my name is|name is|i am|i'm|phone|email|number|is|call me)/gi, '')\n      .replace(/[^a-zA-Z\\s]/g, '')\n      .trim();\n    if (clean.length >= 3 && clean.split(/\\s+/).length <= 4) {\n      state.fullName = clean;\n    }\n  }\n}\n\nconst hasProperty = !!state.propertyInterest;\nconst hasFinancing = !!state.financingStatus;\nconst hasBudget = !!state.budgetRange;\nconst hasTimeline = !!state.timeline;\nconst hasBuyerType = !!state.buyerType;\nconst hasContact = !!(state.fullName && (state.phone || state.email));\n\nconst isAllVectorsComplete = hasProperty && hasFinancing && hasBudget && hasTimeline && hasBuyerType && hasContact;\n\nif (!isAllVectorsComplete) {\n  let nextQuestion = '';\n  if (!hasProperty) {\n    nextQuestion = \"Welcome to Apex Realty Private Client Advisory. Which luxury property or market are you looking to acquire? (e.g. Bel-Air Estate, Tribeca Penthouse, Austin Lakefront, Miami Brickell, or Aspen Alpine)\";\n  } else if (!hasFinancing) {\n    nextQuestion = `Outstanding choice with ${state.propertyInterest}. To tailor our private representation, how do you plan to finance this acquisition? Are you purchasing All-Cash, Pre-Approved with a verified lender, or in need of preferred jumbo financing?`;\n  } else if (!hasBudget) {\n    nextQuestion = \"Noted. What is your comfortable target budget or maximum price range for this acquisition?\";\n  } else if (!hasTimeline) {\n    nextQuestion = \"Understood. What is your preferred closing timeline? Are you looking to close within 30 days, within 1 to 3 months, or exploring for later in the year?\";\n  } else if (!hasBuyerType) {\n    nextQuestion = \"Will this property serve as your Primary Luxury Residence, a Vacation / Secondary Home, an Investment Rental, or a Corporate Relocation?\";\n  } else {\n    nextQuestion = \"Lastly, please provide your Full Name, Phone Number, and Email Address so our managing broker can verify your file and reserve your private off-market preview.\";\n  }\n\n  return [{\n    json: {\n      isComplete: false,\n      reply: nextQuestion,\n      lead: null,\n      sessionState: state,\n      state: state\n    }\n  }];\n}\n\nconst totalScore = Math.min(100, (state.financingScore || 10) + (state.budgetScore || 10) + (state.timelineScore || 5) + (state.readinessScore || 7));\nstate.leadScore = totalScore;\n\nlet tier = 'COLD';\nlet tierIcon = '❄️';\nlet action = '';\n\nif (totalScore >= 80) {\n  tier = 'HOT';\n  tierIcon = '🔥';\n  action = 'IMMEDIATE DISPATCH: Direct Managing Broker VIP Call within 15 min & Private Showing Reserved.';\n} else if (totalScore >= 50) {\n  tier = 'WARM';\n  tierIcon = '⚡';\n  action = 'PRIORITY FOLLOW-UP: Send Curated MLS Dossier & Schedule Weekend Property Tour within 24h.';\n} else {\n  tier = 'COLD';\n  tierIcon = '❄️';\n  action = 'NURTURE SEQUENCE: Route to Preferred Jumbo Mortgage Partner for Pre-Qualification & Monthly Market Report.';\n}\n\nstate.leadTier = tier;\nstate.recommendedAction = action;\nstate.step = 'QUALIFIED';\n\nconst leadId = 'LEAD-' + Math.floor(1000 + Math.random() * 9000);\nconst now = new Date();\nconst timestamp = now.toLocaleDateString() + ', ' + now.toLocaleTimeString();\n\nconst safePhone = state.phone ? (state.phone.startsWith('+') ? \"'\" + state.phone : state.phone) : 'Provided via Phone Call';\n\nconst qualifiedLead = {\n  leadId,\n  timestamp,\n  fullName: state.fullName || 'Private Client',\n  phone: safePhone,\n  email: state.email || 'client@private-advisory.com',\n  propertyInterest: state.propertyInterest,\n  budgetRange: state.budgetRange,\n  financingStatus: state.financingStatus,\n  purchaseTimeline: state.timeline,\n  buyerType: state.buyerType,\n  leadScore: state.leadScore,\n  leadTier: state.leadTier,\n  recommendedAction: state.recommendedAction,\n  status: 'NEW'\n};\n\nstate.lastLead = qualifiedLead;\n\nconst scorecardReply = `✅ BUYER QUALIFICATION COMPLETE!\\n\\n========================================\\n🏛️ APEX REALTY — LEAD SCORECARD\\n========================================\\n• Lead ID: #${leadId}\\n• Lead Tier: ${tierIcon} ${tier} (Score: ${totalScore}/100)\\n• Client: ${state.fullName || 'Private Client'}\\n• Contact: ${safePhone} | ${state.email || 'On file'}\\n\\n----------------------------------------\\n📊 QUALIFICATION BREAKDOWN:\\n----------------------------------------\\n• Target Property: ${state.propertyInterest}\\n• Budget Range: ${state.budgetRange} (Score: ${state.budgetScore}/20)\\n• Financing Status: ${state.financingStatus} (Score: ${state.financingScore}/40)\\n• Timeline: ${state.timeline} (Score: ${state.timelineScore}/30)\\n• Acquisition Intent: ${state.buyerType} (Score: ${state.readinessScore}/10)\\n\\n----------------------------------------\\n🎯 RECOMMENDED BROKER ACTION:\\n----------------------------------------\\n${action}\\n========================================\\n\\nThank you, ${state.fullName || 'Private Client'}! Our managing broker has received your portfolio file and will be in touch shortly.`;\n\nreturn [{\n  json: {\n    isComplete: true,\n    reply: scorecardReply,\n    lead: qualifiedLead,\n    sessionState: state,\n    state: state,\n    Lead_ID: leadId,\n    Timestamp: timestamp,\n    Full_Name: qualifiedLead.fullName,\n    Phone: safePhone,\n    Email: qualifiedLead.email,\n    Property_Interest: qualifiedLead.propertyInterest,\n    Budget_Range: qualifiedLead.budgetRange,\n    Financing_Status: qualifiedLead.financingStatus,\n    Purchase_Timeline: qualifiedLead.purchaseTimeline,\n    Buyer_Type: qualifiedLead.buyerType,\n    Lead_Score: qualifiedLead.leadScore,\n    Lead_Tier: qualifiedLead.leadTier,\n    Recommended_Action: qualifiedLead.recommendedAction,\n    Status: qualifiedLead.status\n  }\n}];",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "condition-complete",
+      "name": "Check_Vectors_Complete",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        580,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.isComplete }}",
+              "operator": {
+                "operation": "equals",
+                "type": "boolean"
+              },
+              "rightValue": true
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 1
+          }
+        }
+      }
+    },
+    {
+      "id": "respond-next-question",
+      "name": "Respond_Next_Question",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        820,
+        180
+      ],
+      "parameters": {
+        "options": {},
+        "respondWith": "firstIncomingItem"
+      }
+    },
+    {
+      "id": "google-sheets-storage",
+      "name": "Push_Lead_To_Google_Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        820,
+        420
+      ],
+      "parameters": {
+        "authentication": "serviceAccount",
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {}
+        },
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "1Rpb9XQsymoDDSEl0n1EChgi8KY7BgmajFXctwreAMjo"
+        },
+        "operation": "append",
+        "options": {
+          "valueInputMode": "USER_ENTERED"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Real_Estate_Qualified_Leads"
+        }
+      },
+      "credentials": {
+        "googleApi": {
+          "id": "AqyKDLuwANoDYrEw",
+          "name": "Google Service Account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "respond-scorecard",
+      "name": "Respond_Scorecard_&_Triage",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1060,
+        420
+      ],
+      "parameters": {
+        "options": {},
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($('AI_Acquisition_Brain').first().json) }}"
+      }
+    },
+    {
+      "id": "webhook-crm-leads",
+      "name": "CRM_Leads_Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        100,
+        650
+      ],
+      "parameters": {
+        "httpMethod": "GET",
+        "options": {},
+        "path": "apex-crm-leads",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "read-sheets-leads",
+      "name": "Read_Sheets_Leads",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        340,
+        650
+      ],
+      "parameters": {
+        "authentication": "serviceAccount",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "1Rpb9XQsymoDDSEl0n1EChgi8KY7BgmajFXctwreAMjo"
+        },
+        "operation": "read",
+        "options": {},
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Real_Estate_Qualified_Leads"
+        }
+      },
+      "credentials": {
+        "googleApi": {
+          "id": "AqyKDLuwANoDYrEw",
+          "name": "Google Service Account"
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "format-crm-leads",
+      "name": "Format_CRM_Leads",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        580,
+        650
+      ],
+      "parameters": {
+        "jsCode": "const defaultLeads = [\n  {\n    leadId: 'LEAD-8801',\n    timestamp: '10/28/2026, 09:15:00',\n    fullName: 'Harrison Vance',\n    phone: '+1 (310) 555-8910',\n    email: 'h.vance@vancemedia.com',\n    propertyInterest: 'The Bel-Air Modern Estate',\n    budgetRange: '$4,000,000 - $4,500,000',\n    financingStatus: 'Cash Buyer (Verified)',\n    purchaseTimeline: 'Immediate (< 30 days)',\n    buyerType: 'Primary Luxury Residence',\n    leadScore: 95,\n    leadTier: 'HOT',\n    recommendedAction: 'Priority VIP Showing & Direct Broker Call within 15 min',\n    status: 'NEW'\n  },\n  {\n    leadId: 'LEAD-8802',\n    timestamp: '10/28/2026, 10:40:00',\n    fullName: 'Dr. Camille Laurent',\n    phone: '+1 (212) 555-4321',\n    email: 'claurent@medny.org',\n    propertyInterest: 'Tribeca Sky Penthouse',\n    budgetRange: '$3,000,000 - $3,500,000',\n    financingStatus: 'Pre-Approved with Chase Jumbo ($3.5M)',\n    purchaseTimeline: '1 to 3 months',\n    buyerType: 'Relocation to NYC',\n    leadScore: 85,\n    leadTier: 'HOT',\n    recommendedAction: 'Send 3D Matterport & Schedule Weekend Private Tour',\n    status: 'ASSIGNED'\n  },\n  {\n    leadId: 'LEAD-8803',\n    timestamp: '10/28/2026, 11:20:00',\n    fullName: 'Brandon & Sarah Cole',\n    phone: '+1 (512) 555-9081',\n    email: 'bcole@texastech.io',\n    propertyInterest: 'Austin Lakefront Contemporary',\n    budgetRange: '$1,800,000 - $2,000,000',\n    financingStatus: 'Working with Mortgage Broker',\n    purchaseTimeline: '3 to 6 months',\n    buyerType: 'Upgrading Family Home',\n    leadScore: 68,\n    leadTier: 'WARM',\n    recommendedAction: 'Add to Austin Market Newsletter & Check Lender Pre-Approval',\n    status: 'NURTURING'\n  },\n  {\n    leadId: 'LEAD-8804',\n    timestamp: '10/28/2026, 11:45:00',\n    fullName: 'Kevin Martinez',\n    phone: '+1 (305) 555-7762',\n    email: 'kmartinez@skylinefl.com',\n    propertyInterest: 'Miami Brickell Skyline Residence',\n    budgetRange: '$800,000 - $1,000,000',\n    financingStatus: 'Need Mortgage Pre-Approval',\n    purchaseTimeline: 'Just Browsing (> 6 months)',\n    buyerType: 'First-Time Investor',\n    leadScore: 42,\n    leadTier: 'COLD',\n    recommendedAction: 'Connect with Preferred Lending Partner for Loan Pre-Qualification',\n    status: 'NURTURING'\n  }\n];\n\nlet leads = [];\ntry {\n  const items = $input.all();\n  if (items && items.length > 0) {\n    for (const item of items) {\n      const row = item.json;\n      if (row.Lead_ID || row.leadId || row.Full_Name || row.fullName) {\n        leads.push({\n          leadId: row.Lead_ID || row.leadId || ('LEAD-' + Math.floor(1000 + Math.random() * 9000)),\n          timestamp: row.Timestamp || row.timestamp || new Date().toLocaleString(),\n          fullName: row.Full_Name || row.fullName || 'Private Client',\n          phone: row.Phone || row.phone || 'On file',\n          email: row.Email || row.email || 'client@private-advisory.com',\n          propertyInterest: row.Property_Interest || row.propertyInterest || 'Luxury Portfolio',\n          budgetRange: row.Budget_Range || row.budgetRange || '$2,000,000+',\n          financingStatus: row.Financing_Status || row.financingStatus || 'Cash Buyer',\n          purchaseTimeline: row.Purchase_Timeline || row.purchaseTimeline || 'Immediate',\n          buyerType: row.Buyer_Type || row.buyerType || 'Primary Residence',\n          leadScore: Number(row.Lead_Score || row.leadScore) || 75,\n          leadTier: row.Lead_Tier || row.leadTier || 'WARM',\n          recommendedAction: row.Recommended_Action || row.recommendedAction || 'Broker Follow-Up',\n          status: row.Status || row.status || 'NEW'\n        });\n      }\n    }\n  }\n} catch (e) {\n  // fallback\n}\n\nif (leads.length === 0) {\n  leads = defaultLeads;\n}\n\nreturn [{\n  json: {\n    success: true,\n    leads: leads\n  }\n}];",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "respond-crm-leads",
+      "name": "Respond_CRM_Leads",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        820,
+        650
+      ],
+      "parameters": {
+        "options": {},
+        "respondWith": "firstIncomingItem"
+      }
+    },
+    {
+      "id": "webhook-listings",
+      "name": "Listings_Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        100,
+        850
+      ],
+      "parameters": {
+        "httpMethod": "GET",
+        "options": {},
+        "path": "apex-listings",
+        "responseMode": "responseNode"
+      }
+    },
+    {
+      "id": "fetch-listings",
+      "name": "Fetch_Listings_From_Sheets",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        340,
+        850
+      ],
+      "parameters": {
+        "jsCode": "const listings = [\n  {\n    id: 'PROP-01',\n    title: 'The Bel-Air Modern Estate',\n    address: '742 Bellagio Rd, Bel Air, Los Angeles, CA',\n    price: 4250000,\n    beds: 5,\n    baths: 6,\n    sqft: 6800,\n    type: 'Single Family Luxury',\n    status: 'ACTIVE',\n    image: 'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=1200&q=80'\n  },\n  {\n    id: 'PROP-02',\n    title: 'Tribeca Sky Penthouse',\n    address: '145 Hudson St, Tribeca, New York, NY',\n    price: 3100000,\n    beds: 3,\n    baths: 3.5,\n    sqft: 3400,\n    type: 'Luxury Penthouse',\n    status: 'ACTIVE',\n    image: 'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?auto=format&fit=crop&w=1200&q=80'\n  },\n  {\n    id: 'PROP-03',\n    title: 'Austin Lakefront Contemporary',\n    address: '2804 Westlake Dr, Austin, TX',\n    price: 1850000,\n    beds: 4,\n    baths: 4.5,\n    sqft: 4200,\n    type: 'Waterfront Villa',\n    status: 'ACTIVE',\n    image: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1200&q=80'\n  },\n  {\n    id: 'PROP-04',\n    title: 'Miami Brickell Skyline Residence',\n    address: '1000 Brickell Plaza, Miami, FL',\n    price: 1250000,\n    beds: 2,\n    baths: 2.5,\n    sqft: 2100,\n    type: 'High-Rise Condo',\n    status: 'ACTIVE',\n    image: 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1200&q=80'\n  },\n  {\n    id: 'PROP-05',\n    title: 'Aspen Pinecrest Alpine Retreat',\n    address: '510 Red Mountain Rd, Aspen, CO',\n    price: 5800000,\n    beds: 6,\n    baths: 7,\n    sqft: 7500,\n    type: 'Mountain Chalet',\n    status: 'ACTIVE',\n    image: 'https://images.unsplash.com/photo-1613977257363-707ba9348227?auto=format&fit=crop&w=1200&q=80'\n  }\n];\n\nreturn [{\n  json: {\n    success: true,\n    listings: listings\n  }\n}];",
+        "mode": "runOnceForAllItems"
+      }
+    },
+    {
+      "id": "respond-listings",
+      "name": "Respond_Listings",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        580,
+        850
+      ],
+      "parameters": {
+        "options": {},
+        "respondWith": "firstIncomingItem"
+      }
+    }
+  ],
+  "connections": {
+    "AI_Acquisition_Brain": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Check_Vectors_Complete",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Buyer_Inbound_Webhook": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "AI_Acquisition_Brain",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "CRM_Leads_Webhook": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Read_Sheets_Leads",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Check_Vectors_Complete": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Push_Lead_To_Google_Sheets",
+            "type": "main"
+          }
+        ],
+        [
+          {
+            "index": 0,
+            "node": "Respond_Next_Question",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Fetch_Listings_From_Sheets": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Respond_Listings",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Format_CRM_Leads": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Respond_CRM_Leads",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Listings_Webhook": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Fetch_Listings_From_Sheets",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Push_Lead_To_Google_Sheets": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Respond_Scorecard_&_Triage",
+            "type": "main"
+          }
+        ]
+      ]
+    },
+    "Read_Sheets_Leads": {
+      "main": [
+        [
+          {
+            "index": 0,
+            "node": "Format_CRM_Leads",
+            "type": "main"
+          }
+        ]
+      ]
+    }
+  }
+}

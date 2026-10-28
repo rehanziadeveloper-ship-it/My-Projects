@@ -485,24 +485,16 @@
     </div>
   </footer>
 
-  <!-- SCRIPT LOGIC -->
+  <!-- SCRIPT LOGIC (Dumb UI: Zero Business Logic, Master n8n Backend) -->
   <script>
-    // State
+    // Global Dumb UI State
     let currentPortal = 'buyer';
     let activeFilter = 'ALL';
     let listings = [];
     let leads = [];
-    let currentSessionState = {
-      step: 'AWAITING_PROPERTY',
-      propertyInterest: '',
-      financingStatus: '',
-      budgetRange: '',
-      timeline: '',
-      buyerType: '',
-      fullName: '',
-      phone: '',
-      email: ''
-    };
+    let selectedTargetProperty = '';
+    const clientSessionId = 'apex_sess_' + Math.floor(Math.random() * 1000000);
+    let currentSessionState = null;
 
     let voiceOutputEnabled = true;
     let recognition = null;
@@ -515,7 +507,7 @@
       initSpeechRecognition();
     });
 
-    // 1. Fetch Listings
+    // 1. Fetch Listings (Proxies to n8n /api/listings)
     async function fetchListings() {
       try {
         const res = await fetch('/api/listings');
@@ -575,13 +567,14 @@
     }
 
     function inquireProperty(propertyName) {
+      selectedTargetProperty = propertyName;
       window.location.hash = '#advisor';
       const input = document.getElementById('chatInput');
       input.value = `I am interested in acquiring ${propertyName}`;
       handleUserSendMessage();
     }
 
-    // 2. Chatbot & Voicebot Communication
+    // 2. Chatbot & Voicebot Communication (Dumb Client -> n8n Master Brain)
     async function handleUserSendMessage() {
       const input = document.getElementById('chatInput');
       const msg = input.value.trim();
@@ -595,7 +588,10 @@
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
+            sessionId: clientSessionId,
+            userMessage: msg,
             message: msg,
+            targetProperty: selectedTargetProperty || '',
             sessionState: currentSessionState
           })
         });
@@ -603,12 +599,17 @@
         if (res.ok) {
           const data = await res.json();
           if (data.sessionState) currentSessionState = data.sessionState;
+          else if (data.state) currentSessionState = data.state;
           
-          appendChatMessage(data.reply, false);
-          updateScreeningTracker(currentSessionState);
+          if (data.reply) {
+            appendChatMessage(data.reply, false);
+            if (voiceOutputEnabled) {
+              speakResponse(data.reply);
+            }
+          }
 
-          if (voiceOutputEnabled && data.reply) {
-            speakResponse(data.reply);
+          if (currentSessionState) {
+            updateScreeningTracker(currentSessionState);
           }
 
           if (data.lead) {
@@ -633,6 +634,7 @@
     }
 
     function updateScreeningTracker(st) {
+      if (!st) return;
       if (st.propertyInterest) {
         document.getElementById('stepDot1').className = "w-2.5 h-2.5 rounded-full bg-emerald-400";
         document.getElementById('stepVal1').textContent = "Identified";
@@ -640,17 +642,17 @@
       }
       if (st.financingStatus) {
         document.getElementById('stepDot2').className = "w-2.5 h-2.5 rounded-full bg-emerald-400";
-        document.getElementById('stepVal2').textContent = `${st.financingScore || 35} pts`;
+        document.getElementById('stepVal2').textContent = st.financingScore ? `${st.financingScore} pts` : "Verified";
         document.getElementById('stepVal2').className = "text-xs text-emerald-400 font-semibold";
       }
       if (st.budgetRange) {
         document.getElementById('stepDot3').className = "w-2.5 h-2.5 rounded-full bg-emerald-400";
-        document.getElementById('stepVal3').textContent = `${st.budgetScore || 20} pts`;
+        document.getElementById('stepVal3').textContent = st.budgetScore ? `${st.budgetScore} pts` : "Qualified";
         document.getElementById('stepVal3').className = "text-xs text-emerald-400 font-semibold";
       }
       if (st.timeline) {
         document.getElementById('stepDot4').className = "w-2.5 h-2.5 rounded-full bg-emerald-400";
-        document.getElementById('stepVal4').textContent = `${st.timelineScore || 30} pts`;
+        document.getElementById('stepVal4').textContent = st.timelineScore ? `${st.timelineScore} pts` : "Ready";
         document.getElementById('stepVal4').className = "text-xs text-emerald-400 font-semibold";
       }
     }
@@ -695,17 +697,8 @@
     }
 
     function resetQualification() {
-      currentSessionState = {
-        step: 'AWAITING_PROPERTY',
-        propertyInterest: '',
-        financingStatus: '',
-        budgetRange: '',
-        timeline: '',
-        buyerType: '',
-        fullName: '',
-        phone: '',
-        email: ''
-      };
+      currentSessionState = null;
+      selectedTargetProperty = '';
       const box = document.getElementById('chatMessages');
       box.innerHTML = `<div class="chat-bubble-bot p-4 text-sm text-slate-200 max-w-[85%] leading-relaxed">
         Welcome to Apex Realty Private Client Advisory. Which luxury property or market are you looking to acquire? (e.g. Bel-Air Estate, Tribeca Penthouse, Austin Lakefront, Miami Brickell, or Aspen Alpine)

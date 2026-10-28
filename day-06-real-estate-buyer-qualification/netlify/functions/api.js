@@ -1,7 +1,9 @@
 const crypto = require('crypto');
 
 const SPREADSHEET_ID = '1Rpb9XQsymoDDSEl0n1EChgi8KY7BgmajFXctwreAMjo';
-const N8N_WEBHOOK_URL = 'https://n8n.srv1767318.hstgr.cloud/webhook/real-estate-qualification';
+const N8N_WEBHOOK_URL = 'https://n8n.srv1767318.hstgr.cloud/webhook/apex-buyer-chat';
+const N8N_CRM_LEADS_URL = 'https://n8n.srv1767318.hstgr.cloud/webhook/apex-crm-leads';
+const N8N_LISTINGS_URL = 'https://n8n.srv1767318.hstgr.cloud/webhook/apex-listings';
 
 const serviceAccount = {
   client_email: "antigravity-mcp@valiant-epsilon-501913-g2.iam.gserviceaccount.com",
@@ -531,21 +533,28 @@ exports.handler = async (event) => {
   const path = event.path.replace(/\/\.netlify\/functions\/api/, '').replace(/^\/api/, '');
   const body = JSON.parse(event.body || '{}');
 
-  // 1. Chatbot / Voicebot
+  // 1. Chatbot / Voicebot (Proxies to n8n Master Brain)
   if (path === '/chat' && event.httpMethod === 'POST') {
     let n8nResponse = null;
     try {
       const n8nRes = await fetch(N8N_WEBHOOK_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body)
+        body: JSON.stringify({
+          sessionId: body.sessionId || ('sess_' + Date.now()),
+          userMessage: body.userMessage || body.message || '',
+          targetProperty: body.targetProperty || '',
+          sessionState: body.sessionState || body.state || {}
+        })
       });
       if (n8nRes.ok) n8nResponse = await n8nRes.json();
-    } catch (e) {}
+    } catch (e) {
+      console.warn('[n8n Function Proxy Notice]:', e.message);
+    }
 
     if (!n8nResponse || !n8nResponse.reply) {
       const sessionState = body.sessionState || body.state;
-      n8nResponse = runFallbackQualificationEngine(body.message, sessionState);
+      n8nResponse = runFallbackQualificationEngine(body.userMessage || body.message, sessionState);
     }
 
     if (n8nResponse.sessionState && !n8nResponse.state) {
@@ -554,15 +563,23 @@ exports.handler = async (event) => {
       n8nResponse.sessionState = n8nResponse.state;
     }
 
-    if (n8nResponse.lead && n8nResponse.lead.leadId) {
-      await routeQualifiedLead(n8nResponse.lead);
-    }
-
     return { statusCode: 200, headers, body: JSON.stringify(n8nResponse) };
   }
 
-  // 2. Luxury Listings
+  // 2. Luxury Listings (Proxies to n8n)
   if (path === '/listings' && event.httpMethod === 'GET') {
+    try {
+      const n8nRes = await fetch(N8N_LISTINGS_URL);
+      if (n8nRes.ok) {
+        const data = await n8nRes.json();
+        if (data.listings && data.listings.length > 0) {
+          return { statusCode: 200, headers, body: JSON.stringify(data) };
+        }
+      }
+    } catch (err) {
+      console.warn('[n8n Function Listings Proxy Notice]:', err.message);
+    }
+
     const rows = await readSheetValues('Real_Estate_Listings');
     if (rows && rows.length > 1) {
       const listings = rows.slice(1).map(r => ({
@@ -582,8 +599,20 @@ exports.handler = async (event) => {
     return { statusCode: 200, headers, body: JSON.stringify({ success: true, listings: memoryListings }) };
   }
 
-  // 3. Broker CRM Leads
+  // 3. Broker CRM Leads (Proxies to n8n)
   if (path === '/leads' && event.httpMethod === 'GET') {
+    try {
+      const n8nRes = await fetch(N8N_CRM_LEADS_URL);
+      if (n8nRes.ok) {
+        const data = await n8nRes.json();
+        if (data.leads && data.leads.length > 0) {
+          return { statusCode: 200, headers, body: JSON.stringify(data) };
+        }
+      }
+    } catch (err) {
+      console.warn('[n8n Function CRM Proxy Notice]:', err.message);
+    }
+
     const rows = await readSheetValues('Real_Estate_Qualified_Leads');
     if (rows && rows.length > 1) {
       const leads = rows.slice(1).map(r => ({
