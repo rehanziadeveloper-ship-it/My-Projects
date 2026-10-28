@@ -2,6 +2,7 @@
 
 > **A modern, clean, uncluttered AI Restaurant Operating System featuring three distinct portals: Public Customer Portal with an AI order chatbot, a password-protected Kitchen Portal for order fulfillment, and a password-protected Admin Dashboard for real-time financial tracking and expense logging.**
 
+[![Netlify Live App](https://img.shields.io/badge/Netlify-Live%20Demo-00C7B7?style=for-the-badge&logo=netlify)](https://heritage-bistro-ai.netlify.app)
 [![Live Local Server](https://img.shields.io/badge/Port-3005-orange?style=for-the-badge&logo=node.js)](http://localhost:3005)
 [![Google Sheets Database](https://img.shields.io/badge/Google%20Sheets-Live%20Database-success?style=for-the-badge&logo=googlesheets)](https://docs.google.com/spreadsheets/d/1Rpb9XQsymoDDSEl0n1EChgi8KY7BgmajFXctwreAMjo)
 [![n8n Workflow](https://img.shields.io/badge/n8n-Active%20Chatbot%20Engine-red?style=for-the-badge&logo=n8n)](https://n8n.srv1767318.hstgr.cloud)
