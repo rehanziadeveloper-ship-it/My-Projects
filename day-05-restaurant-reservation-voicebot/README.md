@@ -57,6 +57,18 @@ Spreadsheet ID: `1Rpb9XQsymoDDSEl0n1EChgi8KY7BgmajFXctwreAMjo`
 
 ---
 
+## 📱 Fully Responsive Cross-Device Architecture
+
+The UI is built with a mobile-first, responsive design engineered for seamless usability across all device form factors:
+- **Smart Mobile Drawer Navigation:** On screens under 860px, header navigation collapses into an animated 3-bar hamburger button that triggers an accessible mobile navigation drawer with staff portal access.
+- **Fluid Hero & Carousel:** Clamped typography (`clamp(1.85rem, 4.5vw, 3rem)`) and responsive aspect ratios ensure the food carousel and headline adapt gracefully from small phones (320px) to ultra-wide desktop monitors.
+- **Dynamic Assistant Card:** Desktop sticky assistant (`position: sticky; top: 92px`) transitions automatically to a natural, full-width touch card on tablet/mobile views without viewport scroll trapping.
+- **1-Tap Floating Order Pill:** On mobile viewports, a quick floating action button (`💬 Order Now`) allows customers to jump instantly to the order assistant from anywhere on the menu.
+- **iOS Safari Optimization:** Input font sizes are locked at 16px on mobile viewports to prevent unwanted viewport auto-zooming.
+- **Touch-Friendly KDS & Tables:** Kitchen Display System cards and Admin Analytics tables include horizontal swipe hints, generous touch targets (min 44px), and flexible action buttons.
+
+---
+
 ## ⚡ Active n8n Workflow
 
 - **Workflow Name:** `AI Restaurant Chatbot & Order Routing Engine`
