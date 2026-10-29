@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, interactive-widget=resizes-content">
   <title>The Heritage Bistro — AI Restaurant Operating System</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -37,6 +37,13 @@
       min-height: 100vh;
       overflow-x: hidden;
       -webkit-font-smoothing: antialiased;
+    }
+
+    /* Prevent background scroll when mobile chat or drawer is open */
+    body.chat-modal-open {
+      overflow: hidden !important;
+      height: 100vh;
+      touch-action: none;
     }
 
     /* Container */
@@ -109,7 +116,7 @@
       color: var(--primary);
     }
     .portal-link {
-      padding: 0.45rem 0.9rem;
+      padding: 0.5rem 0.95rem;
       border-radius: 8px;
       border: 1px solid var(--border) !important;
       background: #faf7f2 !important;
@@ -118,13 +125,14 @@
       display: flex;
       align-items: center;
       gap: 0.35rem;
+      min-height: 40px;
     }
     .portal-link:hover {
       border-color: var(--primary) !important;
       background: #fdfaf5 !important;
     }
 
-    /* Mobile Menu Toggle Button */
+    /* Mobile Menu Toggle Button (Min 44x44px touch target) */
     .mobile-menu-btn {
       display: none;
       background: #faf7f2;
@@ -132,6 +140,8 @@
       border-radius: 8px;
       width: 44px;
       height: 44px;
+      min-width: 44px;
+      min-height: 44px;
       cursor: pointer;
       padding: 0;
       align-items: center;
@@ -139,27 +149,29 @@
       flex-direction: column;
       gap: 5px;
       z-index: 120;
+      touch-action: manipulation;
       transition: background 0.2s, border-color 0.2s;
     }
-    .mobile-menu-btn:hover {
+    .mobile-menu-btn:hover, .mobile-menu-btn:active {
       border-color: var(--primary);
+      background: #f4ecdf;
     }
     .hamburger-line {
       display: block;
-      width: 20px;
-      height: 2px;
+      width: 22px;
+      height: 2.2px;
       background-color: var(--text);
       border-radius: 2px;
       transition: all 0.25s ease-in-out;
     }
     .mobile-menu-btn.active .hamburger-line:nth-child(1) {
-      transform: translateY(7px) rotate(45deg);
+      transform: translateY(7.2px) rotate(45deg);
     }
     .mobile-menu-btn.active .hamburger-line:nth-child(2) {
       opacity: 0;
     }
     .mobile-menu-btn.active .hamburger-line:nth-child(3) {
-      transform: translateY(-7px) rotate(-45deg);
+      transform: translateY(-7.2px) rotate(-45deg);
     }
 
     /* Mobile Navigation Drawer */
@@ -171,14 +183,16 @@
       width: 100vw;
       height: 100vh;
       background: rgba(0,0,0,0.45);
-      backdrop-filter: blur(3px);
+      backdrop-filter: blur(4px);
       z-index: 110;
       opacity: 0;
+      visibility: hidden;
       pointer-events: none;
-      transition: opacity 0.25s ease;
+      transition: opacity 0.25s ease, visibility 0.25s;
     }
     .mobile-nav-backdrop.open {
       opacity: 1;
+      visibility: visible;
       pointer-events: auto;
     }
     .mobile-nav-drawer {
@@ -189,18 +203,23 @@
       background: #ffffff;
       border-bottom: 2px solid var(--border);
       box-shadow: 0 16px 36px rgba(0,0,0,0.12);
-      padding: 1.25rem 1.5rem 1.75rem 1.5rem;
+      padding: 1.25rem 1.25rem 1.75rem 1.25rem;
       z-index: 115;
       display: flex;
       flex-direction: column;
-      gap: 1.25rem;
+      gap: 1rem;
       max-height: calc(100vh - var(--header-h));
       overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
       transform: translateY(-110%);
-      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      visibility: hidden;
+      pointer-events: none;
+      transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.28s;
     }
     .mobile-nav-drawer.open {
       transform: translateY(0);
+      visibility: visible;
+      pointer-events: auto;
     }
     .mobile-nav-group {
       display: flex;
@@ -208,7 +227,8 @@
       gap: 0.4rem;
     }
     .mobile-nav-link {
-      padding: 0.75rem 1rem;
+      padding: 0.85rem 1rem;
+      min-height: 48px;
       border-radius: 8px;
       font-size: 0.98rem;
       font-weight: 600;
@@ -218,6 +238,7 @@
       align-items: center;
       gap: 0.75rem;
       background: #faf7f2;
+      touch-action: manipulation;
       transition: background 0.15s;
     }
     .mobile-nav-link:active, .mobile-nav-link:hover {
@@ -235,6 +256,7 @@
     }
     .mobile-portal-btn {
       width: 100%;
+      min-height: 48px;
       padding: 0.85rem 1rem;
       border-radius: 10px;
       border: 1px solid var(--border);
@@ -247,6 +269,7 @@
       align-items: center;
       justify-content: space-between;
       cursor: pointer;
+      touch-action: manipulation;
       transition: border-color 0.2s, background 0.2s;
     }
     .mobile-portal-btn:active, .mobile-portal-btn:hover {
@@ -257,18 +280,19 @@
       font-size: 0.72rem;
       background: #f5eedf;
       color: var(--primary);
-      padding: 0.2rem 0.55rem;
+      padding: 0.25rem 0.6rem;
       border-radius: 6px;
       font-weight: 700;
     }
 
-    /* Buttons */
+    /* Buttons (Strict 44x44px minimum touch targets) */
     .btn {
       display: inline-flex;
       align-items: center;
       justify-content: center;
       gap: 0.45rem;
-      padding: 0.6rem 1.25rem;
+      min-height: 44px;
+      padding: 0.65rem 1.25rem;
       border-radius: 8px;
       font-weight: 600;
       font-size: 0.92rem;
@@ -282,7 +306,7 @@
       background: var(--primary);
       color: #ffffff;
     }
-    .btn-primary:hover {
+    .btn-primary:hover, .btn-primary:active {
       background: var(--primary-hover);
     }
     .btn-outline {
@@ -290,19 +314,20 @@
       border-color: var(--border);
       color: var(--text);
     }
-    .btn-outline:hover {
+    .btn-outline:hover, .btn-outline:active {
       border-color: var(--primary);
       color: var(--primary);
     }
     .btn-sm {
-      padding: 0.45rem 0.85rem;
+      min-height: 40px;
+      padding: 0.5rem 0.9rem;
       font-size: 0.84rem;
     }
     .btn-success {
       background: var(--secondary);
       color: #fff;
     }
-    .btn-success:hover {
+    .btn-success:hover, .btn-success:active {
       background: #234634;
     }
     .btn-logout {
@@ -310,7 +335,7 @@
       background: #fef2f2;
       border: 1px solid #fee2e2;
     }
-    .btn-logout:hover {
+    .btn-logout:hover, .btn-logout:active {
       background: #fee2e2;
     }
 
@@ -399,17 +424,18 @@
       background: rgba(255,255,255,0.85);
       border: none;
       border-radius: 50%;
-      width: 42px; height: 42px;
+      width: 44px; height: 44px;
+      min-width: 44px; min-height: 44px;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 1.3rem;
+      font-size: 1.4rem;
       transition: all 0.2s;
       z-index: 5;
       touch-action: manipulation;
     }
-    .carousel-btn:hover { background: #fff; transform: translateY(-50%) scale(1.08); }
+    .carousel-btn:hover, .carousel-btn:active { background: #fff; transform: translateY(-50%) scale(1.08); }
     .carousel-btn.prev { left: 14px; }
     .carousel-btn.next { right: 14px; }
 
@@ -515,6 +541,26 @@
       border-radius: 50%;
       box-shadow: 0 0 0 3px rgba(45,90,67,0.2);
     }
+    .chat-close-btn {
+      display: none;
+      width: 38px;
+      height: 38px;
+      min-width: 38px;
+      min-height: 38px;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: #faf7f2;
+      color: var(--text);
+      font-size: 1.15rem;
+      cursor: pointer;
+      align-items: center;
+      justify-content: center;
+      touch-action: manipulation;
+      transition: background 0.15s;
+    }
+    .chat-close-btn:active {
+      background: #ebe3d5;
+    }
 
     .chat-messages {
       flex: 1;
@@ -525,6 +571,7 @@
       gap: 0.85rem;
       background: #fdfaf6;
       -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
     }
     .chat-bubble {
       max-width: 85%;
@@ -548,12 +595,16 @@
     }
     .chat-menu-img {
       width: 100%;
-      max-width: 260px;
+      max-width: 100%;
+      height: auto;
+      max-height: 280px;
+      object-fit: cover;
       border-radius: 8px;
       border: 1px solid var(--border);
       cursor: pointer;
       margin-top: 0.5rem;
       transition: transform 0.2s;
+      display: block;
     }
     .chat-menu-img:hover {
       transform: scale(1.02);
@@ -579,14 +630,18 @@
       background: #fff;
       border: 1px solid var(--border);
       border-radius: 20px;
-      padding: 0.35rem 0.8rem;
-      font-size: 0.78rem;
+      padding: 0.45rem 0.9rem;
+      min-height: 38px;
+      font-size: 0.8rem;
       font-weight: 600;
       color: var(--primary);
       cursor: pointer;
       transition: all 0.15s;
       flex-shrink: 0;
       touch-action: manipulation;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
     }
     .chip:hover, .chip:active {
       border-color: var(--primary);
@@ -605,7 +660,8 @@
     }
     .chat-input {
       flex: 1;
-      padding: 0.65rem 0.9rem;
+      padding: 0.7rem 0.95rem;
+      min-height: 44px;
       border: 1px solid var(--border);
       border-radius: 8px;
       font-family: inherit;
@@ -617,7 +673,7 @@
       border-color: var(--primary);
     }
 
-    /* Mobile 1-Tap Floating Order Button */
+    /* Mobile 1-Tap Floating Order Widget */
     .mobile-chat-fab {
       display: none;
       position: fixed;
@@ -625,20 +681,64 @@
       right: 20px;
       background: var(--primary);
       color: #fff;
-      padding: 0.75rem 1.15rem;
+      padding: 0.85rem 1.35rem;
+      min-height: 48px;
       border-radius: 50px;
       font-weight: 700;
       font-size: 0.95rem;
-      box-shadow: 0 8px 24px rgba(145, 104, 57, 0.4);
+      box-shadow: 0 8px 24px rgba(145, 104, 57, 0.45);
       z-index: 90;
       text-decoration: none;
       align-items: center;
-      gap: 0.45rem;
+      gap: 0.5rem;
+      cursor: pointer;
+      border: none;
+      touch-action: manipulation;
       transition: transform 0.2s, background-color 0.2s;
     }
     .mobile-chat-fab:active {
-      transform: scale(0.96);
+      transform: scale(0.95);
       background: var(--primary-hover);
+    }
+    .fab-pulse-dot {
+      width: 9px;
+      height: 9px;
+      background: #4ade80;
+      border-radius: 50%;
+      box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.35);
+      display: inline-block;
+    }
+
+    /* Mobile In-Page Card (Visible on mobile when chat card is floating/minimized) */
+    .mobile-chat-invitation {
+      display: none;
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 1.5rem 1.25rem;
+      text-align: center;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.03);
+    }
+    .invite-badge {
+      display: inline-block;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: var(--primary);
+      background: #faf2e6;
+      padding: 0.25rem 0.75rem;
+      border-radius: 20px;
+      margin-bottom: 0.6rem;
+    }
+    .mobile-chat-invitation h3 {
+      font-family: var(--font-heading);
+      font-size: 1.35rem;
+      margin-bottom: 0.5rem;
+    }
+    .mobile-chat-invitation p {
+      font-size: 0.92rem;
+      color: var(--text-muted);
+      margin-bottom: 1.25rem;
+      line-height: 1.5;
     }
 
     /* Basic Info Section */
@@ -713,12 +813,16 @@
     .kitchen-stat-pill {
       background: #ffffff;
       border: 1px solid var(--border);
-      padding: 0.5rem 1rem;
+      padding: 0.6rem 1rem;
+      min-height: 44px;
       border-radius: 8px;
       font-weight: 700;
       font-size: 0.88rem;
       flex: 1 1 140px;
       text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .orders-grid {
@@ -751,7 +855,7 @@
     .status-badge {
       font-size: 0.75rem;
       font-weight: 700;
-      padding: 0.2rem 0.5rem;
+      padding: 0.25rem 0.55rem;
       border-radius: 4px;
       text-transform: uppercase;
       white-space: nowrap;
@@ -814,7 +918,8 @@
       display: none;
     }
     .admin-tab-btn {
-      padding: 0.6rem 1.2rem;
+      min-height: 44px;
+      padding: 0.65rem 1.2rem;
       background: none;
       border: none;
       border-bottom: 2px solid transparent;
@@ -824,6 +929,7 @@
       color: var(--text-muted);
       white-space: nowrap;
       flex-shrink: 0;
+      touch-action: manipulation;
     }
     .admin-tab-btn.active {
       color: var(--primary);
@@ -840,7 +946,7 @@
     }
     .mobile-scroll-hint {
       display: none;
-      padding: 0.4rem 0.8rem;
+      padding: 0.45rem 0.8rem;
       background: #faf7f2;
       border-bottom: 1px solid var(--border);
       font-size: 0.76rem;
@@ -872,12 +978,12 @@
     .modal-overlay {
       position: fixed;
       top: 0; left: 0; right: 0; bottom: 0;
-      background: rgba(0,0,0,0.5);
+      background: rgba(0,0,0,0.55);
       backdrop-filter: blur(4px);
       display: none;
       align-items: center;
       justify-content: center;
-      z-index: 1000;
+      z-index: 1100;
       padding: 1rem;
     }
     .modal-box {
@@ -901,10 +1007,6 @@
         gap: 2rem;
         padding: 2rem 0;
       }
-      .chat-card {
-        position: static;
-        height: clamp(480px, 75vh, 580px);
-      }
     }
 
     /* Mobile & Tablet Portrait (< 860px) */
@@ -927,6 +1029,9 @@
       .mobile-chat-fab {
         display: inline-flex;
       }
+      .mobile-chat-invitation {
+        display: block;
+      }
       .hero-section {
         padding: 2rem 0;
       }
@@ -939,9 +1044,9 @@
         border-radius: 12px;
       }
       .carousel-btn {
-        width: 36px;
-        height: 36px;
-        font-size: 1.1rem;
+        width: 44px;
+        height: 44px;
+        font-size: 1.2rem;
       }
       .slide-caption {
         padding: 1.25rem 1rem 0.85rem 1rem;
@@ -951,6 +1056,63 @@
       }
       .mobile-scroll-hint {
         display: block;
+      }
+
+      /* Chatbot Mobile Overlay Transformation */
+      .chat-close-btn {
+        display: flex;
+      }
+      .chat-card {
+        display: none; /* hidden until opened on mobile */
+      }
+      .chat-card.mobile-open {
+        display: flex !important;
+        position: fixed !important;
+        top: 0; left: 0; right: 0; bottom: 0;
+        width: 100vw !important;
+        height: 100dvh;
+        height: 100svh;
+        z-index: 1000 !important;
+        border-radius: 0 !important;
+        border: none !important;
+        box-shadow: none !important;
+        animation: slideUpChat 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      @keyframes slideUpChat {
+        from { transform: translateY(100%); }
+        to { transform: translateY(0); }
+      }
+      .chat-header {
+        padding: 0.75rem 1rem;
+        background: #ffffff;
+        border-bottom: 1px solid var(--border);
+      }
+      .chat-messages {
+        flex: 1;
+        padding: 0.85rem;
+        gap: 0.75rem;
+        background: #fdfaf6;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+      }
+      .chat-bubble {
+        max-width: 88%;
+        font-size: 0.92rem;
+        padding: 0.7rem 0.9rem;
+      }
+      .chat-chips {
+        padding: 0.5rem 0.85rem;
+        background: #faf7f2;
+      }
+      .chat-input-row {
+        padding: 0.65rem 0.85rem;
+        padding-bottom: max(0.65rem, env(safe-area-inset-bottom));
+        background: #ffffff;
+        border-top: 1px solid var(--border);
+      }
+      /* Prevent iOS Safari 16px auto-zoom */
+      .chat-input, #authPasswordInput, #expDesc, #expAmount, #expCategory {
+        font-size: 16px !important;
       }
     }
 
@@ -985,10 +1147,11 @@
       .kitchen-actions {
         display: flex;
         flex-direction: column;
-        gap: 0.4rem;
+        gap: 0.5rem;
       }
       .kitchen-actions .btn {
         width: 100%;
+        min-height: 44px;
       }
       .kitchen-stats {
         display: grid;
@@ -998,35 +1161,10 @@
       .kitchen-stat-pill {
         padding: 0.4rem 0.5rem;
         font-size: 0.78rem;
+        min-height: 44px;
       }
       .orders-grid {
         grid-template-columns: 1fr;
-      }
-      .chat-card {
-        height: 480px;
-        border-radius: 12px;
-      }
-      .chat-header {
-        padding: 0.75rem 1rem;
-      }
-      .chat-messages {
-        padding: 0.85rem;
-        gap: 0.65rem;
-      }
-      .chat-bubble {
-        max-width: 90%;
-        font-size: 0.88rem;
-        padding: 0.65rem 0.85rem;
-      }
-      .chat-chips {
-        padding: 0.4rem 0.75rem;
-      }
-      .chat-input-row {
-        padding: 0.6rem 0.75rem;
-      }
-      /* Prevent iOS Safari 16px auto-zoom */
-      .chat-input, #authPasswordInput, #expDesc, #expAmount, #expCategory {
-        font-size: 16px !important;
       }
       .modal-box {
         padding: 1.35rem 1rem;
@@ -1087,7 +1225,7 @@
         <span>📜</span>
         <span>Seasonal Menu</span>
       </a>
-      <a href="#orderChat" class="mobile-nav-link" onclick="navToCustomer('#orderChat')">
+      <a href="javascript:void(0)" class="mobile-nav-link" onclick="openMobileChat(); toggleMobileMenu(true);">
         <span>💬</span>
         <span>Chat Assistant & Order</span>
       </a>
@@ -1116,10 +1254,11 @@
     </div>
   </div>
 
-  <!-- Mobile 1-Tap Floating Order Button -->
-  <a href="#orderChat" class="mobile-chat-fab" id="mobileChatFab" onclick="focusChat()">
-    💬 <span>Order Now</span>
-  </a>
+  <!-- Mobile 1-Tap Floating Order Widget -->
+  <button class="mobile-chat-fab" id="mobileChatFab" onclick="openMobileChat()" aria-label="Open AI chat assistant">
+    <span class="fab-pulse-dot"></span>
+    <span>💬 Order with AI</span>
+  </button>
 
   <!-- ======================================================== -->
   <!-- 1. CUSTOMER PORTAL (Public Access)                      -->
@@ -1137,7 +1276,7 @@
             Welcome to The Heritage Bistro. Fresh ingredients, handmade pasta, prime steak frites, and decadent desserts. Order seamlessly with our text assistant below.
           </p>
           <div class="hero-buttons">
-            <a href="#orderChat" class="btn btn-primary" onclick="focusChat()">💬 Order with Chatbot</a>
+            <button class="btn btn-primary" onclick="focusChat()">💬 Order with Chatbot</button>
             <button class="btn btn-outline" onclick="openMenuImageModal()">📜 View Full Menu</button>
           </div>
         </div>
@@ -1292,13 +1431,27 @@
 
       <!-- Right: Text-Based Order Chatbot -->
       <section id="orderChat">
-        <div class="chat-card">
+        <!-- Mobile In-Page Card (Visible on mobile when chat card is floating/minimized) -->
+        <div class="mobile-chat-invitation" id="mobileChatInvitation">
+          <div class="invite-badge">🤖 24/7 AI Waiter</div>
+          <h3>Order Instantly with our Chat Assistant</h3>
+          <p>Tap below to start your order, customize ingredients, or view our chef's specials with zero wait time.</p>
+          <button class="btn btn-primary" onclick="openMobileChat()" style="width:100%; min-height:48px;">
+            💬 Open Chat Assistant & Order
+          </button>
+        </div>
+
+        <!-- Master Chat Card (Embedded on desktop, full-screen interactive sheet on mobile) -->
+        <div class="chat-card" id="bistroChatCard">
           <div class="chat-header">
             <div class="chat-header-title">
               <span class="live-dot"></span>
               <span>Bistro Chat Assistant</span>
             </div>
-            <button class="btn btn-outline btn-sm" onclick="resetChat()">Clear</button>
+            <div style="display:flex; align-items:center; gap:0.5rem;">
+              <button class="btn btn-outline btn-sm" onclick="resetChat()">Clear</button>
+              <button class="chat-close-btn" id="chatCloseBtn" onclick="closeMobileChat()" aria-label="Close chat assistant">✕</button>
+            </div>
           </div>
 
           <div id="chatMessages" class="chat-messages">
@@ -1318,7 +1471,7 @@
           <!-- Input Bar -->
           <form class="chat-input-row" onsubmit="handleChatSubmit(event)">
             <input type="text" id="chatInput" class="chat-input" placeholder="Type your order or ask for the menu..." autocomplete="off">
-            <button type="submit" class="btn btn-primary btn-sm">Send</button>
+            <button type="submit" class="btn btn-primary" style="min-width: 68px; min-height: 44px;">Send</button>
           </form>
         </div>
       </section>
@@ -1341,8 +1494,8 @@
           </div>
           <div class="info-card">
             <h4>📞 Direct Contact</h4>
-            <p><strong>Phone:</strong> +1 (555) 328-9011</p>
-            <p><strong>Email:</strong> orders@heritagebistro.com</p>
+            <p><strong>Phone:</strong> <a href="tel:+15553289011" style="color: inherit; text-decoration: underline; min-height: 44px; display: inline-flex; align-items: center;">+1 (555) 328-9011</a></p>
+            <p><strong>Email:</strong> <a href="mailto:orders@heritagebistro.com" style="color: inherit; text-decoration: underline; min-height: 44px; display: inline-flex; align-items: center;">orders@heritagebistro.com</a></p>
             <p><strong>Pickup & Delivery:</strong> Available 7 days a week.</p>
           </div>
         </div>
@@ -1359,14 +1512,14 @@
           </div>
           <div>
             <h4 style="color: #fff; margin-bottom: 0.5rem;">Navigation</h4>
-            <p><a href="#home" style="color: inherit; text-decoration: none;">Home</a></p>
-            <p><a href="#menu" style="color: inherit; text-decoration: none;">Menu</a></p>
-            <p><a href="#orderChat" style="color: inherit; text-decoration: none;">Order Online</a></p>
+            <p><a href="#home" style="color: inherit; text-decoration: none; min-height: 44px; display: inline-flex; align-items: center;">Home</a></p>
+            <p><a href="#menu" style="color: inherit; text-decoration: none; min-height: 44px; display: inline-flex; align-items: center;">Menu</a></p>
+            <p><a href="javascript:void(0)" onclick="focusChat()" style="color: inherit; text-decoration: none; min-height: 44px; display: inline-flex; align-items: center;">Order Online</a></p>
           </div>
           <div>
             <h4 style="color: #fff; margin-bottom: 0.5rem;">Staff Access</h4>
-            <p><a href="javascript:void(0)" onclick="openProtectedPortal('kitchen')" style="color: #c9ab81; text-decoration: none;">👨‍🍳 Kitchen Portal</a></p>
-            <p><a href="javascript:void(0)" onclick="openProtectedPortal('admin')" style="color: #c9ab81; text-decoration: none;">📊 Admin Dashboard</a></p>
+            <p><a href="javascript:void(0)" onclick="openProtectedPortal('kitchen')" style="color: #c9ab81; text-decoration: none; min-height: 44px; display: inline-flex; align-items: center;">👨‍🍳 Kitchen Portal</a></p>
+            <p><a href="javascript:void(0)" onclick="openProtectedPortal('admin')" style="color: #c9ab81; text-decoration: none; min-height: 44px; display: inline-flex; align-items: center;">📊 Admin Dashboard</a></p>
           </div>
         </div>
         <div class="footer-bottom">
@@ -1522,7 +1675,7 @@
   <!-- Menu Full Image Modal -->
   <div id="menuImageModal" class="modal-overlay" onclick="closeMenuImageModal()">
     <div style="max-width: 800px; width: 95vw; text-align: center; position: relative;" onclick="event.stopPropagation()">
-      <button onclick="closeMenuImageModal()" aria-label="Close menu image" style="position: absolute; right: 10px; top: 10px; background: rgba(0,0,0,0.75); color: #fff; border: 1px solid rgba(255,255,255,0.3); width: 38px; height: 38px; border-radius: 50%; font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 10;">✕</button>
+      <button onclick="closeMenuImageModal()" aria-label="Close menu image" style="position: absolute; right: 10px; top: 10px; background: rgba(0,0,0,0.75); color: #fff; border: 1px solid rgba(255,255,255,0.3); width: 44px; height: 44px; min-width: 44px; min-height: 44px; border-radius: 50%; font-size: 1.3rem; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 10; touch-action: manipulation;">✕</button>
       <img src="/images/bistro-menu.png" alt="The Heritage Bistro Menu" style="width: 100%; max-height: 85vh; object-fit: contain; border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.4);">
     </div>
   </div>
@@ -1600,9 +1753,61 @@
       openProtectedPortal(portalId);
     }
 
+    // Mobile Chat Viewport & Modal Controls
+    function openMobileChat() {
+      const chatCard = document.getElementById('bistroChatCard');
+      if (!chatCard) return;
+
+      chatCard.classList.add('mobile-open');
+      document.body.classList.add('chat-modal-open');
+      toggleMobileMenu(true);
+
+      if (window.visualViewport) {
+        updateMobileChatViewport();
+      }
+
+      setTimeout(() => {
+        const input = document.getElementById('chatInput');
+        if (input) input.focus();
+        const box = document.getElementById('chatMessages');
+        if (box) box.scrollTop = box.scrollHeight;
+      }, 100);
+    }
+
+    function closeMobileChat() {
+      const chatCard = document.getElementById('bistroChatCard');
+      if (chatCard) {
+        chatCard.classList.remove('mobile-open');
+        chatCard.style.height = '';
+        chatCard.style.top = '';
+      }
+      document.body.classList.remove('chat-modal-open');
+    }
+
+    function updateMobileChatViewport() {
+      if (!window.visualViewport) return;
+      const chatCard = document.getElementById('bistroChatCard');
+      if (!chatCard || !chatCard.classList.contains('mobile-open')) return;
+
+      const vv = window.visualViewport;
+      chatCard.style.height = `${vv.height}px`;
+      chatCard.style.top = `${vv.offsetTop}px`;
+
+      const msgBox = document.getElementById('chatMessages');
+      if (msgBox) {
+        msgBox.scrollTop = msgBox.scrollHeight;
+      }
+    }
+
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', updateMobileChatViewport);
+      window.visualViewport.addEventListener('scroll', updateMobileChatViewport);
+    }
+
     // Keyboard Accessibility (Esc to close drawer/modals)
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
+        closeMobileChat();
         toggleMobileMenu(true);
         closeAuthModal();
         closeMenuImageModal();
@@ -1624,11 +1829,15 @@
     setInterval(() => moveCarousel(1), 5000);
 
     function focusChat() {
-      const input = document.getElementById('chatInput');
-      if (input) {
-        input.focus();
-        const chatSection = document.getElementById('orderChat');
-        if (chatSection) chatSection.scrollIntoView({ behavior: 'smooth' });
+      if (window.innerWidth <= 860) {
+        openMobileChat();
+      } else {
+        const input = document.getElementById('chatInput');
+        if (input) {
+          input.focus();
+          const chatSection = document.getElementById('orderChat');
+          if (chatSection) chatSection.scrollIntoView({ behavior: 'smooth' });
+        }
       }
     }
 
@@ -1859,22 +2068,22 @@
             </div>
             <div style="display: flex; gap: 0.5rem; margin-top: 0.35rem; flex-wrap: wrap;">
               ${isPending ? `
-                <button class="btn btn-sm btn-primary" style="flex:1 1 120px;" onclick="updateOrderStatus('${o.orderId}', 'COOKING')">
+                <button class="btn btn-sm btn-primary" style="flex:1 1 120px; width: 100%; min-height: 44px;" onclick="updateOrderStatus('${o.orderId}', 'COOKING')">
                   🍳 Start Cooking
                 </button>
               ` : ''}
               ${isCooking ? `
-                <button class="btn btn-sm btn-success" style="flex:1 1 120px;" onclick="updateOrderStatus('${o.orderId}', 'READY')">
+                <button class="btn btn-sm btn-success" style="flex:1 1 120px; width: 100%; min-height: 44px;" onclick="updateOrderStatus('${o.orderId}', 'READY')">
                   ✅ Mark Ready
                 </button>
               ` : ''}
               ${isReady ? `
-                <button class="btn btn-sm btn-outline" style="flex:1 1 120px;" onclick="updateOrderStatus('${o.orderId}', 'COMPLETED')">
+                <button class="btn btn-sm btn-outline" style="flex:1 1 120px; width: 100%; min-height: 44px;" onclick="updateOrderStatus('${o.orderId}', 'COMPLETED')">
                   📦 Complete Order
                 </button>
               ` : ''}
               ${isCompleted ? `
-                <span style="font-size: 0.8rem; color: #6b7280; font-weight: 600;">Order Fulfilled</span>
+                <span style="font-size: 0.8rem; color: #6b7280; font-weight: 600; padding: 0.5rem 0;">Order Fulfilled</span>
               ` : ''}
             </div>
           </div>
