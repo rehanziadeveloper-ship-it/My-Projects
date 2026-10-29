@@ -111,28 +111,6 @@ async function updateSheetRange(range, values) {
   } catch (err) {}
 }
 
-async function createCalendarEvent(eventData) {
-  try {
-    const token = await getGoogleAccessToken();
-    const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_ID)}/events`;
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        summary: eventData.summary || 'Apex Realty VIP Appointment',
-        description: eventData.description || 'Apex Realty AI Assistant Booking',
-        start: { dateTime: eventData.startIso || new Date(Date.now() + 86400000).toISOString() },
-        end: { dateTime: eventData.endIso || new Date(Date.now() + 86400000 + 45 * 60000).toISOString() }
-      })
-    });
-    const data = await res.json();
-    return data;
-  } catch (err) {}
-}
-
 let memoryListings = [
   {
     id: 'PROP-01',
@@ -306,6 +284,7 @@ exports.handler = async (event) => {
   // 1. Chatbot / Voicebot (Proxies to n8n Master Brain)
   if (path === '/chat' && event.httpMethod === 'POST') {
     let n8nResponse = null;
+    let n8nSucceeded = false;
     try {
       const n8nRes = await fetch(N8N_WEBHOOK_URL, {
         method: 'POST',
@@ -317,12 +296,15 @@ exports.handler = async (event) => {
           sessionState: body.sessionState || body.state || {}
         })
       });
-      if (n8nRes.ok) n8nResponse = await n8nRes.json();
+      if (n8nRes.ok) {
+        n8nResponse = await n8nRes.json();
+        n8nSucceeded = true;
+      }
     } catch (e) {
       console.warn('[n8n Function Proxy Notice]:', e.message);
     }
 
-    if (!n8nResponse || !n8nResponse.reply) {
+    if (!n8nSucceeded || !n8nResponse || !n8nResponse.reply) {
       const sessionState = body.sessionState || body.state;
       n8nResponse = runFallbackQualificationEngine(body.userMessage || body.message, sessionState);
     }
@@ -333,7 +315,7 @@ exports.handler = async (event) => {
       n8nResponse.sessionState = n8nResponse.state;
     }
 
-    // Double-sync Calendar & Google Sheets
+    // Double-sync Calendar
     const isCalendarTurn = n8nResponse.calendarBooked || n8nResponse.bookingDetails || n8nResponse.actionType === 'book_calendar' || n8nResponse.responsePayload?.calendarBooked;
     if (isCalendarTurn) {
       const summaryVal = n8nResponse.calendarSummary || n8nResponse.responsePayload?.calendarSummary || ('Apex Realty: Appointment for ' + (n8nResponse.sessionState?.fullName || n8nResponse.state?.fullName || 'Private Client'));
@@ -349,8 +331,9 @@ exports.handler = async (event) => {
       }).catch(() => {});
     }
 
+    // Only run local sheets fallback if n8n failed to execute
     const isStorageTurn = n8nResponse.actionType === 'store_sheets' || n8nResponse.isComplete || n8nResponse.responsePayload?.lead;
-    if (isStorageTurn && (n8nResponse.responsePayload?.lead || n8nResponse.sessionState?.finalLead || n8nResponse.state?.finalLead)) {
+    if (!n8nSucceeded && isStorageTurn && (n8nResponse.responsePayload?.lead || n8nResponse.sessionState?.finalLead || n8nResponse.state?.finalLead)) {
       const leadObj = n8nResponse.responsePayload?.lead || n8nResponse.sessionState?.finalLead || n8nResponse.state?.finalLead || n8nResponse;
       routeQualifiedLead(leadObj).catch(() => {});
     }
