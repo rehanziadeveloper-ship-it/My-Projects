@@ -1,16 +1,17 @@
 {
+  "id": "TNibBZ9eGODuEUhC",
   "name": "Day 6 - Apex Realty Master Brain (Pro-Level Backend)",
   "nodes": [
     {
       "id": "webhook-chat",
       "name": "Buyer_Inbound_Webhook",
+      "webhookId": "eb8fab9c-e07b-4ee4-bc4b-d8a97d3d99e8",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
         100,
         300
       ],
-      "webhookId": "eb8fab9c-e07b-4ee4-bc4b-d8a97d3d99e8",
       "parameters": {
         "httpMethod": "POST",
         "path": "apex-buyer-chat",
@@ -29,7 +30,7 @@
       ],
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "const input = $json.body || $json;\nconst userMessage = (input.userMessage || input.message || '').trim();\nconst targetProperty = (input.targetProperty || '').trim();\nconst sessionId = input.sessionId || ('sess_' + Math.floor(Math.random() * 1000000));\nconst lower = userMessage.toLowerCase();\n\nlet state = input.sessionState || input.state || {\n  sessionId,\n  phase: 1,\n  intent: '',\n  fullName: '',\n  phone: '',\n  email: '',\n  preferredContact: '',\n  purpose: '',\n  propertyType: '',\n  location: '',\n  budget: '',\n  bedrooms: '',\n  paymentMethod: '',\n  timeline: '',\n  mustHaves: '',\n  sizeCondition: '',\n  askingPrice: '',\n  documentReadiness: '',\n  occupancyStatus: '',\n  bookingDateTime: '',\n  bookingSlot: null,\n  calendarBooked: false,\n  isConfirmed: false,\n  referenceId: '',\n  leadScore: 0,\n  leadTier: 'COLD',\n  recommendedAction: '',\n  turnCount: 0\n};\n\nstate.turnCount = (state.turnCount || 0) + 1;\n\n// Reset trigger\nif (/reset|start over|restart|new inquiry/i.test(lower)) {\n  state = {\n    sessionId,\n    phase: 1,\n    intent: '',\n    fullName: '',\n    phone: '',\n    email: '',\n    preferredContact: '',\n    purpose: '',\n    propertyType: '',\n    location: '',\n    budget: '',\n    bedrooms: '',\n    paymentMethod: '',\n    timeline: '',\n    mustHaves: '',\n    sizeCondition: '',\n    askingPrice: '',\n    documentReadiness: '',\n    occupancyStatus: '',\n    bookingDateTime: '',\n    bookingSlot: null,\n    calendarBooked: false,\n    isConfirmed: false,\n    referenceId: '',\n    leadScore: 0,\n    leadTier: 'COLD',\n    recommendedAction: '',\n    turnCount: 1\n  };\n  const reply = \"Hi! I’m the virtual assistant for Apex Realty. I can help you find or list a property. What are you looking to do? (Buy / Rent / Sell / Rent out / Invest)\";\n  return [{\n    json: {\n      actionType: 'chat',\n      reply,\n      responsePayload: {\n        reply,\n        phase: 1,\n        isComplete: false,\n        sessionState: state,\n        state\n      }\n    }\n  }];\n}\n\n// Shortcut from clicking property card\nif (targetProperty && !state.intent) {\n  state.intent = 'Buy';\n  state.propertyType = 'Luxury Residence';\n  state.location = targetProperty;\n  state.purpose = 'Personal Residence';\n}\n\n// 1. Universal Contact Extraction\nconst phoneMatch = userMessage.match(/(?:\\+?\\d{1,3}[-.\\s]?)?\\(?\\d{3}\\)?[-.\\s]?\\d{3}[-.\\s]?\\d{4}|\\+?\\d{10,14}/);\nif (phoneMatch && !state.phone) state.phone = phoneMatch[0];\n\nconst emailMatch = userMessage.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}/);\nif (emailMatch && !state.email) state.email = emailMatch[0];\n\nconst nameMatch = userMessage.match(/(?:my name is|name is|name:|i am|i'm|this is|call me)\\s+([A-Za-z]+(?:\\s+[A-Za-z]+)?)/i);\nif (nameMatch && !state.fullName && !/^(cash|buy|sell|rent|invest|yes|no|urgent)/i.test(nameMatch[1])) {\n  state.fullName = nameMatch[1].trim();\n} else if (!state.fullName) {\n  const firstPart = userMessage.split(/[,;\\n]/)[0].trim();\n  const fWords = firstPart.split(/\\s+/);\n  if (fWords.length >= 1 && fWords.length <= 3 && /^[A-Za-z]+(?:\\s+[A-Za-z]+)?$/.test(firstPart) && !/^(cash|buy|sell|rent|invest|hi|hello|hey|good|morning|evening|afternoon|yes|no)/i.test(firstPart)) {\n    state.fullName = firstPart;\n  }\n}\n\nif (!state.preferredContact) {\n  if (/whatsapp/i.test(lower)) {\n    if (/morning/i.test(lower)) state.preferredContact = 'Morning via WhatsApp';\n    else if (/evening/i.test(lower)) state.preferredContact = 'Evening via WhatsApp';\n    else state.preferredContact = 'WhatsApp';\n  } else if (/phone|call/i.test(lower)) {\n    if (/morning/i.test(lower)) state.preferredContact = 'Morning phone call';\n    else if (/evening/i.test(lower)) state.preferredContact = 'Evening phone call';\n    else state.preferredContact = 'Phone call';\n  } else if (/email/i.test(lower)) {\n    state.preferredContact = 'Email';\n  }\n}\n\n// 2. Intent Extraction (Phase 1)\nif (!state.intent) {\n  if (/\\b(?:sell|listing|list my|selling)\\b/i.test(lower)) state.intent = 'Sell';\n  else if (/\\b(?:rent out|lease out|landlord)\\b/i.test(lower)) state.intent = 'Rent out';\n  else if (/\\b(?:invest|investment|rental yield|roi)\\b/i.test(lower)) state.intent = 'Invest';\n  else if (/\\b(?:rent|lease|renting)\\b/i.test(lower)) state.intent = 'Rent';\n  else if (/\\b(?:buy|purchase|acquiring|acquire|buyer)\\b/i.test(lower)) state.intent = 'Buy';\n}\n\n// 3. Buyer / Renter Criteria (Phase 3A)\nif (state.intent === 'Buy' || state.intent === 'Rent' || state.intent === 'Invest') {\n  if (!state.purpose) {\n    if (/living|personal|family home|live in|myself|residence/i.test(lower)) state.purpose = 'Personal Residence';\n    else if (/invest|rental income|portfolio|roi|tenant/i.test(lower)) state.purpose = 'Investment';\n    else if (state.intent === 'Invest') state.purpose = 'Investment';\n  }\n  if (!state.propertyType) {\n    if (/penthouse/i.test(lower)) state.propertyType = 'Sky Penthouse';\n    else if (/villa|estate/i.test(lower)) state.propertyType = 'Luxury Estate / Villa';\n    else if (/condo|apartment/i.test(lower)) state.propertyType = 'Modern Luxury Condo';\n    else if (/single family|house/i.test(lower)) state.propertyType = 'Single Family Home';\n    else if (/chalet|mountain/i.test(lower)) state.propertyType = 'Alpine Chalet';\n  }\n  if (!state.location) {\n    const locMatch = lower.match(/\\b(bel-air|bel air|los angeles|tribeca|manhattan|new york|nyc|austin|texas|miami|brickell|florida|aspen|colorado|beverly hills)\\b/i);\n    if (locMatch) state.location = locMatch[0].toUpperCase();\n  }\n  if (!state.budget) {\n    const cleanBudget = userMessage\n      .replace(phoneMatch ? phoneMatch[0] : '', '')\n      .replace(emailMatch ? emailMatch[0] : '');\n    const rangeMatch = cleanBudget.match(/\\$[\\d,.]+\\s*(?:million|m|k)?\\s*(?:to|-|–)\\s*\\$?[\\d,.]+\\s*(?:million|m|k)?/i);\n    if (rangeMatch) state.budget = rangeMatch[0].trim();\n    else {\n      const singleDollar = cleanBudget.match(/\\$[\\d,.]+\\s*(?:million|m|k|billion)?/i);\n      if (singleDollar) state.budget = singleDollar[0].trim();\n      else {\n        const unitMatch = cleanBudget.match(/\\b\\d+(?:\\.\\d+)?\\s*(?:million|m|k)\\b/i);\n        if (unitMatch) state.budget = '$' + unitMatch[0].trim();\n      }\n    }\n  }\n  if (!state.bedrooms) {\n    const bedMatch = lower.match(/\\b(\\d+)\\s*(?:beds?|bedrooms?|br|bhk)\\b/i);\n    if (bedMatch) state.bedrooms = bedMatch[1] + ' Bedrooms';\n    else if (state.propertyType && state.budget && /^\\d+$/.test(userMessage.trim())) {\n      state.bedrooms = userMessage.trim() + ' Bedrooms';\n    }\n  }\n  if (!state.paymentMethod) {\n    if (/cash|all cash|liquid|funds ready/i.test(lower)) state.paymentMethod = 'Cash Buyer (Verified Proof of Funds)';\n    else if (/pre-approv|pre approved|preapproved|letter in hand/i.test(lower)) state.paymentMethod = 'Pre-Approved Mortgage';\n    else if (/loan|mortgage|financing/i.test(lower)) state.paymentMethod = 'Seeking Loan Financing';\n  }\n  if (!state.timeline) {\n    if (/immediate|30 day|asap|now|this month|urgent/i.test(lower)) state.timeline = 'Immediate (< 30 days)';\n    else if (/1 to 3|1-3|few month|60 day|90 day|soon/i.test(lower)) state.timeline = '1 to 3 months';\n    else if (/3 to 6|6 month|half year/i.test(lower)) state.timeline = '3 to 6 months';\n    else if (/flexible|explor|brows/i.test(lower)) state.timeline = 'Flexible / Exploring';\n  }\n  if (!state.mustHaves) {\n    const feats = [];\n    if (/pool/i.test(lower)) feats.push('Private Pool');\n    if (/view|skyline|ocean/i.test(lower)) feats.push('Panoramic Views');\n    if (/gym/i.test(lower)) feats.push('Home Gym');\n    if (/garage|parking/i.test(lower)) feats.push('Private Garage');\n    if (/dock|water/i.test(lower)) feats.push('Private Dock');\n    if (feats.length > 0) state.mustHaves = feats.join(', ');\n  }\n}\n\n// 4. Seller / Landlord Criteria (Phase 3B)\nif (state.intent === 'Sell' || state.intent === 'Rent out') {\n  if (!state.propertyType) {\n    if (/penthouse/i.test(lower)) state.propertyType = 'Sky Penthouse';\n    else if (/villa|estate/i.test(lower)) state.propertyType = 'Luxury Estate / Villa';\n    else if (/condo|apartment/i.test(lower)) state.propertyType = 'Condo';\n    else if (/single family|house/i.test(lower)) state.propertyType = 'Single Family Home';\n    else if (/commercial/i.test(lower)) state.propertyType = 'Commercial';\n  }\n  if (!state.location) {\n    const locMatch = lower.match(/\\b(bel-air|bel air|los angeles|tribeca|manhattan|new york|nyc|austin|texas|miami|brickell|florida|aspen|colorado|beverly hills)\\b/i);\n    if (locMatch) state.location = locMatch[0].toUpperCase();\n  }\n  if (!state.sizeCondition) {\n    if (/renovat|turnkey|brand new|mint condition|excellent/i.test(lower)) state.sizeCondition = 'Turnkey / Newly Renovated';\n    else if (/sqft|square feet/i.test(lower)) state.sizeCondition = userMessage.trim();\n  }\n  if (!state.askingPrice) {\n    const priceMatch = userMessage.match(/\\$[\\d,.]+\\s*(?:million|m|k)?/i);\n    if (priceMatch) state.askingPrice = priceMatch[0].trim();\n  }\n  if (!state.documentReadiness) {\n    if (/title in hand|clean title|ready|deed/i.test(lower)) state.documentReadiness = 'Title Deed in Hand (Clean)';\n    else if (/mortgage|loan/i.test(lower)) state.documentReadiness = 'Existing Mortgage';\n  }\n  if (!state.occupancyStatus) {\n    if (/vacant|empty/i.test(lower)) state.occupancyStatus = 'Vacant';\n    else if (/owner/i.test(lower)) state.occupancyStatus = 'Owner-Occupied';\n    else if (/tenant|rented/i.test(lower)) state.occupancyStatus = 'Tenant-Occupied';\n  }\n  if (!state.timeline) {\n    if (/immediate|30 day|asap|now/i.test(lower)) state.timeline = 'Immediate (< 30 days)';\n    else if (/60 day|soon|few month/i.test(lower)) state.timeline = '30 to 60 days';\n    else if (/flexible|no rush/i.test(lower)) state.timeline = 'Flexible';\n  }\n}\n\n// ----------------------------------------------------\n// STRICT 1-QUESTION SLOT-FILLING SELECTOR\n// ----------------------------------------------------\n\n// Phase 1 Check:\nif (!state.intent) {\n  state.phase = 1;\n  const reply = \"Hi! I’m the virtual assistant for Apex Realty. I can help you find or list a property. What are you looking to do? (Buy / Rent / Sell / Rent out / Invest)\";\n  return [{\n    json: {\n      actionType: 'chat',\n      reply,\n      responsePayload: { reply, phase: 1, isComplete: false, sessionState: state, state }\n    }\n  }];\n}\n\n// Phase 2 Check (Contact):\nif (!state.fullName) {\n  state.phase = 2;\n  const words = userMessage.trim().split(/\\s+/);\n  if (state.phase >= 2 && words.length >= 1 && words.length <= 3 && !/^(buy|sell|rent|invest|hi|hello)/i.test(userMessage.trim())) {\n    state.fullName = userMessage.trim();\n  } else {\n    const reply = \"Great! May I have your full name?\";\n    return [{\n      json: {\n        actionType: 'chat',\n        reply,\n        responsePayload: { reply, phase: 2, isComplete: false, sessionState: state, state }\n      }\n    }];\n  }\n}\n\nif (!state.phone) {\n  state.phase = 2;\n  const reply = `Thank you, ${state.fullName}! What is the best phone or WhatsApp number to reach you?`;\n  return [{\n    json: {\n      actionType: 'chat',\n      reply,\n      responsePayload: { reply, phase: 2, isComplete: false, sessionState: state, state }\n    }\n  }];\n}\n\nif (!state.preferredContact) {\n  state.phase = 2;\n  const reply = \"Got it. What is your preferred contact method and time for our agent to reach you? (e.g., Morning via WhatsApp, or Afternoon phone call)\";\n  return [{\n    json: {\n      actionType: 'chat',\n      reply,\n      responsePayload: { reply, phase: 2, isComplete: false, sessionState: state, state }\n    }\n  }];\n}\n\n// Phase 3A Check (Buyer / Renter / Invest):\nif (state.intent === 'Buy' || state.intent === 'Rent' || state.intent === 'Invest') {\n  state.phase = 3;\n  if (!state.purpose) {\n    const reply = \"Will this property be for your own personal residence or for investment?\";\n    return [{\n      json: { actionType: 'chat', reply, responsePayload: { reply, phase: 3, isComplete: false, sessionState: state, state } }\n    }];\n  }\n  if (!state.propertyType) {\n    const reply = \"What type of property are you interested in? (e.g. Luxury Single Family Estate, Sky Penthouse, Waterfront Villa, or Modern Condo)\";\n    return [{\n      json: { actionType: 'chat', reply, responsePayload: { reply, phase: 3, isComplete: false, sessionState: state, state } }\n    }];\n  }\n  if (!state.location) {\n    const reply = \"Which city, neighborhood, or area are you targeting? (e.g. Bel-Air, Tribeca, Austin, Miami, Aspen)\";\n    return [{\n      json: { actionType: 'chat', reply, responsePayload: { reply, phase: 3, isComplete: false, sessionState: state, state } }\n    }];\n  }\n  if (!state.budget) {\n    const reply = \"What is your comfortable target budget or maximum price range for this acquisition?\";\n    return [{\n      json: { actionType: 'chat', reply, responsePayload: { reply, phase: 3, isComplete: false, sessionState: state, state } }\n    }];\n  }\n  if (!state.bedrooms) {\n    const reply = \"How many bedrooms or what approximate square footage do you need?\";\n    return [{\n      json: { actionType: 'chat', reply, responsePayload: { reply, phase: 3, isComplete: false, sessionState: state, state } }\n    }];\n  }\n  if (!state.paymentMethod) {\n    const reply = \"How do you plan to handle the financing? (All-Cash, Pre-Approved Mortgage, or seeking Loan Financing)\";\n    return [{\n      json: { actionType: 'chat', reply, responsePayload: { reply, phase: 3, isComplete: false, sessionState: state, state } }\n    }];\n  }\n  if (!state.timeline) {\n    const reply = \"What is your preferred purchasing or move-in timeline? (Immediate / within 30 days, 1 to 3 months, or 3 to 6 months)\";\n    return [{\n      json: { actionType: 'chat', reply, responsePayload: { reply, phase: 3, isComplete: false, sessionState: state, state } }\n    }];\n  }\n  if (!state.mustHaves) {\n    const reply = \"Are there any specific must-have features or amenities? (e.g. private pool, panoramic views, home theater, or private dock)\";\n    return [{\n      json: { actionType: 'chat', reply, responsePayload: { reply, phase: 3, isComplete: false, sessionState: state, state } }\n    }];\n  }\n}\n\n// Phase 3B Check (Seller / Landlord):\nif (state.intent === 'Sell' || state.intent === 'Rent out') {\n  state.phase = 3;\n  if (!state.propertyType) {\n    const reply = \"What type of property are you looking to list? (e.g. Luxury Villa, Penthouse, Apartment, Single Family Home)\";\n    return [{\n      json: { actionType: 'chat', reply, responsePayload: { reply, phase: 3, isComplete: false, sessionState: state, state } }\n    }];\n  }\n  if (!state.location) {\n    const reply = \"Where is the property located? (City and neighborhood or address)\";\n    return [{\n      json: { actionType: 'chat', reply, responsePayload: { reply, phase: 3, isComplete: false, sessionState: state, state } }\n    }];\n  }\n  if (!state.sizeCondition) {\n    const reply = \"What is the approximate size and current condition of the property? (e.g. 4,200 sqft, newly renovated, turnkey)\";\n    return [{\n      json: { actionType: 'chat', reply, responsePayload: { reply, phase: 3, isComplete: false, sessionState: state, state } }\n    }];\n  }\n  if (!state.askingPrice) {\n    const reply = \"What is your desired asking price (or expected monthly rental rate)?\";\n    return [{\n      json: { actionType: 'chat', reply, responsePayload: { reply, phase: 3, isComplete: false, sessionState: state, state } }\n    }];\n  }\n  if (!state.documentReadiness) {\n    const reply = \"Is the title deed in hand and ready for transfer, or is there an active mortgage on the property?\";\n    return [{\n      json: { actionType: 'chat', reply, responsePayload: { reply, phase: 3, isComplete: false, sessionState: state, state } }\n    }];\n  }\n  if (!state.occupancyStatus) {\n    const reply = \"What is the current occupancy status? (Is it vacant, owner-occupied, or currently rented to tenants?)\";\n    return [{\n      json: { actionType: 'chat', reply, responsePayload: { reply, phase: 3, isComplete: false, sessionState: state, state } }\n    }];\n  }\n  if (!state.timeline) {\n    const reply = \"What is your target timeline for listing and closing the deal? (Immediate, within 30 to 60 days, or flexible)\";\n    return [{\n      json: { actionType: 'chat', reply, responsePayload: { reply, phase: 3, isComplete: false, sessionState: state, state } }\n    }];\n  }\n}\n\n// Phase 4 Check (Google Calendar Integration):\nstate.phase = 4;\nif (!state.bookingAsked) {\n  state.bookingAsked = true;\n  const reply = \"Would you like to schedule a site visit or a call with our agent? What date and time work for you?\";\n  return [{\n    json: {\n      actionType: 'chat',\n      reply,\n      responsePayload: { reply, phase: 4, isComplete: false, sessionState: state, state }\n    }\n  }];\n}\n\nif (!state.bookingDateTime) {\n  state.bookingDateTime = userMessage.trim();\n  state.calendarBooked = true;\n}\n\n// Calculate appointment ISO slots\nconst now = new Date();\nlet targetDate = new Date(now.getTime());\nconst lowAppt = state.bookingDateTime.toLowerCase();\nif (lowAppt.includes('tomorrow')) targetDate.setDate(targetDate.getDate() + 1);\nelse if (lowAppt.includes('day after tomorrow')) targetDate.setDate(targetDate.getDate() + 2);\nelse {\n  const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];\n  const curDay = targetDate.getDay();\n  const tgtDay = days.findIndex(d => lowAppt.includes(d));\n  if (tgtDay !== -1) {\n    let diff = tgtDay - curDay;\n    if (diff <= 0) diff += 7;\n    targetDate.setDate(targetDate.getDate() + diff);\n  } else {\n    targetDate.setDate(targetDate.getDate() + 1);\n  }\n}\n\nlet hour = 14;\nlet minute = 0;\nconst timeMatch = lowAppt.match(/(\\d{1,2})(?::(\\d{2}))?\\s*(am|pm)?/i);\nif (timeMatch) {\n  hour = parseInt(timeMatch[1], 10);\n  minute = timeMatch[2] ? parseInt(timeMatch[2], 10) : 0;\n  const ampm = (timeMatch[3] || '').toUpperCase();\n  if (ampm === 'PM' && hour < 12) hour += 12;\n  if (ampm === 'AM' && hour === 12) hour = 0;\n}\ntargetDate.setHours(hour, minute, 0, 0);\n\nconst startIso = targetDate.toISOString();\nconst endIso = new Date(targetDate.getTime() + 45 * 60000).toISOString();\nconst formattedDate = targetDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });\nconst formattedTime = targetDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });\n\nstate.bookingSlot = { startIso, endIso, formattedDate, formattedTime };\n\nconst calendarSummary = `Apex Realty: ${state.intent} Consultation — ${state.fullName || 'Private Client'}`;\nconst calendarDescription = `Client: ${state.fullName || 'Private Client'}\\nPhone: ${state.phone || 'On file'}\\nPreferred: ${state.preferredContact || 'Direct'}\\nIntent: ${state.intent}\\nProperty: ${state.propertyType || ''} (${state.location || ''})\\nTimeline: ${state.timeline || ''}\\nNotes: Booked via Apex Realty AI Virtual Assistant (Day 6)`;\n\n// Phase 5 Check (Confirmation & Storage):\nstate.phase = 5;\nconst isAffirmative = /^(?:yes|yep|yeah|correct|looks good|perfect|confirm|confirmed|all good|that's right|sounds good)\\b/i.test(lower);\n\nif (!state.isConfirmed) {\n  if (isAffirmative) {\n    state.isConfirmed = true;\n    state.referenceId = '#APX-' + Math.floor(1000 + Math.random() * 9000);\n    \n    // Calculate Score\n    let score = 50;\n    if (state.intent === 'Buy' || state.intent === 'Rent' || state.intent === 'Invest') {\n      if (/cash/i.test(state.paymentMethod)) score += 35;\n      else if (/pre-approv/i.test(state.paymentMethod)) score += 25;\n      else score += 15;\n\n      if (/immediate/i.test(state.timeline)) score += 15;\n      else if (/1 to 3/i.test(state.timeline)) score += 10;\n    } else {\n      if (/in hand/i.test(state.documentReadiness)) score += 35;\n      if (/vacant/i.test(state.occupancyStatus)) score += 15;\n    }\n    state.leadScore = Math.min(100, score);\n    state.leadTier = score >= 80 ? 'HOT' : (score >= 60 ? 'WARM' : 'COLD');\n    state.recommendedAction = score >= 80 \n      ? \"IMMEDIATE DISPATCH: Direct Managing Broker VIP Call within 15 min & Private Showing Reserved.\"\n      : \"PRIORITY FOLLOW-UP: Send Curated Dossier & Schedule Consultation within 24h.\";\n\n    const leadId = state.referenceId;\n    const nowStr = new Date().toLocaleDateString() + ', ' + new Date().toLocaleTimeString();\n    const safePhone = state.phone ? (state.phone.startsWith('+') ? \"'\" + state.phone : state.phone) : 'On file';\n    const emailVal = state.email || ((state.fullName || 'client').toLowerCase().replace(/\\s+/g, '.') + '@private-advisory.com');\n    const propInterest = state.intent === 'Sell' || state.intent === 'Rent out'\n      ? `${state.propertyType} in ${state.location} (${state.sizeCondition || 'Listing'})`\n      : `${state.propertyType} in ${state.location}`;\n    const budgetVal = state.budget || state.askingPrice || '$2,000,000+';\n    const financingVal = state.paymentMethod || state.documentReadiness || 'Verified Funds / Clean Title';\n    const buyerTypeVal = `${state.intent} • ${state.purpose || state.occupancyStatus || 'Private Client'} • Appt: ${state.bookingDateTime}`;\n\n    const qualifiedLead = {\n      leadId,\n      timestamp: nowStr,\n      fullName: state.fullName || 'Private Client',\n      phone: safePhone,\n      email: emailVal,\n      propertyInterest: propInterest,\n      budgetRange: budgetVal,\n      financingStatus: financingVal,\n      purchaseTimeline: state.timeline || 'Immediate',\n      buyerType: buyerTypeVal,\n      leadScore: state.leadScore,\n      leadTier: state.leadTier,\n      recommendedAction: state.recommendedAction,\n      status: 'NEW'\n    };\n\n    state.finalLead = qualifiedLead;\n\n    const finalReply = `✅ Thank you, ${state.fullName}! Your agent will contact you at ${state.phone} (${state.preferredContact}).\\n\\nYour reference ID is ${state.referenceId}.\\n\\nWe have reserved your appointment on our calendar for ${state.bookingDateTime}. A confirmation has been logged with our managing broker.\\n\\nLead Score: ${state.leadScore}/100 (${state.leadTier})\\nAction: ${state.recommendedAction}\\n\\nHave a wonderful day!`;\n\n    return [{\n      json: {\n        actionType: 'store_sheets',\n        reply: finalReply,\n        startIso,\n        endIso,\n        calendarSummary,\n        calendarDescription,\n        Lead_ID: leadId,\n        Timestamp: nowStr,\n        Full_Name: state.fullName,\n        Phone: safePhone,\n        Email: emailVal,\n        Property_Interest: propInterest,\n        Budget_Range: budgetVal,\n        Financing_Status: financingVal,\n        Purchase_Timeline: state.timeline,\n        Buyer_Type: buyerTypeVal,\n        Lead_Score: state.leadScore,\n        Lead_Tier: state.leadTier,\n        Recommended_Action: state.recommendedAction,\n        Status: 'NEW',\n        responsePayload: {\n          reply: finalReply,\n          phase: 5,\n          isComplete: true,\n          lead: qualifiedLead,\n          referenceId: state.referenceId,\n          sessionState: state,\n          state\n        }\n      }\n    }];\n  } else {\n    // Generate summary and ask for confirmation\n    const propDetail = state.intent === 'Sell' || state.intent === 'Rent out'\n      ? `${state.propertyType} in ${state.location} — Asking: ${state.askingPrice} (${state.sizeCondition})`\n      : `${state.propertyType} in ${state.location} — Budget: ${state.budget} (${state.purpose})`;\n\n    const terms = state.intent === 'Sell' || state.intent === 'Rent out'\n      ? `Documents: ${state.documentReadiness} | Status: ${state.occupancyStatus} | Timeline: ${state.timeline}`\n      : `Financing: ${state.paymentMethod} | Timeline: ${state.timeline} | Must-Haves: ${state.mustHaves}`;\n\n    const summary = `Here is the summary of your inquiry:\\n• Intent: ${state.intent}\\n• Client: ${state.fullName}\\n• Contact: ${state.phone} (${state.preferredContact})\\n• Property: ${propDetail}\\n• Terms: ${terms}\\n• Scheduled Appointment: ${state.bookingDateTime} (Reserved on Calendar)\\n\\nIs everything correct?`;\n\n    return [{\n      json: {\n        actionType: 'book_calendar',\n        reply: summary,\n        startIso,\n        endIso,\n        calendarSummary,\n        calendarDescription,\n        responsePayload: {\n          reply: summary,\n          phase: 5,\n          isComplete: false,\n          calendarBooked: true,\n          bookingDetails: state.bookingSlot,\n          sessionState: state,\n          state\n        }\n      }\n    }];\n  }\n}\n\nconst reply = `Your file is registered with our managing broker under reference ID ${state.referenceId}. We look forward to your scheduled appointment on ${state.bookingDateTime}!`;\nreturn [{\n  json: {\n    actionType: 'chat',\n    reply,\n    responsePayload: { reply, phase: 5, isComplete: true, sessionState: state, state }\n  }\n}];"
+        "jsCode": "// Apex Realty AI — Pro-Level 5-Phase Slot-Filling State Machine Engine\n\nfunction parseConversationalPrice(text) {\n  if (!text) return null;\n  let str = String(text).trim();\n\n  // Strip out dimensions, bedrooms, timelines that shouldn't be parsed as price\n  str = str.replace(/\\b\\d+(?:,\\d+)?\\s*(?:sqft|sq\\.?\\s*ft|square\\s*feet|beds?|bedrooms?|br|bhk|days?|months?|years?)\\b/gi, '').trim();\n  if (!str) return null;\n\n  // Word to digit mapping\n  const wordMap = {\n    'half a million': '500k',\n    'half million': '500k',\n    'a million': '1 million',\n    'one': '1', 'two': '2', 'three': '3', 'four': '4',\n    'five': '5', 'six': '6', 'seven': '7', 'eight': '8', 'nine': '9', 'ten': '10'\n  };\n\n  let normalized = str.toLowerCase();\n  for (const [w, d] of Object.entries(wordMap)) {\n    normalized = normalized.replace(new RegExp(`\\\\b${w}\\\\b`, 'gi'), d);\n  }\n\n  // 1. Range match: e.g. \"1m to 2m\", \"1 - 2 million\", \"$1.5M - $2M\", \"800k to 1.2 million\", \"1-2m\"\n  const rangeRegex = /(\\$?\\s*\\d+(?:\\.\\d+)?\\s*(?:million|mil|m|billion|b|k)?)\\s*(?:to|-|–)\\s*(\\$?\\s*\\d+(?:\\.\\d+)?\\s*(?:million|mil|m|billion|b|k)?)/i;\n  const rangeMatch = normalized.match(rangeRegex);\n  if (rangeMatch) {\n    let p1 = rangeMatch[1].trim();\n    let p2 = rangeMatch[2].trim();\n    return formatPriceToken(p1) + ' - ' + formatPriceToken(p2);\n  }\n\n  // 2. Single token with million/m/k/billion: e.g. \"1 million\", \"around 1.5m\", \"100k\", \"2.5M\"\n  const unitRegex = /(\\d+(?:\\.\\d+)?)\\s*(million|mil|m|billion|b|k)\\b/i;\n  const unitMatch = normalized.match(unitRegex);\n  if (unitMatch) {\n    const num = parseFloat(unitMatch[1]);\n    const unit = unitMatch[2].toLowerCase();\n    if (unit === 'k') {\n      return `$${num * 1000 >= 1000 ? (num).toLocaleString() + 'K' : num * 1000}`;\n    } else if (unit.startsWith('m')) {\n      return `$${num} Million`;\n    } else if (unit.startsWith('b')) {\n      return `$${num} Billion`;\n    }\n  }\n\n  // 3. Raw dollar or large numbers: e.g. \"$4,000,000\", \"1500000\", \"$500,000\"\n  const numRegex = /\\$?\\s*(\\d{1,3}(?:,\\d{3})+|\\d{5,12})/i;\n  const numMatch = normalized.match(numRegex);\n  if (numMatch) {\n    const rawDigits = numMatch[1].replace(/,/g, '');\n    const val = parseFloat(rawDigits);\n    if (val >= 1000000) {\n      const inM = (val / 1000000).toFixed(1).replace(/\\.0$/, '');\n      return `$${inM} Million`;\n    } else if (val >= 10000) {\n      return `$${val.toLocaleString()}`;\n    }\n  }\n\n  // 4. Standalone dollar amount: e.g. \"$750,000\" or \"$3.5M\"\n  const dollarRegex = /\\$[\\d,.]+\\s*(?:million|m|k|billion)?/i;\n  const dollarMatch = str.match(dollarRegex);\n  if (dollarMatch) {\n    return dollarMatch[0].trim();\n  }\n\n  // 5. Small single number fallback when price is explicitly being asked\n  const justNumMatch = normalized.match(/\\b(\\d+(?:\\.\\d+)?)\\b/);\n  if (justNumMatch) {\n    const n = parseFloat(justNumMatch[1]);\n    if (n > 0 && n <= 100) {\n      return `$${n} Million`;\n    }\n  }\n\n  return null;\n}\n\nfunction formatPriceToken(token) {\n  token = token.replace(/^\\$/, '').trim();\n  if (/k\\b/i.test(token)) {\n    const n = parseFloat(token);\n    return `$${n}K`;\n  }\n  if (/(?:million|mil|m)\\b/i.test(token)) {\n    const n = parseFloat(token);\n    return `$${n}M`;\n  }\n  if (/(?:billion|b)\\b/i.test(token)) {\n    const n = parseFloat(token);\n    return `$${n}B`;\n  }\n  const n = parseFloat(token);\n  if (!isNaN(n)) {\n    if (n >= 1000) return `$${n.toLocaleString()}`;\n    return `$${n}M`;\n  }\n  return token;\n}\n\nfunction runStateMachine(userMessage, targetProperty, sessionState) {\n  const rawMsg = (userMessage || '').trim();\n  const lower = rawMsg.toLowerCase();\n\n  let state = sessionState ? JSON.parse(JSON.stringify(sessionState)) : {\n    phase: 1,\n    intent: '',\n    fullName: '',\n    phone: '',\n    email: '',\n    preferredContact: '',\n    purpose: '',\n    propertyType: '',\n    location: '',\n    budget: '',\n    bedrooms: '',\n    paymentMethod: '',\n    timeline: '',\n    mustHaves: '',\n    sizeCondition: '',\n    askingPrice: '',\n    documentReadiness: '',\n    occupancyStatus: '',\n    bookingAsked: false,\n    bookingDateTime: '',\n    bookingSlot: null,\n    calendarBooked: false,\n    isConfirmed: false,\n    referenceId: '',\n    leadScore: 0,\n    leadTier: 'COLD',\n    recommendedAction: '',\n    lastPrompt: 'opening'\n  };\n\n  // Reset trigger\n  if (/reset|start over|restart|new inquiry/i.test(lower)) {\n    const newState = {\n      phase: 1,\n      intent: '',\n      fullName: '',\n      phone: '',\n      email: '',\n      preferredContact: '',\n      purpose: '',\n      propertyType: '',\n      location: '',\n      budget: '',\n      bedrooms: '',\n      paymentMethod: '',\n      timeline: '',\n      mustHaves: '',\n      sizeCondition: '',\n      askingPrice: '',\n      documentReadiness: '',\n      occupancyStatus: '',\n      bookingAsked: false,\n      bookingDateTime: '',\n      bookingSlot: null,\n      calendarBooked: false,\n      isConfirmed: false,\n      referenceId: '',\n      leadScore: 0,\n      leadTier: 'COLD',\n      recommendedAction: '',\n      lastPrompt: 'ask_intent'\n    };\n    const reply = \"Hi! I’m the virtual assistant for Apex Realty. What are you looking to do? (Buy / Rent / Sell / Rent out / Invest)\";\n    return {\n      reply,\n      actionType: 'chat',\n      sessionState: newState,\n      state: newState\n    };\n  }\n\n  // Shortcut from listing card\n  if (targetProperty && !state.intent) {\n    state.intent = 'Buy';\n    state.propertyType = 'Luxury Residence';\n    state.location = targetProperty;\n    state.purpose = 'Personal Residence';\n  }\n\n  // 1. Intent Detection (Phase 1)\n  if (!state.intent) {\n    if (/\\b(?:sell|listing|list my|selling)\\b/i.test(lower)) state.intent = 'Sell';\n    else if (/\\b(?:rent out|lease out|landlord)\\b/i.test(lower)) state.intent = 'Rent out';\n    else if (/\\b(?:invest|investment|rental yield|roi)\\b/i.test(lower)) state.intent = 'Invest';\n    else if (/\\b(?:rent|lease|renting)\\b/i.test(lower)) state.intent = 'Rent';\n    else if (/\\b(?:buy|purchase|acquiring|acquire|buyer)\\b/i.test(lower)) state.intent = 'Buy';\n  }\n\n  // 2. Sequential Contact Extraction (Phase 2)\n  if (state.intent) {\n    // 2A: Full Name\n    if (!state.fullName) {\n      if (state.lastPrompt === 'ask_name') {\n        const nameMatch = rawMsg.match(/(?:my name is|name is|name:|i am|i'm|this is|call me)\\s+([A-Za-z]+(?:\\s+[A-Za-z]+)?)/i);\n        if (nameMatch) {\n          state.fullName = nameMatch[1].trim();\n        } else {\n          const clean = rawMsg.split(/[,;\\n]/)[0].trim();\n          if (/^[A-Za-z]+(?:\\s+[A-Za-z]+)?$/.test(clean) && !/^(buy|sell|rent|invest|hi|hello|hey|good)/i.test(clean)) {\n            state.fullName = clean;\n          }\n        }\n      }\n    }\n\n    // 2B: Phone / WhatsApp\n    if (state.fullName && !state.phone) {\n      if (state.lastPrompt === 'ask_phone') {\n        const phoneMatch = rawMsg.match(/(?:\\+?\\d{1,3}[-.\\s]?)?\\(?\\d{3}\\)?[-.\\s]?\\d{3}[-.\\s]?\\d{4}|\\+?\\d{10,14}/);\n        if (phoneMatch) {\n          state.phone = phoneMatch[0];\n        } else if (/\\d{7,15}/.test(rawMsg.replace(/[-.\\s()]/g, ''))) {\n          state.phone = rawMsg.trim();\n        }\n      }\n    }\n\n    // 2C: Email (Sequential)\n    if (state.phone && !state.email) {\n      if (state.lastPrompt === 'ask_email') {\n        const emailMatch = rawMsg.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}/);\n        if (emailMatch) {\n          state.email = emailMatch[0];\n        } else if (/none|no|skip|n\\/a|don't have|na/i.test(lower)) {\n          state.email = 'Not provided';\n        } else if (rawMsg.includes('@')) {\n          state.email = rawMsg.trim();\n        }\n      }\n    }\n\n    // 2D: Preferred Contact Method & Time\n    if (state.email && !state.preferredContact) {\n      if (state.lastPrompt === 'ask_contact_pref') {\n        if (/whatsapp/i.test(lower)) {\n          if (/morning/i.test(lower)) state.preferredContact = 'Morning via WhatsApp';\n          else if (/evening/i.test(lower)) state.preferredContact = 'Evening via WhatsApp';\n          else state.preferredContact = 'WhatsApp';\n        } else if (/phone|call/i.test(lower)) {\n          if (/morning/i.test(lower)) state.preferredContact = 'Morning phone call';\n          else if (/evening/i.test(lower)) state.preferredContact = 'Evening phone call';\n          else state.preferredContact = 'Phone call';\n        } else if (/email/i.test(lower)) {\n          state.preferredContact = 'Email';\n        } else {\n          state.preferredContact = rawMsg;\n        }\n      }\n    }\n  }\n\n  // 3A: Buyer / Renter Branch (Phase 3A)\n  if (state.preferredContact && (state.intent === 'Buy' || state.intent === 'Rent' || state.intent === 'Invest')) {\n    // 1. Purpose\n    if (!state.purpose && state.lastPrompt === 'ask_purpose') {\n      if (/living|personal|family home|live in|myself|residence/i.test(lower)) state.purpose = 'Personal Residence';\n      else if (/invest|rental income|portfolio|roi|tenant/i.test(lower)) state.purpose = 'Investment';\n      else if (state.intent === 'Invest') state.purpose = 'Investment';\n      else state.purpose = rawMsg;\n    }\n\n    // 2. Property Type\n    if (state.purpose && !state.propertyType && state.lastPrompt === 'ask_property_type') {\n      if (/penthouse/i.test(lower)) state.propertyType = 'Sky Penthouse';\n      else if (/villa|estate/i.test(lower)) state.propertyType = 'Luxury Estate / Villa';\n      else if (/condo|apartment/i.test(lower)) state.propertyType = 'Modern Luxury Condo';\n      else if (/single family|house/i.test(lower)) state.propertyType = 'Single Family Home';\n      else if (/chalet|mountain/i.test(lower)) state.propertyType = 'Alpine Chalet';\n      else state.propertyType = rawMsg;\n    }\n\n    // 3. Location\n    if (state.propertyType && !state.location && state.lastPrompt === 'ask_location') {\n      const locMatch = lower.match(/\\b(bel-air|bel air|los angeles|tribeca|manhattan|new york|nyc|austin|texas|miami|brickell|florida|aspen|colorado|beverly hills)\\b/i);\n      if (locMatch) state.location = locMatch[0].toUpperCase();\n      else state.location = rawMsg.toUpperCase();\n    }\n\n    // 4. Budget (Conversational Number Support)\n    if (state.location && !state.budget && state.lastPrompt === 'ask_budget') {\n      const price = parseConversationalPrice(rawMsg);\n      if (price) {\n        state.budget = price;\n      } else {\n        state.budget = '$' + rawMsg;\n      }\n    }\n\n    // 5. Bedrooms\n    if (state.budget && !state.bedrooms && state.lastPrompt === 'ask_bedrooms') {\n      const bedMatch = lower.match(/\\b(\\d+)\\s*(?:beds?|bedrooms?|br|bhk)\\b/i);\n      if (bedMatch) state.bedrooms = bedMatch[1] + ' Bedrooms';\n      else if (/^\\d+$/.test(rawMsg)) state.bedrooms = rawMsg + ' Bedrooms';\n      else state.bedrooms = rawMsg;\n    }\n\n    // 6. Payment Method\n    if (state.bedrooms && !state.paymentMethod && state.lastPrompt === 'ask_payment') {\n      if (/cash|all cash|liquid|funds ready/i.test(lower)) state.paymentMethod = 'Cash Buyer (Verified Proof of Funds)';\n      else if (/pre-approv|pre approved|preapproved|letter in hand/i.test(lower)) state.paymentMethod = 'Pre-Approved Mortgage';\n      else if (/loan|mortgage|financing/i.test(lower)) state.paymentMethod = 'Seeking Loan Financing';\n      else state.paymentMethod = rawMsg;\n    }\n\n    // 7. Timeline\n    if (state.paymentMethod && !state.timeline && state.lastPrompt === 'ask_timeline') {\n      if (/immediate|30 day|asap|now|this month|urgent/i.test(lower)) state.timeline = 'Immediate (< 30 days)';\n      else if (/1 to 3|1-3|few month|60 day|90 day|soon/i.test(lower)) state.timeline = '1 to 3 months';\n      else if (/3 to 6|6 month|half year/i.test(lower)) state.timeline = '3 to 6 months';\n      else if (/flexible|explor|brows/i.test(lower)) state.timeline = 'Flexible / Exploring';\n      else state.timeline = rawMsg;\n    }\n\n    // 8. Must-Haves\n    if (state.timeline && !state.mustHaves && state.lastPrompt === 'ask_must_haves') {\n      state.mustHaves = rawMsg;\n    }\n  }\n\n  // 3B: Seller / Landlord Branch (Phase 3B)\n  if (state.preferredContact && (state.intent === 'Sell' || state.intent === 'Rent out')) {\n    // 1. Property Type\n    if (!state.propertyType && state.lastPrompt === 'ask_seller_type') {\n      if (/penthouse/i.test(lower)) state.propertyType = 'Sky Penthouse';\n      else if (/villa|estate/i.test(lower)) state.propertyType = 'Luxury Estate / Villa';\n      else if (/condo|apartment/i.test(lower)) state.propertyType = 'Condo';\n      else if (/single family|house/i.test(lower)) state.propertyType = 'Single Family Home';\n      else if (/commercial/i.test(lower)) state.propertyType = 'Commercial';\n      else state.propertyType = rawMsg;\n    }\n\n    // 2. Location\n    if (state.propertyType && !state.location && state.lastPrompt === 'ask_seller_location') {\n      const locMatch = lower.match(/\\b(bel-air|bel air|los angeles|tribeca|manhattan|new york|nyc|austin|texas|miami|brickell|florida|aspen|colorado|beverly hills)\\b/i);\n      if (locMatch) state.location = locMatch[0].toUpperCase();\n      else state.location = rawMsg.toUpperCase();\n    }\n\n    // 3. Size / Condition\n    if (state.location && !state.sizeCondition && state.lastPrompt === 'ask_seller_size') {\n      if (/renovat|turnkey|brand new|mint condition|excellent/i.test(lower)) state.sizeCondition = 'Turnkey / Newly Renovated';\n      else state.sizeCondition = rawMsg;\n    }\n\n    // 4. Asking Price (Conversational Number Support)\n    if (state.sizeCondition && !state.askingPrice && state.lastPrompt === 'ask_seller_price') {\n      const price = parseConversationalPrice(rawMsg);\n      if (price) {\n        state.askingPrice = price;\n      } else {\n        state.askingPrice = '$' + rawMsg;\n      }\n    }\n\n    // 5. Document Readiness\n    if (state.askingPrice && !state.documentReadiness && state.lastPrompt === 'ask_seller_docs') {\n      if (/title in hand|clean title|ready|deed/i.test(lower)) state.documentReadiness = 'Title Deed in Hand (Clean)';\n      else if (/mortgage|loan/i.test(lower)) state.documentReadiness = 'Existing Mortgage';\n      else state.documentReadiness = rawMsg;\n    }\n\n    // 6. Occupancy Status\n    if (state.documentReadiness && !state.occupancyStatus && state.lastPrompt === 'ask_seller_occupancy') {\n      if (/vacant|empty/i.test(lower)) state.occupancyStatus = 'Vacant';\n      else if (/owner/i.test(lower)) state.occupancyStatus = 'Owner-Occupied';\n      else if (/tenant|rented/i.test(lower)) state.occupancyStatus = 'Tenant-Occupied';\n      else state.occupancyStatus = rawMsg;\n    }\n\n    // 7. Timeline\n    if (state.occupancyStatus && !state.timeline && state.lastPrompt === 'ask_seller_timeline') {\n      if (/immediate|30 day|asap|now/i.test(lower)) state.timeline = 'Immediate (< 30 days)';\n      else if (/60 day|soon|few month/i.test(lower)) state.timeline = '30 to 60 days';\n      else if (/flexible|no rush/i.test(lower)) state.timeline = 'Flexible';\n      else state.timeline = rawMsg;\n    }\n  }\n\n  // Phase 4: Google Calendar Booking Check\n  const buyerCriteriaComplete = (state.intent === 'Buy' || state.intent === 'Rent' || state.intent === 'Invest') && state.mustHaves;\n  const sellerCriteriaComplete = (state.intent === 'Sell' || state.intent === 'Rent out') && state.timeline;\n\n  if ((buyerCriteriaComplete || sellerCriteriaComplete) && !state.bookingAsked) {\n    state.phase = 4;\n    state.bookingAsked = true;\n    state.lastPrompt = 'ask_booking';\n    const reply = \"Would you like to schedule a site visit or a call with our agent? What date and time work for you?\";\n    return {\n      reply,\n      actionType: 'chat',\n      responsePayload: { reply, phase: 4, isComplete: false, sessionState: state, state },\n      sessionState: state,\n      state\n    };\n  }\n\n  if (state.bookingAsked && !state.bookingDateTime) {\n    state.bookingDateTime = rawMsg;\n    state.calendarBooked = true;\n    state.phase = 5;\n    state.lastPrompt = 'ask_confirmation';\n\n    // Calculate appointment ISO slots\n    const now = new Date();\n    let targetDate = new Date(now.getTime());\n    const lowAppt = state.bookingDateTime.toLowerCase();\n    if (lowAppt.includes('tomorrow')) targetDate.setDate(targetDate.getDate() + 1);\n    else if (lowAppt.includes('day after tomorrow')) targetDate.setDate(targetDate.getDate() + 2);\n    else {\n      const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];\n      const curDay = targetDate.getDay();\n      const tgtDay = days.findIndex(d => lowAppt.includes(d));\n      if (tgtDay !== -1) {\n        let diff = tgtDay - curDay;\n        if (diff <= 0) diff += 7;\n        targetDate.setDate(targetDate.getDate() + diff);\n      } else {\n        targetDate.setDate(targetDate.getDate() + 1);\n      }\n    }\n\n    let hour = 14;\n    let minute = 0;\n    const timeMatch = lowAppt.match(/(\\d{1,2})(?::(\\d{2}))?\\s*(am|pm)?/i);\n    if (timeMatch) {\n      hour = parseInt(timeMatch[1], 10);\n      minute = timeMatch[2] ? parseInt(timeMatch[2], 10) : 0;\n      const ampm = (timeMatch[3] || '').toUpperCase();\n      if (ampm === 'PM' && hour < 12) hour += 12;\n      if (ampm === 'AM' && hour === 12) hour = 0;\n    }\n    targetDate.setHours(hour, minute, 0, 0);\n\n    const startIso = targetDate.toISOString();\n    const endIso = new Date(targetDate.getTime() + 45 * 60000).toISOString();\n    const formattedDate = targetDate.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });\n    const formattedTime = targetDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });\n\n    state.bookingSlot = { startIso, endIso, formattedDate, formattedTime };\n\n    const calendarSummary = `Apex Realty: ${state.intent} Consultation — ${state.fullName || 'Private Client'}`;\n    const calendarDescription = `Client: ${state.fullName || 'Private Client'}\\nPhone: ${state.phone || 'On file'}\\nEmail: ${state.email || 'On file'}\\nPreferred: ${state.preferredContact || 'Direct'}\\nIntent: ${state.intent}\\nProperty: ${state.propertyType || ''} (${state.location || ''})\\nTimeline: ${state.timeline || ''}\\nNotes: Booked via Apex Realty AI Virtual Assistant (Day 6)`;\n\n    const propDetail = state.intent === 'Sell' || state.intent === 'Rent out'\n      ? `${state.propertyType} in ${state.location} — Asking: ${state.askingPrice} (${state.sizeCondition})`\n      : `${state.propertyType} in ${state.location} — Budget: ${state.budget} (${state.purpose})`;\n\n    const terms = state.intent === 'Sell' || state.intent === 'Rent out'\n      ? `Documents: ${state.documentReadiness} | Status: ${state.occupancyStatus} | Timeline: ${state.timeline}`\n      : `Financing: ${state.paymentMethod} | Timeline: ${state.timeline} | Must-Haves: ${state.mustHaves}`;\n\n    const summary = `Here is the summary of your inquiry:\\n• Intent: ${state.intent}\\n• Client: ${state.fullName}\\n• Contact: ${state.phone} | ${state.email} (${state.preferredContact})\\n• Property: ${propDetail}\\n• Terms: ${terms}\\n• Scheduled Appointment: ${state.bookingDateTime} (Reserved on Calendar)\\n\\nIs everything correct?`;\n\n    return {\n      actionType: 'book_calendar',\n      reply: summary,\n      startIso,\n      endIso,\n      calendarSummary,\n      calendarDescription,\n      responsePayload: {\n        reply: summary,\n        phase: 5,\n        isComplete: false,\n        calendarBooked: true,\n        bookingDetails: state.bookingSlot,\n        sessionState: state,\n        state\n      },\n      sessionState: state,\n      state\n    };\n  }\n\n  // Phase 5: Confirmation & Storage\n  if (state.bookingDateTime && !state.isConfirmed) {\n    const isAffirmative = /^(?:yes|yep|yeah|correct|looks good|perfect|confirm|confirmed|all good|that's right|sounds good)\\b/i.test(lower);\n    if (isAffirmative) {\n      state.isConfirmed = true;\n      state.referenceId = '#APX-' + Math.floor(1000 + Math.random() * 9000);\n\n      // Calculate Lead Score & Tier\n      let score = 50;\n      if (state.intent === 'Buy' || state.intent === 'Rent' || state.intent === 'Invest') {\n        if (/cash/i.test(state.paymentMethod)) score += 35;\n        else if (/pre-approv/i.test(state.paymentMethod)) score += 25;\n        else score += 15;\n\n        if (/immediate/i.test(state.timeline)) score += 15;\n        else if (/1 to 3/i.test(state.timeline)) score += 10;\n      } else {\n        if (/in hand/i.test(state.documentReadiness)) score += 35;\n        if (/vacant/i.test(state.occupancyStatus)) score += 15;\n      }\n      state.leadScore = Math.min(100, score);\n      state.leadTier = score >= 80 ? 'HOT' : (score >= 60 ? 'WARM' : 'COLD');\n      state.recommendedAction = score >= 80\n        ? \"IMMEDIATE DISPATCH: Direct Managing Broker VIP Call within 15 min & Private Showing Reserved.\"\n        : \"PRIORITY FOLLOW-UP: Send Curated Dossier & Schedule Consultation within 24h.\";\n\n      // Determine Target Google Sheets Tab\n      let targetTab = 'Buy_Property';\n      if (state.intent === 'Sell') targetTab = 'Sell_Property';\n      else if (state.intent === 'Rent' || state.intent === 'Rent out') targetTab = 'Rent_Out';\n      else if (state.intent === 'Invest') targetTab = 'Invest';\n\n      const nowStr = new Date().toLocaleDateString('en-US') + ', ' + new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });\n      const safePhone = state.phone ? (state.phone.startsWith('+') ? \"'\" + state.phone : state.phone) : 'On file';\n      const emailVal = state.email || 'Not provided';\n      const propInterest = state.intent === 'Sell' || state.intent === 'Rent out'\n        ? `${state.propertyType} in ${state.location} (${state.sizeCondition || 'Listing'})`\n        : `${state.propertyType} in ${state.location}`;\n      const budgetVal = state.budget || state.askingPrice || '$2,000,000+';\n      const financingVal = state.paymentMethod || state.documentReadiness || 'Verified Funds / Clean Title';\n      const statusScoreVal = `${state.leadScore}/100 (${state.leadTier})`;\n\n      const qualifiedLead = {\n        leadId: state.referenceId,\n        date: nowStr,\n        fullName: state.fullName,\n        phone: safePhone,\n        email: emailVal,\n        propertyType: propInterest,\n        budgetOrPrice: budgetVal,\n        timeline: state.timeline || 'Immediate',\n        statusScore: statusScoreVal,\n        targetTab,\n        leadScore: state.leadScore,\n        leadTier: state.leadTier,\n        recommendedAction: state.recommendedAction\n      };\n\n      state.finalLead = qualifiedLead;\n\n      const finalReply = `✅ Buyer Qualification Complete!\\n\\nHere is the summary of your inquiry:\\n• Client: ${state.fullName}\\n• Target Property: ${propInterest}\\n• Budget: ${budgetVal}\\n• Financing: ${financingVal}\\n• Timeline: ${state.timeline}\\n• Intent: ${state.intent}\\n\\nLead Score: ${state.leadScore}/100 (${state.leadTier})\\nAction: ${state.recommendedAction}\\nAppointment: ${state.bookingDateTime}\\n\\nThank you! Our managing broker has received your file (${state.referenceId}) and will be in touch shortly.`;\n\n      return {\n        actionType: 'store_sheets',\n        targetTab,\n        reply: finalReply,\n        Lead_ID: state.referenceId,\n        Date: nowStr,\n        Name: state.fullName,\n        Phone: safePhone,\n        Email: emailVal,\n        Property_Type: propInterest,\n        Budget_or_Price: budgetVal,\n        Timeline: state.timeline,\n        Status_Score: statusScoreVal,\n        responsePayload: {\n          reply: finalReply,\n          phase: 5,\n          isComplete: true,\n          lead: qualifiedLead,\n          referenceId: state.referenceId,\n          sessionState: state,\n          state\n        },\n        sessionState: state,\n        state\n      };\n    }\n  }\n\n  // ----------------------------------------------------\n  // STRICT 1-QUESTION NEXT-QUESTION SELECTOR\n  // ----------------------------------------------------\n  if (!state.intent) {\n    state.phase = 1;\n    state.lastPrompt = 'ask_intent';\n    const reply = \"Hi! I’m the virtual assistant for Apex Realty. What are you looking to do? (Buy / Rent / Sell / Rent out / Invest)\";\n    return { reply, actionType: 'chat', responsePayload: { reply, phase: 1, isComplete: false, sessionState: state, state }, sessionState: state, state };\n  }\n\n  // Phase 2 Questions (Sequential)\n  if (!state.fullName) {\n    state.phase = 2;\n    state.lastPrompt = 'ask_name';\n    const reply = \"Great! May I have your full name?\";\n    return { reply, actionType: 'chat', responsePayload: { reply, phase: 2, isComplete: false, sessionState: state, state }, sessionState: state, state };\n  }\n\n  if (!state.phone) {\n    state.phase = 2;\n    state.lastPrompt = 'ask_phone';\n    const reply = `Thank you, ${state.fullName}! What is the best phone or WhatsApp number to reach you?`;\n    return { reply, actionType: 'chat', responsePayload: { reply, phase: 2, isComplete: false, sessionState: state, state }, sessionState: state, state };\n  }\n\n  if (!state.email) {\n    state.phase = 2;\n    state.lastPrompt = 'ask_email';\n    const reply = \"Got it! What is your email address so we can send property dossiers and appointment confirmations?\";\n    return { reply, actionType: 'chat', responsePayload: { reply, phase: 2, isComplete: false, sessionState: state, state }, sessionState: state, state };\n  }\n\n  if (!state.preferredContact) {\n    state.phase = 2;\n    state.lastPrompt = 'ask_contact_pref';\n    const reply = \"What is your preferred contact method and time for our broker to reach you? (e.g., Morning via WhatsApp, or Afternoon phone call)\";\n    return { reply, actionType: 'chat', responsePayload: { reply, phase: 2, isComplete: false, sessionState: state, state }, sessionState: state, state };\n  }\n\n  // Phase 3A Questions (Buyer / Renter / Invest)\n  if (state.intent === 'Buy' || state.intent === 'Rent' || state.intent === 'Invest') {\n    state.phase = 3;\n    if (!state.purpose) {\n      state.lastPrompt = 'ask_purpose';\n      const reply = \"Will this property be for your own personal residence or for investment?\";\n      return { reply, actionType: 'chat', responsePayload: { reply, phase: 3, isComplete: false, sessionState: state, state }, sessionState: state, state };\n    }\n    if (!state.propertyType) {\n      state.lastPrompt = 'ask_property_type';\n      const reply = \"What type of property are you interested in? (e.g. Luxury Single Family Estate, Sky Penthouse, Waterfront Villa, or Modern Condo)\";\n      return { reply, actionType: 'chat', responsePayload: { reply, phase: 3, isComplete: false, sessionState: state, state }, sessionState: state, state };\n    }\n    if (!state.location) {\n      state.lastPrompt = 'ask_location';\n      const reply = \"Which city, neighborhood, or area are you targeting? (e.g. Bel-Air, Tribeca, Austin, Miami, Aspen)\";\n      return { reply, actionType: 'chat', responsePayload: { reply, phase: 3, isComplete: false, sessionState: state, state }, sessionState: state, state };\n    }\n    if (!state.budget) {\n      state.lastPrompt = 'ask_budget';\n      const reply = \"What is your comfortable target budget or price range for this acquisition?\";\n      return { reply, actionType: 'chat', responsePayload: { reply, phase: 3, isComplete: false, sessionState: state, state }, sessionState: state, state };\n    }\n    if (!state.bedrooms) {\n      state.lastPrompt = 'ask_bedrooms';\n      const reply = \"How many bedrooms or what approximate square footage do you require?\";\n      return { reply, actionType: 'chat', responsePayload: { reply, phase: 3, isComplete: false, sessionState: state, state }, sessionState: state, state };\n    }\n    if (!state.paymentMethod) {\n      state.lastPrompt = 'ask_payment';\n      const reply = \"How do you plan to handle financing? (All-Cash, Pre-Approved Mortgage, or seeking Loan Financing)\";\n      return { reply, actionType: 'chat', responsePayload: { reply, phase: 3, isComplete: false, sessionState: state, state }, sessionState: state, state };\n    }\n    if (!state.timeline) {\n      state.lastPrompt = 'ask_timeline';\n      const reply = \"What is your preferred purchasing or move-in timeline? (Immediate / within 30 days, 1 to 3 months, or 3 to 6 months)\";\n      return { reply, actionType: 'chat', responsePayload: { reply, phase: 3, isComplete: false, sessionState: state, state }, sessionState: state, state };\n    }\n    if (!state.mustHaves) {\n      state.lastPrompt = 'ask_must_haves';\n      const reply = \"Are there any specific must-have features or amenities? (e.g. private pool, panoramic views, home theater, or private dock)\";\n      return { reply, actionType: 'chat', responsePayload: { reply, phase: 3, isComplete: false, sessionState: state, state }, sessionState: state, state };\n    }\n  }\n\n  // Phase 3B Questions (Seller / Landlord)\n  if (state.intent === 'Sell' || state.intent === 'Rent out') {\n    state.phase = 3;\n    if (!state.propertyType) {\n      state.lastPrompt = 'ask_seller_type';\n      const reply = \"What type of property are you looking to list? (e.g. Luxury Villa, Penthouse, Single Family Home, or Condo)\";\n      return { reply, actionType: 'chat', responsePayload: { reply, phase: 3, isComplete: false, sessionState: state, state }, sessionState: state, state };\n    }\n    if (!state.location) {\n      state.lastPrompt = 'ask_seller_location';\n      const reply = \"Where is the property located? (City and neighborhood or address)\";\n      return { reply, actionType: 'chat', responsePayload: { reply, phase: 3, isComplete: false, sessionState: state, state }, sessionState: state, state };\n    }\n    if (!state.sizeCondition) {\n      state.lastPrompt = 'ask_seller_size';\n      const reply = \"What is the approximate square footage and current condition of the property? (e.g. 4,500 sqft, newly renovated, turnkey)\";\n      return { reply, actionType: 'chat', responsePayload: { reply, phase: 3, isComplete: false, sessionState: state, state }, sessionState: state, state };\n    }\n    if (!state.askingPrice) {\n      state.lastPrompt = 'ask_seller_price';\n      const reply = \"What is your desired asking price (or expected monthly rental rate)?\";\n      return { reply, actionType: 'chat', responsePayload: { reply, phase: 3, isComplete: false, sessionState: state, state }, sessionState: state, state };\n    }\n    if (!state.documentReadiness) {\n      state.lastPrompt = 'ask_seller_docs';\n      const reply = \"Is the title deed in hand and ready for transfer, or is there an active mortgage on the property?\";\n      return { reply, actionType: 'chat', responsePayload: { reply, phase: 3, isComplete: false, sessionState: state, state }, sessionState: state, state };\n    }\n    if (!state.occupancyStatus) {\n      state.lastPrompt = 'ask_seller_occupancy';\n      const reply = \"What is the current occupancy status? (Vacant, owner-occupied, or currently rented to tenants?)\";\n      return { reply, actionType: 'chat', responsePayload: { reply, phase: 3, isComplete: false, sessionState: state, state }, sessionState: state, state };\n    }\n    if (!state.timeline) {\n      state.lastPrompt = 'ask_seller_timeline';\n      const reply = \"What is your target timeline for listing and closing the deal? (Immediate, within 30 to 60 days, or flexible)\";\n      return { reply, actionType: 'chat', responsePayload: { reply, phase: 3, isComplete: false, sessionState: state, state }, sessionState: state, state };\n    }\n  }\n\n  const defaultReply = `Your file is registered with our managing broker under reference ID ${state.referenceId || '#APX-VIP'}. We look forward to your scheduled appointment!`;\n  return {\n    reply: defaultReply,\n    actionType: 'chat',\n    responsePayload: { reply: defaultReply, phase: 5, isComplete: true, sessionState: state, state },\n    sessionState: state,\n    state\n  };\n}\n\n\n\nconst input = $json.body || $json;\nconst userMessage = (input.userMessage || input.message || '').trim();\nconst targetProperty = (input.targetProperty || '').trim();\nconst sessionId = input.sessionId || ('sess_' + Math.floor(Math.random() * 1000000));\nlet sessionState = input.sessionState || input.state || null;\n\nconst result = runStateMachine(userMessage, targetProperty, sessionState);\n\nreturn [{\n  json: {\n    sessionId,\n    ...result\n  }\n}];"
       }
     },
     {
@@ -117,11 +118,11 @@
       "name": "Create_Calendar_Event",
       "type": "n8n-nodes-base.googleCalendar",
       "typeVersion": 1.3,
+      "onError": "continueRegularOutput",
       "position": [
         820,
-        160
+        120
       ],
-      "onError": "continueRegularOutput",
       "parameters": {
         "calendar": {
           "__rl": true,
@@ -143,30 +144,143 @@
       }
     },
     {
+      "id": "format-calendar-response",
+      "name": "Format_Calendar_Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1060,
+        120
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const payload = $('AI_Slot_Machine_Brain').first().json.responsePayload || { reply: 'Appointment slot reserved.' };\nreturn [{ json: payload }];"
+      }
+    },
+    {
       "id": "respond-calendar",
       "name": "Respond_Webhook_Calendar",
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        1060,
-        160
+        1280,
+        120
       ],
       "parameters": {
         "options": {},
-        "respondWith": "json",
-        "responseBody": "={{ JSON.stringify($('AI_Slot_Machine_Brain').first().json.responsePayload) }}"
+        "respondWith": "firstIncomingItem"
       }
     },
     {
-      "id": "google-sheets-storage",
-      "name": "Push_Lead_To_Google_Sheets",
-      "type": "n8n-nodes-base.googleSheets",
-      "typeVersion": 4.5,
+      "id": "switch-intent-routing",
+      "name": "Route_By_Intent",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
       "position": [
         820,
         320
       ],
+      "parameters": {
+        "mode": "rules",
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.targetTab }}",
+                    "rightValue": "Buy_Property",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.targetTab }}",
+                    "rightValue": "Sell_Property",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.targetTab }}",
+                    "rightValue": "Rent_Out",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.targetTab }}",
+                    "rightValue": "Invest",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": 0
+        }
+      }
+    },
+    {
+      "id": "sheet-buy",
+      "name": "Append_Buy_Property",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
       "onError": "continueRegularOutput",
+      "position": [
+        1060,
+        200
+      ],
       "parameters": {
         "authentication": "serviceAccount",
         "operation": "append",
@@ -178,7 +292,121 @@
         "sheetName": {
           "__rl": true,
           "mode": "name",
-          "value": "Real_Estate_Qualified_Leads"
+          "value": "Buy_Property"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {}
+        },
+        "options": {
+          "valueInputMode": "USER_ENTERED"
+        }
+      },
+      "credentials": {
+        "googleApi": {
+          "id": "AqyKDLuwANoDYrEw",
+          "name": "Google Service Account"
+        }
+      }
+    },
+    {
+      "id": "sheet-sell",
+      "name": "Append_Sell_Property",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "onError": "continueRegularOutput",
+      "position": [
+        1060,
+        280
+      ],
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "1Rpb9XQsymoDDSEl0n1EChgi8KY7BgmajFXctwreAMjo"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Sell_Property"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {}
+        },
+        "options": {
+          "valueInputMode": "USER_ENTERED"
+        }
+      },
+      "credentials": {
+        "googleApi": {
+          "id": "AqyKDLuwANoDYrEw",
+          "name": "Google Service Account"
+        }
+      }
+    },
+    {
+      "id": "sheet-rent",
+      "name": "Append_Rent_Out",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "onError": "continueRegularOutput",
+      "position": [
+        1060,
+        360
+      ],
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "1Rpb9XQsymoDDSEl0n1EChgi8KY7BgmajFXctwreAMjo"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Rent_Out"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {}
+        },
+        "options": {
+          "valueInputMode": "USER_ENTERED"
+        }
+      },
+      "credentials": {
+        "googleApi": {
+          "id": "AqyKDLuwANoDYrEw",
+          "name": "Google Service Account"
+        }
+      }
+    },
+    {
+      "id": "sheet-invest",
+      "name": "Append_Invest",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "onError": "continueRegularOutput",
+      "position": [
+        1060,
+        440
+      ],
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "1Rpb9XQsymoDDSEl0n1EChgi8KY7BgmajFXctwreAMjo"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Invest"
         },
         "columns": {
           "mappingMode": "autoMapInputData",
@@ -201,7 +429,7 @@
       "type": "n8n-nodes-base.respondToWebhook",
       "typeVersion": 1.1,
       "position": [
-        1060,
+        1320,
         320
       ],
       "parameters": {
@@ -217,7 +445,7 @@
       "typeVersion": 1.1,
       "position": [
         820,
-        480
+        520
       ],
       "parameters": {
         "options": {},
@@ -228,13 +456,13 @@
     {
       "id": "webhook-crm-leads",
       "name": "CRM_Leads_Webhook",
+      "webhookId": "ebabbd7c-8473-4b3e-8156-e97d9644a848",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
         100,
-        680
+        720
       ],
-      "webhookId": "ebabbd7c-8473-4b3e-8156-e97d9644a848",
       "parameters": {
         "httpMethod": "GET",
         "path": "apex-crm-leads",
@@ -247,11 +475,11 @@
       "name": "Read_Sheets_Leads",
       "type": "n8n-nodes-base.googleSheets",
       "typeVersion": 4.5,
+      "onError": "continueRegularOutput",
       "position": [
         340,
-        680
+        720
       ],
-      "onError": "continueRegularOutput",
       "parameters": {
         "authentication": "serviceAccount",
         "operation": "read",
@@ -263,7 +491,7 @@
         "sheetName": {
           "__rl": true,
           "mode": "name",
-          "value": "Real_Estate_Qualified_Leads"
+          "value": "Buy_Property"
         },
         "options": {}
       },
@@ -281,11 +509,11 @@
       "typeVersion": 2,
       "position": [
         580,
-        680
+        720
       ],
       "parameters": {
         "mode": "runOnceForAllItems",
-        "jsCode": "let leads = [];\ntry {\n  const items = $input.all();\n  if (items && items.length > 0) {\n    for (const item of items) {\n      const row = item.json;\n      if (row.Lead_ID || row.leadId || row.Full_Name || row.fullName) {\n        leads.push({\n          leadId: row.Lead_ID || row.leadId || ('LEAD-' + Math.floor(1000 + Math.random() * 9000)),\n          timestamp: row.Timestamp || row.timestamp || new Date().toLocaleString(),\n          fullName: row.Full_Name || row.fullName || 'Private Client',\n          phone: row.Phone || row.phone || 'On file',\n          email: row.Email || row.email || 'client@private-advisory.com',\n          propertyInterest: row.Property_Interest || row.propertyInterest || 'Luxury Portfolio',\n          budgetRange: row.Budget_Range || row.budgetRange || '$2,000,000+',\n          financingStatus: row.Financing_Status || row.financingStatus || 'Cash Buyer',\n          purchaseTimeline: row.Purchase_Timeline || row.purchaseTimeline || 'Immediate',\n          buyerType: row.Buyer_Type || row.buyerType || 'Primary Residence',\n          leadScore: Number(row.Lead_Score || row.leadScore) || 85,\n          leadTier: row.Lead_Tier || row.leadTier || 'HOT',\n          recommendedAction: row.Recommended_Action || row.recommendedAction || 'Broker Follow-Up',\n          status: row.Status || row.status || 'NEW'\n        });\n      }\n    }\n  }\n} catch (e) {}\n\nreturn [{ json: { success: true, leads } }];"
+        "jsCode": "let leads = [];\ntry {\n  const items = $input.all();\n  if (items && items.length > 0) {\n    for (const item of items) {\n      const row = item.json;\n      if (row.Lead_ID || row.leadId || row.Name || row.fullName) {\n        const rawScore = row.Status_Score || row.statusScore || '85/100 (HOT)';\n        const scoreMatch = String(rawScore).match(/(\\d{1,3})/);\n        const scoreVal = scoreMatch ? parseInt(scoreMatch[1], 10) : 85;\n        const tierVal = String(rawScore).includes('HOT') ? 'HOT' : (String(rawScore).includes('WARM') ? 'WARM' : 'COLD');\n        leads.push({\n          leadId: row.Lead_ID || row.leadId || ('#APX-' + Math.floor(1000 + Math.random() * 9000)),\n          timestamp: row.Date || row.timestamp || new Date().toLocaleString(),\n          fullName: row.Name || row.fullName || 'Private Client',\n          phone: row.Phone || row.phone || 'On file',\n          email: row.Email || row.email || 'client@private-advisory.com',\n          propertyInterest: row.Property_Type || row.propertyInterest || 'Luxury Portfolio',\n          budgetRange: row.Budget_or_Price || row.budgetRange || '$2,000,000+',\n          purchaseTimeline: row.Timeline || row.purchaseTimeline || 'Immediate',\n          leadScore: scoreVal,\n          leadTier: tierVal,\n          recommendedAction: tierVal === 'HOT' ? 'Immediate VIP Showing & Direct Broker Call' : 'Follow up with Property Dossier',\n          status: row.Status || row.status || 'NEW'\n        });\n      }\n    }\n  }\n} catch (e) {}\n\nreturn [{ json: { success: true, leads } }];"
       }
     },
     {
@@ -295,7 +523,7 @@
       "typeVersion": 1.1,
       "position": [
         820,
-        680
+        720
       ],
       "parameters": {
         "options": {},
@@ -305,13 +533,13 @@
     {
       "id": "webhook-listings",
       "name": "Listings_Webhook",
+      "webhookId": "fb84a499-7b63-4ff2-a44a-fc842174b1b1",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 2,
       "position": [
         100,
-        880
+        920
       ],
-      "webhookId": "fb84a499-7b63-4ff2-a44a-fc842174b1b1",
       "parameters": {
         "httpMethod": "GET",
         "path": "apex-listings",
@@ -326,7 +554,7 @@
       "typeVersion": 2,
       "position": [
         340,
-        880
+        920
       ],
       "parameters": {
         "mode": "runOnceForAllItems",
@@ -340,7 +568,7 @@
       "typeVersion": 1.1,
       "position": [
         580,
-        880
+        920
       ],
       "parameters": {
         "options": {},
@@ -382,7 +610,7 @@
         ],
         [
           {
-            "node": "Push_Lead_To_Google_Sheets",
+            "node": "Route_By_Intent",
             "type": "main",
             "index": 0
           }
@@ -400,6 +628,17 @@
       "main": [
         [
           {
+            "node": "Format_Calendar_Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format_Calendar_Response": {
+      "main": [
+        [
+          {
             "node": "Respond_Webhook_Calendar",
             "type": "main",
             "index": 0
@@ -407,7 +646,72 @@
         ]
       ]
     },
-    "Push_Lead_To_Google_Sheets": {
+    "Route_By_Intent": {
+      "main": [
+        [
+          {
+            "node": "Append_Buy_Property",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Append_Sell_Property",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Append_Rent_Out",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Append_Invest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append_Buy_Property": {
+      "main": [
+        [
+          {
+            "node": "Respond_Webhook_Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append_Sell_Property": {
+      "main": [
+        [
+          {
+            "node": "Respond_Webhook_Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append_Rent_Out": {
+      "main": [
+        [
+          {
+            "node": "Respond_Webhook_Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append_Invest": {
       "main": [
         [
           {
@@ -475,9 +779,10 @@
     }
   },
   "settings": {
-    "executionOrder": "v1",
     "saveExecutionProgress": true,
+    "saveManualExecutions": true,
     "saveDataErrorExecution": "all",
-    "saveDataSuccessExecution": "all"
+    "saveDataSuccessExecution": "all",
+    "executionOrder": "v1"
   }
 }

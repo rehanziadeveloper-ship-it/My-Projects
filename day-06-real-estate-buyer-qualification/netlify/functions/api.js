@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 
 const SPREADSHEET_ID = '1Rpb9XQsymoDDSEl0n1EChgi8KY7BgmajFXctwreAMjo';
+const CALENDAR_ID = 'dc16a29b27611448569f6f342e1e982aa44e6c6bfa3b3ca7d2fe180c4231748b@group.calendar.google.com';
 const N8N_WEBHOOK_URL = 'https://n8n.srv1767318.hstgr.cloud/webhook/apex-buyer-chat';
 const N8N_CRM_LEADS_URL = 'https://n8n.srv1767318.hstgr.cloud/webhook/apex-crm-leads';
 const N8N_LISTINGS_URL = 'https://n8n.srv1767318.hstgr.cloud/webhook/apex-listings';
@@ -21,7 +22,7 @@ async function getGoogleAccessToken() {
   const header = { alg: 'RS256', typ: 'JWT' };
   const claim = {
     iss: serviceAccount.client_email,
-    scope: 'https://www.googleapis.com/auth/spreadsheets',
+    scope: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.events',
     aud: 'https://oauth2.googleapis.com/token',
     exp, iat: now
   };
@@ -69,7 +70,30 @@ async function appendSheetRow(tabName, rowData) {
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ values: [rowData] })
     });
-    return await res.json();
+    const data = await res.json();
+    return data;
+  } catch (err) {}
+}
+
+async function createCalendarEvent(eventData) {
+  try {
+    const token = await getGoogleAccessToken();
+    const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_ID)}/events`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        summary: eventData.summary || 'Apex Realty VIP Appointment',
+        description: eventData.description || 'Apex Realty AI Assistant Booking',
+        start: { dateTime: eventData.startIso || new Date(Date.now() + 86400000).toISOString() },
+        end: { dateTime: eventData.endIso || new Date(Date.now() + 86400000 + 45 * 60000).toISOString() }
+      })
+    });
+    const data = await res.json();
+    return data;
   } catch (err) {}
 }
 
@@ -82,7 +106,30 @@ async function updateSheetRange(range, values) {
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ values })
     });
-    return await res.json();
+    const data = await res.json();
+    return data;
+  } catch (err) {}
+}
+
+async function createCalendarEvent(eventData) {
+  try {
+    const token = await getGoogleAccessToken();
+    const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(CALENDAR_ID)}/events`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        summary: eventData.summary || 'Apex Realty VIP Appointment',
+        description: eventData.description || 'Apex Realty AI Assistant Booking',
+        start: { dateTime: eventData.startIso || new Date(Date.now() + 86400000).toISOString() },
+        end: { dateTime: eventData.endIso || new Date(Date.now() + 86400000 + 45 * 60000).toISOString() }
+      })
+    });
+    const data = await res.json();
+    return data;
   } catch (err) {}
 }
 
@@ -225,22 +272,20 @@ function runFallbackQualificationEngine(rawMessage, sessionState, targetProperty
 async function routeQualifiedLead(lead) {
   memoryLeads.unshift(lead);
 
-  await appendSheetRow('Real_Estate_Qualified_Leads', [
-    lead.leadId,
-    lead.timestamp,
-    lead.fullName,
-    lead.phone,
-    lead.email,
-    lead.propertyInterest,
-    lead.budgetRange,
-    lead.financingStatus,
-    lead.purchaseTimeline,
-    lead.buyerType,
-    lead.leadScore,
-    lead.leadTier,
-    lead.recommendedAction,
-    lead.status || 'NEW'
-  ]);
+  const tab = lead.targetTab || 'Buy_Property';
+  const rowData = [
+    lead.leadId || lead.Lead_ID || '#APX-VIP',
+    lead.date || lead.timestamp || lead.Date || new Date().toLocaleString(),
+    lead.fullName || lead.Name || 'Private Client',
+    lead.phone || lead.Phone || 'On file',
+    lead.email || lead.Email || 'Not provided',
+    lead.propertyType || lead.propertyInterest || lead.Property_Type || 'Luxury Residence',
+    lead.budgetOrPrice || lead.budgetRange || lead.Budget_or_Price || '$2,000,000+',
+    lead.timeline || lead.purchaseTimeline || lead.Timeline || 'Immediate',
+    lead.statusScore || lead.Status_Score || `${lead.leadScore || 85}/100 (${lead.leadTier || 'HOT'})`
+  ];
+
+  await appendSheetRow(tab, rowData);
 }
 
 exports.handler = async (event) => {
@@ -288,6 +333,28 @@ exports.handler = async (event) => {
       n8nResponse.sessionState = n8nResponse.state;
     }
 
+    // Double-sync Calendar & Google Sheets
+    const isCalendarTurn = n8nResponse.calendarBooked || n8nResponse.bookingDetails || n8nResponse.actionType === 'book_calendar' || n8nResponse.responsePayload?.calendarBooked;
+    if (isCalendarTurn) {
+      const summaryVal = n8nResponse.calendarSummary || n8nResponse.responsePayload?.calendarSummary || ('Apex Realty: Appointment for ' + (n8nResponse.sessionState?.fullName || n8nResponse.state?.fullName || 'Private Client'));
+      const descVal = n8nResponse.calendarDescription || n8nResponse.responsePayload?.calendarDescription || 'Booked via Apex Realty AI Virtual Assistant';
+      const startVal = n8nResponse.startIso || n8nResponse.bookingDetails?.startIso || n8nResponse.responsePayload?.bookingDetails?.startIso || n8nResponse.sessionState?.bookingSlot?.startIso;
+      const endVal = n8nResponse.endIso || n8nResponse.bookingDetails?.endIso || n8nResponse.responsePayload?.bookingDetails?.endIso || n8nResponse.sessionState?.bookingSlot?.endIso;
+
+      createCalendarEvent({
+        summary: summaryVal,
+        description: descVal,
+        startIso: startVal,
+        endIso: endVal
+      }).catch(() => {});
+    }
+
+    const isStorageTurn = n8nResponse.actionType === 'store_sheets' || n8nResponse.isComplete || n8nResponse.responsePayload?.lead;
+    if (isStorageTurn && (n8nResponse.responsePayload?.lead || n8nResponse.sessionState?.finalLead || n8nResponse.state?.finalLead)) {
+      const leadObj = n8nResponse.responsePayload?.lead || n8nResponse.sessionState?.finalLead || n8nResponse.state?.finalLead || n8nResponse;
+      routeQualifiedLead(leadObj).catch(() => {});
+    }
+
     return { statusCode: 200, headers, body: JSON.stringify(n8nResponse) };
   }
 
@@ -324,8 +391,50 @@ exports.handler = async (event) => {
     return { statusCode: 200, headers, body: JSON.stringify({ success: true, listings: memoryListings }) };
   }
 
-  // 3. Broker CRM Leads (Proxies to n8n)
+  // 3. Broker CRM Leads (Aggregates 4 CRM Tabs)
   if (path === '/leads' && event.httpMethod === 'GET') {
+    const tabs = ['Buy_Property', 'Sell_Property', 'Rent_Out', 'Invest'];
+    let allLeads = [];
+    try {
+      const sheetResults = await Promise.all(tabs.map(t => readSheetValues(t)));
+      sheetResults.forEach((rows, idx) => {
+        const tabName = tabs[idx];
+        if (rows && rows.length > 1) {
+          for (let i = 1; i < rows.length; i++) {
+            const r = rows[i];
+            if (r && r[0]) {
+              const rawScore = r[8] || '';
+              const scoreMatch = String(rawScore).match(/(\d{1,3})/);
+              const scoreVal = scoreMatch ? parseInt(scoreMatch[1], 10) : 85;
+              const tierVal = String(rawScore).includes('HOT') ? 'HOT' : (String(rawScore).includes('WARM') ? 'WARM' : 'COLD');
+              allLeads.push({
+                leadId: r[0],
+                timestamp: r[1],
+                fullName: r[2],
+                phone: r[3],
+                email: r[4],
+                propertyInterest: r[5],
+                budgetRange: r[6],
+                purchaseTimeline: r[7],
+                statusScore: rawScore,
+                leadScore: scoreVal,
+                leadTier: tierVal,
+                recommendedAction: tierVal === 'HOT' ? 'Immediate VIP Showing & Direct Broker Call' : 'Follow up with Property Dossier',
+                status: 'NEW',
+                category: tabName.replace('_', ' ')
+              });
+            }
+          }
+        }
+      });
+    } catch (err) {
+      console.warn('[CRM Sheets Read Notice]:', err.message);
+    }
+
+    if (allLeads.length > 0) {
+      return { statusCode: 200, headers, body: JSON.stringify({ success: true, leads: allLeads }) };
+    }
+
     try {
       const n8nRes = await fetch(N8N_CRM_LEADS_URL);
       if (n8nRes.ok) {
@@ -334,30 +443,8 @@ exports.handler = async (event) => {
           return { statusCode: 200, headers, body: JSON.stringify(data) };
         }
       }
-    } catch (err) {
-      console.warn('[n8n Function CRM Proxy Notice]:', err.message);
-    }
+    } catch (err) {}
 
-    const rows = await readSheetValues('Real_Estate_Qualified_Leads');
-    if (rows && rows.length > 1) {
-      const leads = rows.slice(1).map(r => ({
-        leadId: r[0],
-        timestamp: r[1],
-        fullName: r[2],
-        phone: r[3],
-        email: r[4],
-        propertyInterest: r[5],
-        budgetRange: r[6],
-        financingStatus: r[7],
-        purchaseTimeline: r[8],
-        buyerType: r[9],
-        leadScore: parseInt(r[10] || 0, 10),
-        leadTier: r[11] || 'WARM',
-        recommendedAction: r[12] || '',
-        status: r[13] || 'NEW'
-      }));
-      return { statusCode: 200, headers, body: JSON.stringify({ success: true, leads }) };
-    }
     return { statusCode: 200, headers, body: JSON.stringify({ success: true, leads: memoryLeads }) };
   }
 
