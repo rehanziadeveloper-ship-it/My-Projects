@@ -74,7 +74,6 @@ async function readSheetValues(tabName) {
     const data = await res.json();
     return data.values || [];
   } catch (err) {
-    console.error(`Read error (${tabName}):`, err.message);
     return [];
   }
 }
@@ -88,10 +87,9 @@ async function appendSheetRow(tabName, rowData) {
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ values: [rowData] })
     });
-    return await res.json();
-  } catch (err) {
-    console.error(`Append error (${tabName}):`, err.message);
-  }
+    const data = await res.json();
+    return data;
+  } catch (err) {}
 }
 
 async function updateSheetRange(range, values) {
@@ -103,10 +101,9 @@ async function updateSheetRange(range, values) {
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ values })
     });
-    return await res.json();
-  } catch (err) {
-    console.error(`Update error (${range}):`, err.message);
-  }
+    const data = await res.json();
+    return data;
+  } catch (err) {}
 }
 
 async function createCalendarEvent(eventData) {
@@ -127,18 +124,10 @@ async function createCalendarEvent(eventData) {
       })
     });
     const data = await res.json();
-    if (res.ok) {
-      console.log('✅ Google Calendar Event booked:', data.id, data.htmlLink);
-    } else {
-      console.warn('⚠️ Google Calendar error:', res.status, data);
-    }
     return data;
-  } catch (err) {
-    console.warn('[Calendar Event Error]:', err.message);
-  }
+  } catch (err) {}
 }
 
-// In-Memory Fallback State (Synced with Google Sheets)
 let memoryListings = [
   {
     id: 'PROP-01',
@@ -218,54 +207,6 @@ let memoryLeads = [
     leadTier: 'HOT',
     recommendedAction: 'Priority VIP Showing & Direct Broker Call within 15 min',
     status: 'NEW'
-  },
-  {
-    leadId: 'LEAD-8802',
-    timestamp: '10/28/2026, 10:40:00',
-    fullName: 'Dr. Camille Laurent',
-    phone: '+1 (212) 555-4321',
-    email: 'claurent@medny.org',
-    propertyInterest: 'Tribeca Sky Penthouse',
-    budgetRange: '$3,000,000 - $3,500,000',
-    financingStatus: 'Pre-Approved with Chase Jumbo ($3.5M)',
-    purchaseTimeline: '1 to 3 months',
-    buyerType: 'Relocation to NYC',
-    leadScore: 85,
-    leadTier: 'HOT',
-    recommendedAction: 'Send 3D Matterport & Schedule Weekend Private Tour',
-    status: 'ASSIGNED'
-  },
-  {
-    leadId: 'LEAD-8803',
-    timestamp: '10/28/2026, 11:20:00',
-    fullName: 'Brandon & Sarah Cole',
-    phone: '+1 (512) 555-9081',
-    email: 'bcole@texastech.io',
-    propertyInterest: 'Austin Lakefront Contemporary',
-    budgetRange: '$1,800,000 - $2,000,000',
-    financingStatus: 'Working with Mortgage Broker',
-    purchaseTimeline: '3 to 6 months',
-    buyerType: 'Upgrading Family Home',
-    leadScore: 68,
-    leadTier: 'WARM',
-    recommendedAction: 'Add to Austin Market Newsletter & Check Lender Pre-Approval',
-    status: 'NURTURING'
-  },
-  {
-    leadId: 'LEAD-8804',
-    timestamp: '10/28/2026, 11:45:00',
-    fullName: 'Kevin Martinez',
-    phone: '+1 (305) 555-7762',
-    email: 'kmartinez@skylinefl.com',
-    propertyInterest: 'Miami Brickell Skyline Residence',
-    budgetRange: '$800,000 - $1,000,000',
-    financingStatus: 'Need Mortgage Pre-Approval',
-    purchaseTimeline: 'Just Browsing (> 6 months)',
-    buyerType: 'First-Time Investor',
-    leadScore: 42,
-    leadTier: 'COLD',
-    recommendedAction: 'Connect with Preferred Lending Partner for Loan Pre-Qualification',
-    status: 'NURTURING'
   }
 ];
 
@@ -295,10 +236,9 @@ async function routeQualifiedLead(lead) {
 }
 
 const server = http.createServer(async (req, res) => {
-  // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
 
   if (req.method === 'OPTIONS') {
     res.writeHead(204);
@@ -306,11 +246,12 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  const getBody = () => new Promise(resolve => {
-    let data = '';
-    req.on('data', chunk => { data += chunk; });
+  const getBody = () => new Promise((resolve) => {
+    let body = '';
+    req.on('data', chunk => body += chunk);
     req.on('end', () => {
-      try { resolve(JSON.parse(data)); } catch (e) { resolve({}); }
+      try { resolve(JSON.parse(body || '{}')); }
+      catch(e) { resolve({}); }
     });
   });
 
@@ -320,6 +261,7 @@ const server = http.createServer(async (req, res) => {
   if (req.url === '/api/chat' && req.method === 'POST') {
     const payload = await getBody();
     let n8nResponse = null;
+    let n8nSucceeded = false;
 
     try {
       const n8nRes = await fetch(N8N_WEBHOOK_URL, {
@@ -334,12 +276,13 @@ const server = http.createServer(async (req, res) => {
       });
       if (n8nRes.ok) {
         n8nResponse = await n8nRes.json();
+        n8nSucceeded = true;
       }
     } catch (err) {
       console.warn('[n8n Webhook] Notice:', err.message);
     }
 
-    if (!n8nResponse || !n8nResponse.reply) {
+    if (!n8nSucceeded || !n8nResponse || !n8nResponse.reply) {
       const sessionState = payload.sessionState || payload.state;
       n8nResponse = runFallbackQualificationEngine(payload.userMessage || payload.message, sessionState);
     }
@@ -351,7 +294,7 @@ const server = http.createServer(async (req, res) => {
       n8nResponse.sessionState = n8nResponse.state;
     }
 
-    // Double-sync Calendar & Google Sheets
+    // Double-sync Calendar
     const isCalendarTurn = n8nResponse.calendarBooked || n8nResponse.bookingDetails || n8nResponse.actionType === 'book_calendar' || n8nResponse.responsePayload?.calendarBooked;
     if (isCalendarTurn) {
       const summaryVal = n8nResponse.calendarSummary || n8nResponse.responsePayload?.calendarSummary || ('Apex Realty: Appointment for ' + (n8nResponse.sessionState?.fullName || n8nResponse.state?.fullName || 'Private Client'));
@@ -367,8 +310,9 @@ const server = http.createServer(async (req, res) => {
       }).catch(e => console.warn('GCal async error:', e.message));
     }
 
+    // Only run local sheets fallback if n8n failed to execute
     const isStorageTurn = n8nResponse.actionType === 'store_sheets' || n8nResponse.isComplete || n8nResponse.responsePayload?.lead;
-    if (isStorageTurn && (n8nResponse.responsePayload?.lead || n8nResponse.sessionState?.finalLead || n8nResponse.state?.finalLead)) {
+    if (!n8nSucceeded && isStorageTurn && (n8nResponse.responsePayload?.lead || n8nResponse.sessionState?.finalLead || n8nResponse.state?.finalLead)) {
       const leadObj = n8nResponse.responsePayload?.lead || n8nResponse.sessionState?.finalLead || n8nResponse.state?.finalLead || n8nResponse;
       routeQualifiedLead(leadObj).catch(e => console.warn('Sheets async error:', e.message));
     }
@@ -486,60 +430,35 @@ const server = http.createServer(async (req, res) => {
   }
 
   // ==========================================
-  // 4. LEAD STATUS UPDATE (BROKER CRM)
-  // ==========================================
-  if (req.url === '/api/leads/status' && req.method === 'POST') {
-    const { leadId, newStatus } = await getBody();
-    
-    // Update memory
-    const target = memoryLeads.find(l => l.leadId === leadId);
-    if (target) target.status = newStatus;
-
-    // Update in Google Sheets
-    const rows = await readSheetValues('Real_Estate_Qualified_Leads');
-    if (rows && rows.length > 1) {
-      const rowIndex = rows.findIndex((r, idx) => idx > 0 && r[0] === leadId);
-      if (rowIndex !== -1) {
-        await updateSheetRange(`Real_Estate_Qualified_Leads!N${rowIndex + 1}`, [[newStatus]]);
-      }
-    }
-
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ success: true, leadId, newStatus }));
-    return;
-  }
-
-  // ==========================================
-  // 5. STATIC ASSET SERVING
+  // 4. STATIC FILE SERVING
   // ==========================================
   let filePath = path.join(__dirname, 'public', req.url === '/' ? 'index.html' : req.url);
-  filePath = filePath.split('?')[0];
+  const ext = path.extname(filePath).toLowerCase();
+  const contentType = MIME_TYPES[ext] || 'application/octet-stream';
 
-  fs.stat(filePath, (err, stats) => {
-    if (err || !stats.isFile()) {
-      filePath = path.join(__dirname, 'public', 'index.html');
-    }
-    const ext = path.extname(filePath).toLowerCase();
-    const contentType = MIME_TYPES[ext] || 'text/html';
-
-    fs.readFile(filePath, (readErr, content) => {
-      if (readErr) {
-        res.writeHead(404, { 'Content-Type': 'text/plain' });
-        res.end('404 Not Found');
-        return;
+  fs.readFile(filePath, (err, content) => {
+    if (err) {
+      if (err.code === 'ENOENT') {
+        fs.readFile(path.join(__dirname, 'public', 'index.html'), (e, fallback) => {
+          if (e) {
+            res.writeHead(404, { 'Content-Type': 'text/plain' });
+            res.end('404 Not Found');
+          } else {
+            res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+            res.end(fallback);
+          }
+        });
+      } else {
+        res.writeHead(500, { 'Content-Type': 'text/plain' });
+        res.end('Server Error: ' + err.code);
       }
+    } else {
       res.writeHead(200, { 'Content-Type': contentType });
       res.end(content);
-    });
+    }
   });
 });
 
 server.listen(PORT, () => {
-  console.log(`\n======================================================`);
-  console.log(`🏛️ Apex Realty AI — Inbound Buyer Qualification System`);
-  console.log(`📡 Local Server: http://localhost:${PORT}`);
-  console.log(`💼 Broker CRM: Protected (default: broker123)`);
-  console.log(`⚡ n8n Webhook: ${N8N_WEBHOOK_URL}`);
-  console.log(`📊 Google Sheets: Spreadsheet ${SPREADSHEET_ID}`);
-  console.log(`======================================================\n`);
+  console.log(`Apex Realty Pro Server running at http://localhost:${PORT}`);
 });
