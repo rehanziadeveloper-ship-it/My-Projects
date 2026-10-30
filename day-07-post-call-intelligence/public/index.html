@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PulseAI — Post-Call Intelligence & Sentiment Analysis Pipeline</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body class="min-h-screen flex flex-col bg-slate-950 text-slate-100 antialiased selection:bg-cyan-500 selection:text-slate-950">
+
+  <!-- TOP NAVIGATION HEADER -->
+  <header class="sticky top-0 z-50 glass-card border-b border-slate-800/80">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+      
+      <!-- Logo & System Status -->
+      <div class="flex items-center space-x-3.5">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 via-blue-600 to-indigo-700 flex items-center justify-center shadow-lg shadow-cyan-500/25 border border-cyan-400/30">
+          <i data-lucide="activity" class="w-5 h-5 text-white"></i>
+        </div>
+        <div>
+          <div class="flex items-center space-x-2">
+            <span class="font-serif-luxury text-lg font-bold tracking-wider text-white">PULSE<span class="text-cyan-400">AI</span></span>
+            <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">DAY 07</span>
+          </div>
+          <p class="text-[11px] text-slate-400 font-medium">Post-Call Intelligence & Speed-to-Lead Pipeline</p>
+        </div>
+      </div>
+
+      <!-- Live Connectivity Beacons -->
+      <div class="hidden md:flex items-center space-x-6 text-xs">
+        <div class="flex items-center space-x-2 text-slate-300">
+          <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span>n8n Cloud Brain Active</span>
+        </div>
+        <div class="flex items-center space-x-2 text-slate-300">
+          <i data-lucide="database" class="w-3.5 h-3.5 text-cyan-400"></i>
+          <span>Google Sheets CRM Synced</span>
+        </div>
+        <div class="flex items-center space-x-2 text-slate-300">
+          <i data-lucide="zap" class="w-3.5 h-3.5 text-amber-400"></i>
+          <span>&lt; 15s SLA Dispatch</span>
+        </div>
+      </div>
+
+      <!-- Right Action CTA -->
+      <div class="flex items-center space-x-3">
+        <button onclick="openCrmLedgerModal()" class="px-3.5 py-2 rounded-xl text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 hover:border-cyan-500/50 flex items-center space-x-2 transition-all shadow-sm">
+          <i data-lucide="table" class="w-4 h-4 text-cyan-400"></i>
+          <span class="hidden sm:inline">CRM Call Ledger</span>
+          <span id="badgeLogCount" class="px-1.5 py-0.2 bg-cyan-500/20 text-cyan-300 text-[10px] rounded-full font-mono">3</span>
+        </button>
+        <button onclick="triggerDispatchSimulationModal()" class="px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 flex items-center space-x-2 transition-all shadow-lg shadow-cyan-500/20">
+          <i data-lucide="send" class="w-3.5 h-3.5"></i>
+          <span>Test Dispatch Alert</span>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- MAIN DASHBOARD CONTAINER -->
+  <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full space-y-8">
+    
+    <!-- EXECUTIVE METRICS HEADER CARDS -->
+    <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      
+      <div class="p-4 rounded-2xl glass-card border border-slate-800/80 relative overflow-hidden group hover:border-cyan-500/30 transition-all">
+        <div class="flex items-center justify-between text-xs text-slate-400 mb-1">
+          <span class="uppercase tracking-wider font-semibold">Average Call Sentiment</span>
+          <i data-lucide="smile" class="w-4 h-4 text-emerald-400"></i>
+        </div>
+        <div class="flex items-baseline space-x-2">
+          <span id="metricSentiment" class="text-2xl sm:text-3xl font-extrabold text-white font-mono">+74%</span>
+          <span class="text-xs text-emerald-400 font-medium">Positive</span>
+        </div>
+        <p class="text-[11px] text-slate-500 mt-1">Multi-turn emotional vector tracking</p>
+      </div>
+
+      <div class="p-4 rounded-2xl glass-card border border-slate-800/80 relative overflow-hidden group hover:border-red-500/30 transition-all">
+        <div class="flex items-center justify-between text-xs text-slate-400 mb-1">
+          <span class="uppercase tracking-wider font-semibold">Critical Urgency (P0)</span>
+          <i data-lucide="flame" class="w-4 h-4 text-red-400"></i>
+        </div>
+        <div class="flex items-baseline space-x-2">
+          <span id="metricP0Count" class="text-2xl sm:text-3xl font-extrabold text-red-400 font-mono">2 Calls</span>
+          <span class="text-xs text-red-400 font-medium animate-pulse">Needs Callback</span>
+        </div>
+        <p class="text-[11px] text-slate-500 mt-1">Immediate action &lt; 15 min SLA</p>
+      </div>
+
+      <div class="p-4 rounded-2xl glass-card border border-slate-800/80 relative overflow-hidden group hover:border-amber-500/30 transition-all">
+        <div class="flex items-center justify-between text-xs text-slate-400 mb-1">
+          <span class="uppercase tracking-wider font-semibold">Average Processing Time</span>
+          <i data-lucide="clock" class="w-4 h-4 text-amber-400"></i>
+        </div>
+        <div class="flex items-baseline space-x-2">
+          <span class="text-2xl sm:text-3xl font-extrabold text-white font-mono">1.8s</span>
+          <span class="text-xs text-emerald-400 font-medium">Ultra-Fast</span>
+        </div>
+        <p class="text-[11px] text-slate-500 mt-1">Transcription &amp; structured triage</p>
+      </div>
+
+      <div class="p-4 rounded-2xl glass-card border border-slate-800/80 relative overflow-hidden group hover:border-indigo-500/30 transition-all">
+        <div class="flex items-center justify-between text-xs text-slate-400 mb-1">
+          <span class="uppercase tracking-wider font-semibold">Speed-to-Lead Dispatch</span>
+          <i data-lucide="bell-ring" class="w-4 h-4 text-indigo-400"></i>
+        </div>
+        <div class="flex items-baseline space-x-2">
+          <span class="text-2xl sm:text-3xl font-extrabold text-indigo-400 font-mono">100%</span>
+          <span class="text-xs text-emerald-400 font-medium">Delivered</span>
+        </div>
+        <p class="text-[11px] text-slate-500 mt-1">Multi-channel Slack &amp; WhatsApp</p>
+      </div>
+
+    </section>
+
+    <!-- CORE WORKSPACE: 2 COLUMNS -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      
+      <!-- ======================================================== -->
+      <!-- LEFT COLUMN: AUDIO PLAYBACK & INGESTION (5 COLS) -->
+      <!-- ======================================================== -->
+      <section class="lg:col-span-5 space-y-6">
+        
+        <!-- Scenario Switcher Pills -->
+        <div class="p-4 rounded-2xl glass-card border border-slate-800/80 space-y-3">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center space-x-1.5">
+              <i data-lucide="play-circle" class="w-4 h-4 text-cyan-400"></i>
+              <span>Select High-Stakes Sample Call</span>
+            </span>
+            <span class="text-[10px] text-slate-500 font-mono">3 Scenarios Ready</span>
+          </div>
+
+          <div class="grid grid-cols-1 gap-2">
+            <!-- Call 1 -->
+            <button onclick="selectSampleCall('CALL-701')" id="btnCall-701" class="scenario-pill active text-left p-3 rounded-xl border transition-all flex items-center justify-between">
+              <div class="flex items-center space-x-3">
+                <div class="w-8 h-8 rounded-lg bg-cyan-500/10 text-cyan-400 flex items-center justify-center font-bold text-xs border border-cyan-500/30">
+                  RE
+                </div>
+                <div>
+                  <h4 class="text-xs font-bold text-white">Harrison Vance ($4.5M Penthouse)</h4>
+                  <p class="text-[11px] text-slate-400">Luxury Real Estate Inbound Lead</p>
+                </div>
+              </div>
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-red-500/10 text-red-400 border border-red-500/30">P0</span>
+            </button>
+
+            <!-- Call 2 -->
+            <button onclick="selectSampleCall('CALL-702')" id="btnCall-702" class="scenario-pill text-left p-3 rounded-xl border transition-all flex items-center justify-between">
+              <div class="flex items-center space-x-3">
+                <div class="w-8 h-8 rounded-lg bg-red-500/10 text-red-400 flex items-center justify-center font-bold text-xs border border-red-500/30">
+                  MED
+                </div>
+                <div>
+                  <h4 class="text-xs font-bold text-white">Marcus Brody (Cracked Molar Agony)</h4>
+                  <p class="text-[11px] text-slate-400">Dental Urgent Care Emergency</p>
+                </div>
+              </div>
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-red-500/10 text-red-400 border border-red-500/30">P0</span>
+            </button>
+
+            <!-- Call 3 -->
+            <button onclick="selectSampleCall('CALL-703')" id="btnCall-703" class="scenario-pill text-left p-3 rounded-xl border transition-all flex items-center justify-between">
+              <div class="flex items-center space-x-3">
+                <div class="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-400 flex items-center justify-center font-bold text-xs border border-amber-500/30">
+                  VIP
+                </div>
+                <div>
+                  <h4 class="text-xs font-bold text-white">Elena Rostova (45-Guest Gala Buyout)</h4>
+                  <p class="text-[11px] text-slate-400">Heritage Bistro Private Event</p>
+                </div>
+              </div>
+              <span class="px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-amber-500/10 text-amber-400 border border-amber-500/30">P1</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Interactive Audio Player & Waveform -->
+        <div class="p-5 rounded-2xl glass-card border border-slate-800/80 space-y-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+              <span id="playerCallBadge" class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">CALL-701</span>
+              <span id="playerCallerName" class="text-xs font-bold text-slate-200">Harrison Vance</span>
+            </div>
+            <span id="playerDuration" class="text-xs font-mono text-slate-400">0:00 / 3:42</span>
+          </div>
+
+          <!-- Waveform Visualizer Animation -->
+          <div class="waveform-container rounded-xl p-3 bg-slate-900/90 border border-slate-800 flex items-center justify-between space-x-1 overflow-hidden h-20">
+            <!-- Dynamic wave bars generated via JS -->
+            <div id="waveformBars" class="flex items-center justify-between w-full h-full space-x-1"></div>
+          </div>
+
+          <!-- Controls Bar -->
+          <div class="flex items-center justify-between pt-1">
+            <button id="btnPlayPause" onclick="toggleAudioPlay()" class="w-11 h-11 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 flex items-center justify-center transition-all shadow-lg shadow-cyan-500/20">
+              <i id="playIcon" data-lucide="play" class="w-5 h-5 fill-current"></i>
+            </button>
+
+            <!-- Scrubber Slider -->
+            <input id="audioScrubber" type="range" min="0" max="100" value="0" oninput="scrubAudio(this.value)" class="flex-grow mx-4 accent-cyan-400 h-1.5 bg-slate-800 rounded-lg cursor-pointer">
+
+            <button onclick="restartAudio()" class="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors" title="Rewind to start">
+              <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+            </button>
+          </div>
+
+          <audio id="audioElement" preload="auto" src="https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3"></audio>
+        </div>
+
+        <!-- Custom Call Ingestion Box (Upload or Paste) -->
+        <div class="p-5 rounded-2xl glass-card border border-slate-800/80 space-y-4">
+          <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+            <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center space-x-1.5">
+              <i data-lucide="file-text" class="w-4 h-4 text-cyan-400"></i>
+              <span>Live Synchronized Transcript</span>
+            </h3>
+            <button onclick="toggleCustomInputMode()" id="btnCustomMode" class="text-[11px] text-cyan-400 hover:text-cyan-300 underline font-medium">
+              Paste Custom Transcript
+            </button>
+          </div>
+
+          <!-- Transcript Scrollbox -->
+          <div id="transcriptViewArea" class="h-64 overflow-y-auto space-y-2.5 pr-1 text-xs">
+            <!-- Dynamically populated sentence bubbles -->
+          </div>
+
+          <!-- Hidden Textarea for Custom Testing -->
+          <div id="customInputArea" class="hidden space-y-3">
+            <textarea id="customTranscriptInput" rows="6" placeholder="Paste any call transcript here... (Format: Agent: ... \nCaller: ...)" class="w-full bg-slate-900 border border-slate-700 rounded-xl p-3 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 font-mono"></textarea>
+            <div class="flex items-center space-x-2">
+              <input id="customCallerName" type="text" placeholder="Caller Name" class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white">
+              <input id="customCallerPhone" type="text" placeholder="Phone Number" class="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-xs text-white">
+            </div>
+          </div>
+
+          <!-- Big Action Button: Run Intelligence Pipeline -->
+          <button onclick="runIntelligenceAnalysis()" id="btnRunPipeline" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-cyan-500 via-blue-600 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-slate-950 text-xs font-extrabold uppercase tracking-wider flex items-center justify-center space-x-2 transition-all shadow-xl shadow-cyan-500/20">
+            <i data-lucide="sparkles" class="w-4 h-4 fill-current"></i>
+            <span id="btnRunPipelineText">Run Post-Call Intelligence Pipeline</span>
+          </button>
+        </div>
+
+      </section>
+
+      <!-- ======================================================== -->
+      <!-- RIGHT COLUMN: EXECUTIVE INTELLIGENCE DOSSIER (7 COLS) -->
+      <!-- ======================================================== -->
+      <section class="lg:col-span-7 space-y-6">
+        
+        <!-- Header Dossier Card -->
+        <div class="p-6 rounded-2xl glass-card border border-slate-800/80 relative overflow-hidden space-y-6 shadow-2xl">
+          
+          <!-- Top Row: Call ID + Urgency Banner -->
+          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
+            <div>
+              <div class="flex items-center space-x-2">
+                <span id="dossierCallId" class="text-sm font-mono font-bold text-cyan-400">CALL-701</span>
+                <span class="text-slate-500">•</span>
+                <span id="dossierCallType" class="text-xs font-semibold text-slate-300">Luxury Real Estate Inbound Lead</span>
+              </div>
+              <h2 id="dossierCallerName" class="font-serif-luxury text-2xl font-bold text-white mt-1">Harrison Vance</h2>
+              <p id="dossierMeta" class="text-xs text-slate-400">Vance Capital Group • +1 (310) 555-8910</p>
+            </div>
+
+            <!-- Dynamic Urgency Badge -->
+            <div id="dossierUrgencyBadge" class="px-3.5 py-1.5 rounded-xl text-xs font-extrabold font-mono flex items-center space-x-2 bg-red-500/10 text-red-400 border border-red-500/40 shadow-lg shadow-red-500/10 animate-pulse">
+              <i data-lucide="alert-triangle" class="w-4 h-4"></i>
+              <span id="dossierUrgencyText">P0 - CRITICAL (&lt;15 min)</span>
+            </div>
+          </div>
+
+          <!-- Multi-Vector Sentiment & Speed-to-Lead Meter -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            
+            <!-- Sentiment Gauge Card -->
+            <div class="p-4 rounded-xl bg-slate-900/70 border border-slate-800/90 space-y-2">
+              <div class="flex items-center justify-between text-xs text-slate-400">
+                <span class="uppercase tracking-wider font-semibold">Caller Emotional Vector</span>
+                <span id="dossierSentimentScore" class="font-mono font-bold text-emerald-400 text-sm">+88 / 100</span>
+              </div>
+              <div class="flex items-center space-x-3">
+                <div id="dossierSentimentIcon" class="w-10 h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold">
+                  <i data-lucide="trending-up" class="w-5 h-5"></i>
+                </div>
+                <div>
+                  <h4 id="dossierSentimentCategory" class="text-xs font-bold text-white">Highly Enthusiastic</h4>
+                  <p id="dossierSentimentDetail" class="text-[11px] text-slate-400">Strong purchase intent with liquid funds verified.</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Urgency Speed-to-Lead Card -->
+            <div class="p-4 rounded-xl bg-slate-900/70 border border-slate-800/90 space-y-2">
+              <div class="flex items-center justify-between text-xs text-slate-400">
+                <span class="uppercase tracking-wider font-semibold">Speed-to-Lead Protocol</span>
+                <span class="font-mono font-bold text-cyan-400 text-sm">SUB-15 MIN</span>
+              </div>
+              <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-lg bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+                  <i data-lucide="zap" class="w-5 h-5"></i>
+                </div>
+                <div>
+                  <h4 class="text-xs font-bold text-white">VIP Direct Dispatch Required</h4>
+                  <p class="text-[11px] text-slate-400">Managing Broker on-duty alerted via Webhook.</p>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          <!-- Executive 3-Bullet TL;DR -->
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <h3 class="text-xs font-bold text-cyan-400 uppercase tracking-wider flex items-center space-x-2">
+                <i data-lucide="list-checks" class="w-4 h-4"></i>
+                <span>Executive 3-Bullet TL;DR Summary</span>
+              </h3>
+              <span class="text-[10px] text-slate-500 font-mono">20-Second Scannable Brief</span>
+            </div>
+
+            <div id="dossierSummaryContainer" class="p-4 rounded-xl bg-slate-900/90 border border-slate-800/90 space-y-2.5 text-xs text-slate-300">
+              <!-- Dynamically populated bullets -->
+            </div>
+          </div>
+
+          <!-- Action Items Checklist -->
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center space-x-2">
+                <i data-lucide="check-square" class="w-4 h-4 text-emerald-400"></i>
+                <span>Actionable Checklist &amp; Operational Deadlines</span>
+              </h3>
+              <button onclick="copyActionItemsToClipboard()" class="text-[11px] text-cyan-400 hover:text-cyan-300 flex items-center space-x-1">
+                <i data-lucide="copy" class="w-3.5 h-3.5"></i>
+                <span>Copy Tasks</span>
+              </button>
+            </div>
+
+            <div id="dossierActionItemsContainer" class="grid grid-cols-1 gap-2">
+              <!-- Action items populated dynamically -->
+            </div>
+          </div>
+
+          <!-- Key Objections & Red Flags -->
+          <div class="space-y-3">
+            <h3 class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center space-x-2">
+              <i data-lucide="shield-alert" class="w-4 h-4 text-amber-400"></i>
+              <span>Friction Points &amp; Critical Objections</span>
+            </h3>
+
+            <div id="dossierObjectionsContainer" class="flex flex-wrap gap-2">
+              <!-- Objections tags populated dynamically -->
+            </div>
+          </div>
+
+          <!-- Pivotal Quotes -->
+          <div class="space-y-2 pt-2 border-t border-slate-800/80">
+            <span class="text-[11px] text-slate-500 font-semibold uppercase tracking-wider">Verbatim Pivotal Quote:</span>
+            <blockquote id="dossierQuote" class="text-xs italic text-slate-300 bg-slate-900/50 p-3 rounded-lg border-l-2 border-cyan-400">
+              "This will be an all-cash purchase. Our funds are already liquid with Morgan Stanley Private Wealth."
+            </blockquote>
+          </div>
+
+          <!-- Instant Dispatch Buttons -->
+          <div class="pt-4 border-t border-slate-800 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center space-x-2">
+              <button onclick="dispatchToSlack()" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 flex items-center space-x-1.5 transition-all">
+                <i data-lucide="message-square" class="w-3.5 h-3.5 text-cyan-400"></i>
+                <span>Slack VIP Alert</span>
+              </button>
+              <button onclick="dispatchToWhatsApp()" class="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-700 flex items-center space-x-1.5 transition-all">
+                <i data-lucide="phone-forwarded" class="w-3.5 h-3.5 text-emerald-400"></i>
+                <span>WhatsApp Owner Alert</span>
+              </button>
+            </div>
+
+            <button onclick="openCrmLedgerModal()" class="text-xs text-cyan-400 hover:underline flex items-center space-x-1">
+              <span>View in Google Sheets CRM Ledger</span>
+              <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+            </button>
+          </div>
+
+        </div>
+
+      </section>
+
+    </div>
+
+  </main>
+
+  <!-- ============================================================ -->
+  <!-- MODAL: GOOGLE SHEETS CALL INTELLIGENCE LEDGER -->
+  <!-- ============================================================ -->
+  <div id="crmLedgerModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-md hidden flex items-center justify-center p-4">
+    <div class="glass-card rounded-2xl w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col border border-cyan-500/30 shadow-2xl">
+      
+      <!-- Modal Header -->
+      <div class="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-900/80">
+        <div class="flex items-center space-x-3">
+          <div class="w-9 h-9 rounded-lg bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-cyan-400">
+            <i data-lucide="database" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="font-serif-luxury text-base font-bold text-white">Call Intelligence &amp; Speed-to-Lead Ledger</h3>
+            <p class="text-[11px] text-slate-400">Synchronized with Google Sheets Tab: <span class="text-cyan-400 font-mono">Call_Intelligence_Logs</span></p>
+          </div>
+        </div>
+        <button onclick="closeCrmLedgerModal()" class="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Filter Bar -->
+      <div class="p-4 border-b border-slate-800/80 bg-slate-950 flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div class="flex items-center space-x-2">
+          <span class="text-slate-400 font-medium">Filter Urgency:</span>
+          <button onclick="filterLedger('ALL')" class="px-2.5 py-1 rounded bg-cyan-500/20 text-cyan-300 font-semibold">All</button>
+          <button onclick="filterLedger('P0')" class="px-2.5 py-1 rounded bg-slate-800 text-slate-300 hover:bg-slate-700">P0 Critical</button>
+          <button onclick="filterLedger('P1')" class="px-2.5 py-1 rounded bg-slate-800 text-slate-300 hover:bg-slate-700">P1 High</button>
+        </div>
+        <button onclick="fetchCallLogs()" class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 flex items-center space-x-1.5 border border-slate-700">
+          <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-cyan-400"></i>
+          <span>Sync from Sheets</span>
+        </button>
+      </div>
+
+      <!-- Table Body -->
+      <div class="overflow-x-auto flex-grow p-4">
+        <table class="w-full text-left">
+          <thead>
+            <tr class="border-b border-slate-800 bg-slate-900/80 text-[11px] text-slate-400 font-semibold uppercase tracking-wider">
+              <th class="py-3 px-4">Call ID</th>
+              <th class="py-3 px-4">Timestamp</th>
+              <th class="py-3 px-4">Caller</th>
+              <th class="py-3 px-4">Contact</th>
+              <th class="py-3 px-4">Type</th>
+              <th class="py-3 px-4 text-center">Urgency</th>
+              <th class="py-3 px-4 text-center">Sentiment</th>
+              <th class="py-3 px-4">Executive TL;DR</th>
+              <th class="py-3 px-4 text-center">Action</th>
+            </tr>
+          </thead>
+          <tbody id="crmLedgerTableBody" class="divide-y divide-slate-800/60 text-xs">
+            <!-- Dynamically populated -->
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- MODAL: DISPATCH ALERT SIMULATOR -->
+  <!-- ============================================================ -->
+  <div id="dispatchAlertModal" class="fixed inset-0 z-50 bg-black/85 backdrop-blur-md hidden flex items-center justify-center p-4">
+    <div class="glass-card rounded-2xl w-full max-w-lg overflow-hidden flex flex-col border border-emerald-500/30 shadow-2xl">
+      <div class="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/80">
+        <div class="flex items-center space-x-2.5">
+          <div class="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400">
+            <i data-lucide="send" class="w-4 h-4"></i>
+          </div>
+          <h3 class="text-sm font-bold text-white">Owner Mobile Dispatch Card (Sub-15s SLA)</h3>
+        </div>
+        <button onclick="closeDispatchModal()" class="p-1 rounded text-slate-400 hover:text-white">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <div class="p-5 space-y-4">
+        <div class="p-4 rounded-xl bg-slate-900 border border-slate-800 font-mono text-xs whitespace-pre-line text-emerald-300" id="dispatchCardPreview">
+          <!-- Text formatted alert card -->
+        </div>
+
+        <div class="flex items-center justify-between pt-2">
+          <span class="text-[11px] text-slate-400 flex items-center space-x-1">
+            <i data-lucide="check-circle-2" class="w-3.5 h-3.5 text-emerald-400"></i>
+            <span>Sent via n8n Webhook</span>
+          </span>
+          <button onclick="closeDispatchModal()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-semibold text-white">
+            Dismiss
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="glass-card border-t border-slate-800 py-8 mt-auto">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500">
+      <div class="flex items-center space-x-2 mb-3 sm:mb-0">
+        <span class="font-serif-luxury font-bold text-slate-300">PULSE AI</span>
+        <span>•</span>
+        <span>Day 7: Post-Call Intelligence Pipeline</span>
+      </div>
+      <div>
+        100% n8n Cloud Brain • Groq Whisper • Google Sheets CRM Integration
+      </div>
+    </div>
+  </footer>
+
+  <!-- SCRIPT -->
+  <script src="/app.js"></script>
+</body>
+</html>
