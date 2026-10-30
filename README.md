@@ -16,7 +16,7 @@ A comprehensive sprint building 1 production-ready voice and automation system e
 | **04** | **Home Services Emergency Dispatch Voicebot (Plumbing/HVAC/Electrical)** | Netlify Serverless, Web Speech API, Google Calendar & Sheets CRM, Conflict Prevention | [View Day 4](day-04-emergency-dispatch-voicebot/) | 🟢 **Production Live** | [⚡ Live App](https://apex-emergency-dispatch.netlify.app) |
 | **05** | **The Heritage Bistro — AI Restaurant Operating System** | Clean 3-Portal Architecture (Customer, Kitchen `chef123`, Admin `admin123`), n8n Chatbot, Multi-Dish & Delivery Engine, Google Sheets DB | [View Day 5](day-05-restaurant-reservation-voicebot/) | 🟢 **Production Live** | [⚡ Live App](https://heritage-bistro-ai.netlify.app) |
 | **06** | **Real Estate Inbound Buyer Qualification & Lead Triage Voicebot** | Web Speech API, 4-Vector Purchasing Scoring Matrix, n8n Engine, Google Sheets CRM | [View Day 6](day-06-real-estate-buyer-qualification/) | 🟢 **Production Live** | [⚡ Live App](https://apex-realty-ai.netlify.app) |
-| **07** | **Post-Call Intelligence Pipeline (Audio Summarizer + Sentiment)** | Twilio Recording Callback, n8n, Groq Whisper, Gemini Summarizer, Slack Alert | Day 7 | 🚀 Next Sprint | Coming Soon |
+| **07** | **Post-Call Intelligence Pipeline & Speed-to-Lead Executive Dispatch** | Webhook Ingest, n8n Cloud Brain, Sentiment Vector (-100 to +100), Urgency Classifier (P0/P1/P2), 3-Bullet TL;DR, Google Sheets CRM | [View Day 7](day-07-post-call-intelligence/) | 🟢 **Production Live** | [⚡ Live App](https://call-intelligence-ai.netlify.app) |
 | **...** | *30 Days Roadmap* | n8n, Groq, Claude 3.5, Gemini, Supabase | [Full Roadmap](memory/02_PROJECTS/30_DAYS_BUILD_CHALLENGE.md) | 🚀 In Progress | — |
 
 ---
@@ -57,6 +57,13 @@ A comprehensive sprint building 1 production-ready voice and automation system e
 * **Lead Tier Classification:** Automatically categorizes buyers into `🔥 HOT` (80–100 pts), `⚡ WARM` (50–79 pts), and `❄️ NURTURE` (<50 pts).
 * **Broker & Agent CRM Portal (Password: `broker123`):** Filterable buyer feed, one-click lead status tracking (`NEW` -> `SHOWING SCHEDULED` -> `UNDER CONTRACT`), and detailed scorecard popups.
 * **Google Sheets Real-Time Sync:** Ingests qualified buyer profiles directly into `Real_Estate_Qualified_Leads` in Google Sheets.
+
+### 📍 [Day 07: Post-Call Intelligence & Speed-to-Lead Executive Dispatch Pipeline](day-07-post-call-intelligence/) — [🌐 Live Demo](https://call-intelligence-ai.netlify.app)
+* **Automated Call Ingestion & Audio Transcription:** Ingests post-call recordings and conversational transcripts directly via n8n webhook.
+* **Multi-Vector Intelligence Engine:** Extracts composite sentiment score (-100 to +100), categorizes operational urgency (`P0 Critical <15 min`, `P1 High <2 hr`, `P2 Routine`), isolates friction points/objections, and captures verbatim pivotal quotes.
+* **Strict 3-Bullet Executive TL;DR & Action Ledger:** Automatically generates an executive summary constrained to exactly 3 bullets and parses concrete follow-ups with assigned staff, priority, and deadlines.
+* **Instant Multi-Channel Dispatch Alerting:** Formats rich markdown alert payloads for Slack, WhatsApp, and CRM webhooks for P0 critical deals to eliminate the speed-to-lead latency gap.
+* **Live Google Sheets CRM Auto-Sync:** Directly logs structured 12-column audit trails into the `Call_Intelligence_Logs` CRM tab with leading-apostrophe phone number protection.
 
 ---
 
