@@ -1,0 +1,106 @@
+/* PulseAI — Luxury Cyber-Intelligence Styles */
+
+:root {
+  --primary-cyan: #06b6d4;
+  --primary-blue: #2563eb;
+  --accent-emerald: #10b981;
+  --accent-amber: #f59e0b;
+  --accent-red: #ef4444;
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  background-color: #030712;
+  color: #f3f4f6;
+  overflow-x: hidden;
+}
+
+.font-serif-luxury {
+  font-family: 'Cinzel', serif;
+}
+
+/* Glassmorphism Card Style */
+.glass-card {
+  background: rgba(15, 23, 42, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+/* Scenario Pills */
+.scenario-pill {
+  background: rgba(15, 23, 42, 0.6);
+  border-color: rgba(51, 65, 85, 0.6);
+  cursor: pointer;
+}
+
+.scenario-pill:hover {
+  background: rgba(30, 41, 59, 0.8);
+  border-color: rgba(6, 182, 212, 0.4);
+}
+
+.scenario-pill.active {
+  background: rgba(6, 182, 212, 0.08);
+  border-color: rgba(6, 182, 212, 0.6);
+  box-shadow: 0 4px 20px -2px rgba(6, 182, 212, 0.15);
+}
+
+/* Waveform Visualizer */
+.wave-bar {
+  width: 4px;
+  background: #334155;
+  border-radius: 4px;
+  transition: height 0.15s ease, background-color 0.2s ease;
+}
+
+.wave-bar.active {
+  background: linear-gradient(to top, #06b6d4, #3b82f6);
+}
+
+.wave-bar.playing {
+  animation: wavePulse 1.2s infinite ease-in-out;
+}
+
+@keyframes wavePulse {
+  0%, 100% { transform: scaleY(0.4); }
+  50% { transform: scaleY(1.1); }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.5);
+}
+
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #06b6d4;
+}
+
+/* Transcript Bubble Styles */
+.transcript-bubble-agent {
+  background: rgba(15, 23, 42, 0.9);
+  border-left: 3px solid #06b6d4;
+  padding: 8px 12px;
+  border-radius: 0 8px 8px 0;
+}
+
+.transcript-bubble-caller {
+  background: rgba(30, 41, 59, 0.7);
+  border-left: 3px solid #f59e0b;
+  padding: 8px 12px;
+  border-radius: 0 8px 8px 0;
+}
+
+/* Action Checkbox Custom */
+.task-checkbox:checked + label {
+  text-decoration: line-through;
+  color: #64748b;
+}
