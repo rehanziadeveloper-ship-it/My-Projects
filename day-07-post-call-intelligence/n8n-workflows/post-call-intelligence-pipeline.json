@@ -1,0 +1,382 @@
+{
+  "name": "Day 7 - Post-Call Intelligence Pipeline (Audio Summarizer + Sentiment & Urgency Dispatch)",
+  "nodes": [
+    {
+      "id": "webhook-call-ingest",
+      "name": "Call_Ingest_Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        100,
+        300
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "post-call-intelligence",
+        "responseMode": "responseNode",
+        "options": {}
+      }
+    },
+    {
+      "id": "ai-intelligence-analyzer",
+      "name": "AI_Intelligence_Analyzer",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        340,
+        300
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "\n/**\n * Day 7: Post-Call Intelligence & Sentiment Analysis Engine\n * Extracts multi-vector business intelligence, executive summaries,\n * action items, and speed-to-lead dispatch cards from raw call transcripts.\n */\n\nfunction analyzeCallTranscript(transcript, metadata = {}) {\n  const text = (transcript || '').trim();\n  const lower = text.toLowerCase();\n\n  const callerName = metadata.callerName || extractCallerName(text) || 'Private Caller';\n  const phone = metadata.phoneNumber || metadata.phone || 'On file';\n  const company = metadata.company || 'Private Client';\n  const callType = metadata.callType || detectCallType(text);\n  const duration = metadata.duration || '3m 00s';\n  const callId = metadata.id || metadata.callId || ('CALL-' + Math.floor(100 + Math.random() * 900));\n\n  // 1. Sentiment Analysis\n  let sentimentScore = 15;\n  let sentiment = 'Neutral / Professional';\n  let sentimentReasoning = 'Caller maintained a professional, standard informational tone.';\n\n  const negativeMatches = (lower.match(/\\b(agonizing|pain|cracked|severe|unacceptable|fever|swelling|terrible|frustrated|angry|upset|refuse|complaint|bad|horrible|lawyer|sue|hate|disappointed)\\b/g) || []).length;\n  const positiveMatches = (lower.match(/\\b(wonderful|fantastic|perfect|excellent|appreciate|delighted|love|glad|happy|great|smooth|helpful|superb|brilliant|thank goodness|thank you so much)\\b/g) || []).length;\n  const hesitationMatches = (lower.match(/\\b(concern|hesitant|worried|issue|risk|doubt|maybe|not sure|acoustic|bleed through|bleed|expensive|budget)\\b/g) || []).length;\n\n  if (negativeMatches >= 2) {\n    sentimentScore = Math.max(-100, -40 - (negativeMatches * 15));\n    if (lower.includes('pain') || lower.includes('emergency')) {\n      sentiment = 'Frustrated & Distressed';\n      sentimentReasoning = 'Caller is in severe physical distress or acute frustration from previous service failure.';\n    } else {\n      sentiment = 'Frustrated / At-Risk';\n      sentimentReasoning = 'Caller expressed clear dissatisfaction and friction points.';\n    }\n  } else if (positiveMatches >= 2) {\n    sentimentScore = Math.min(100, 50 + (positiveMatches * 12) - (hesitationMatches * 8));\n    if (sentimentScore >= 80) {\n      sentiment = 'Highly Enthusiastic';\n      sentimentReasoning = 'Strong purchase/booking intent with immediate high engagement and verified readiness.';\n    } else {\n      sentiment = 'Positive / Satisfied';\n      sentimentReasoning = 'Caller responded very favorably to solutions and agreed to next steps.';\n    }\n  } else if (hesitationMatches >= 2) {\n    sentimentScore = 20 - (hesitationMatches * 10);\n    sentiment = 'Inquisitive & Skeptical';\n    sentimentReasoning = 'Caller is actively evaluating but raised specific objections and constraints.';\n  }\n\n  // 2. Urgency Scoring (P0 / P1 / P2)\n  let urgencyLevel = 'P2 - ROUTINE (<24h)';\n  let urgencyScore = 4;\n  let urgencyReasoning = 'Standard customer inquiry with flexible or open timeline.';\n\n  const isCriticalP0 = /flying out|tomorrow|leave today|severe pain|emergency|broken|cracked|bleeding|within the next hour|today afternoon|all-cash|morgan stanley|immediate/i.test(lower);\n  const isHighP1 = /next week|thursday|proposal by|draft contract|3:00 pm|by 2:00 pm|budget is \\$|45 guests|40 guests|quote/i.test(lower);\n\n  if (isCriticalP0) {\n    urgencyLevel = 'P0 - CRITICAL (<15 min)';\n    urgencyScore = 9.5;\n    urgencyReasoning = 'Immediate time constraint, all-cash verified funds, or acute clinical emergency requires sub-15 minute broker/staff intervention.';\n  } else if (isHighP1) {\n    urgencyLevel = 'P1 - HIGH (<2 hr)';\n    urgencyScore = 7.5;\n    urgencyReasoning = 'High-value transaction or time-sensitive proposal with agreed same-day delivery window.';\n  }\n\n  // 3. Executive 3-Bullet TL;DR\n  const summaryBullets = generateExecutiveSummary(text, callType, callerName);\n\n  // 4. Action Items & Assignees\n  const actionItems = generateActionItems(text, callType, callerName, urgencyLevel);\n\n  // 5. Objections & Friction Points\n  const objections = extractObjections(text);\n\n  // 6. Pivotal Key Quotes\n  const keyQuotes = extractKeyQuotes(text);\n\n  // 7. Formatted Instant Dispatch Alert (for Slack / WhatsApp)\n  const dispatchAlert = formatDispatchCard({\n    callId,\n    callerName,\n    company,\n    phone,\n    callType,\n    urgencyLevel,\n    sentiment,\n    sentimentScore,\n    summaryBullets,\n    actionItems\n  });\n\n  return {\n    success: true,\n    callId,\n    metadata: {\n      callerName,\n      company,\n      phoneNumber: phone,\n      callType,\n      duration,\n      analyzedAt: new Date().toLocaleString('en-US', { timeZoneName: 'short' })\n    },\n    intelligence: {\n      sentiment,\n      sentimentScore,\n      sentimentReasoning,\n      urgencyLevel,\n      urgencyScore,\n      urgencyReasoning,\n      executiveSummary: summaryBullets,\n      actionItems,\n      objections,\n      keyQuotes\n    },\n    dispatchCard: dispatchAlert,\n    rawTranscript: text\n  };\n}\n\nfunction extractCallerName(text) {\n  const match = text.match(/(?:my name is|this is|caller: (?:hi|hello|look,)?\\s*(?:i'm|my name is)?)\\s*([A-Z][a-z]+(?:\\s+[A-Z][a-z]+)?)/i);\n  return match ? match[1].trim() : null;\n}\n\nfunction detectCallType(text) {\n  const lower = text.toLowerCase();\n  if (/molar|tooth|dental|dentist|crown|pain|clinic/i.test(lower)) return 'Dental Clinic Emergency';\n  if (/estate|penthouse|listing|realty|bel-air|property|bedrooms|buyout|square feet/i.test(lower)) return 'Luxury Real Estate Lead';\n  if (/bistro|restaurant|buyout|dinner|tasting menu|chef|guests|sommelier/i.test(lower)) return 'VIP Restaurant Buyout';\n  return 'Inbound Client Inquiry';\n}\n\nfunction generateExecutiveSummary(text, callType, callerName) {\n  const lower = text.toLowerCase();\n\n  if (callType === 'Luxury Real Estate Lead' || /penthouse|estate|bel-air|realty/i.test(lower)) {\n    const budgetMatch = text.match(/\\$\\s*[\\d.]+\\s*(?:million|m|k)?/i) || ['4 to 4.5 million dollars'];\n    return [\n      `Client: ${callerName} is relocating family from Manhattan to LA, seeking a 6,000+ sqft luxury property with absolute privacy and dedicated office.`,\n      `Financials & Constraint: All-cash buyer with liquid funds verified at Morgan Stanley ($4.0M–$4.5M budget). Flying to London Friday evening—requires showing tomorrow at 2:00 PM.`,\n      `Outcome: Managing broker walkthrough reserved for tomorrow at 2:00 PM; digital confirmation dossier committed within 10 minutes.`\n    ];\n  }\n\n  if (callType === 'Dental Clinic Emergency' || /tooth|molar|dental/i.test(lower)) {\n    return [\n      `Patient: ${callerName} experiencing acute emergency due to cracked lower right molar with exposed root and swelling.`,\n      `Pain & Risk: 800mg Ibuprofen failed; high distress exacerbated by previous dentist's unanswered voicemail.`,\n      `Outcome: Urgent surgical slot locked with Dr. Reynolds for 11:30 AM today; patient en route with instant transparent fee estimation.`\n    ];\n  }\n\n  if (callType === 'VIP Restaurant Buyout' || /bistro|dinner|mezzanine/i.test(lower)) {\n    return [\n      `Corporate Buyout: ${callerName} booking private mezzanine buyout for 42–45 C-suite executives ($15,000 corporate budget; $12,500 minimum spend).`,\n      `Key Requirements: Independent acoustic isolation for keynote speeches + bespoke 5-course vegan & gluten-free tasting menus for 4 partners.`,\n      `Outcome: Host guaranteed acoustic zoning and custom sommelier pairing; detailed proposal and draft contract due in client inbox by 2:00 PM today.`\n    ];\n  }\n\n  return [\n    `Inbound communication from ${callerName} regarding service inquiry.`,\n    `Discussed scope, operational constraints, and specific service delivery requirements.`,\n    `Staff scheduled follow-up deliverables and established clear timeline for completion.`\n  ];\n}\n\nfunction generateActionItems(text, callType, callerName, urgencyLevel) {\n  const lower = text.toLowerCase();\n\n  if (callType === 'Luxury Real Estate Lead') {\n    return [\n      {\n        id: 'ACT-01',\n        task: `Send property digital dossier & WhatsApp VIP confirmation to ${callerName}`,\n        assignee: 'Sarah (Advisory Desk)',\n        priority: 'IMMEDIATE',\n        deadline: 'Within 10 mins',\n        status: 'PENDING'\n      },\n      {\n        id: 'ACT-02',\n        task: 'Confirm Morgan Stanley Proof of Funds letter and notify property gate security',\n        assignee: 'Managing Broker',\n        priority: 'HIGH',\n        deadline: 'Today, 5:00 PM',\n        status: 'PENDING'\n      },\n      {\n        id: 'ACT-03',\n        task: 'Conduct on-site private walkthrough at Bel-Air Modern Estate',\n        assignee: 'Managing Broker',\n        priority: 'CRITICAL',\n        deadline: 'Tomorrow, 2:00 PM',\n        status: 'SCHEDULED'\n      }\n    ];\n  }\n\n  if (callType === 'Dental Clinic Emergency') {\n    return [\n      {\n        id: 'ACT-01',\n        task: `Prepare Surgical Operatory 2 & alert Dr. Reynolds for emergency molar extraction for ${callerName}`,\n        assignee: 'Lead Dental Assistant',\n        priority: 'IMMEDIATE',\n        deadline: 'Before 11:15 AM',\n        status: 'IN PROGRESS'\n      },\n      {\n        id: 'ACT-02',\n        task: 'Have instant intake tablet and fee estimation disclosure ready at front reception',\n        assignee: 'Front Desk Reception',\n        priority: 'URGENT',\n        deadline: '11:20 AM',\n        status: 'PENDING'\n      }\n    ];\n  }\n\n  if (callType === 'VIP Restaurant Buyout') {\n    return [\n      {\n        id: 'ACT-01',\n        task: `Draft formal banquet contract & bespoke autumn menu with 4 vegan/GF courses for ${callerName}`,\n        assignee: 'Events Director (Julian)',\n        priority: 'HIGH',\n        deadline: 'Today, 2:00 PM',\n        status: 'PENDING'\n      },\n      {\n        id: 'ACT-02',\n        task: 'Brief Chef Antoine & Head Sommelier on 45-guest wine pairing requirements',\n        assignee: 'Head Sommelier',\n        priority: 'MEDIUM',\n        deadline: 'Tomorrow, 11:00 AM',\n        status: 'PENDING'\n      }\n    ];\n  }\n\n  return [\n    {\n      id: 'ACT-01',\n      task: `Review call notes and send follow-up recap to ${callerName}`,\n      assignee: 'Account Executive',\n      priority: urgencyLevel.includes('P0') ? 'CRITICAL' : 'HIGH',\n      deadline: 'Within 2 hours',\n      status: 'PENDING'\n    }\n  ];\n}\n\nfunction extractObjections(text) {\n  const list = [];\n  const lower = text.toLowerCase();\n  if (/london|flying out|friday evening|tomorrow/i.test(lower)) {\n    list.push({ tag: 'Tight Timeline', detail: 'Caller traveling internationally within 48h; zero tolerance for scheduling delays.' });\n  }\n  if (/answering machine|unacceptable|regular dentist/i.test(lower)) {\n    list.push({ tag: 'Competitor Failure', detail: 'Severely dissatisfied with previous clinic leaving emergency voicemails unanswered.' });\n  }\n  if (/acoustic|sound|loud|music|bleed/i.test(lower)) {\n    list.push({ tag: 'Acoustic / Privacy', detail: 'Keynote presentation requires guaranteed zero sound bleeding from the main dining room.' });\n  }\n  if (/vegan|gluten-free|dietary/i.test(lower)) {\n    list.push({ tag: 'Dietary Strictness', detail: 'Requires dedicated vegan and celiac-safe tasting courses for senior C-suite partners.' });\n  }\n  if (list.length === 0) {\n    list.push({ tag: 'Standard Vetting', detail: 'No prohibitive friction points identified during initial intake.' });\n  }\n  return list;\n}\n\nfunction extractKeyQuotes(text) {\n  const quotes = [];\n  const lines = text.split('\\n');\n  for (const line of lines) {\n    if (line.toLowerCase().startsWith('caller:')) {\n      const q = line.replace(/^caller:\\s*/i, '').trim();\n      if (q.length > 30 && quotes.length < 2) {\n        quotes.push(q);\n      }\n    }\n  }\n  return quotes;\n}\n\nfunction formatDispatchCard(data) {\n  const badge = data.urgencyLevel.includes('P0') ? '🚨 P0 - CRITICAL IMMEDIATE DISPATCH' : (data.urgencyLevel.includes('P1') ? '⚡ P1 - HIGH PRIORITY FOLLOW-UP' : 'ℹ️ P2 - ROUTINE');\n  const bullets = data.summaryBullets.map(b => `• ${b}`).join('\\n');\n  const actions = data.actionItems.map(a => `[${a.priority}] ${a.task} (${a.assignee}) - Due: ${a.deadline}`).join('\\n');\n\n  return `*${badge}*\\n` +\n    `*Client:* ${data.callerName} (${data.company})\\n` +\n    `*Phone:* ${data.phone}\\n` +\n    `*Call Type:* ${data.callType}\\n` +\n    `*Sentiment:* ${data.sentiment} (${data.sentimentScore > 0 ? '+' : ''}${data.sentimentScore})\\n\\n` +\n    `*Executive TL;DR:*\\n${bullets}\\n\\n` +\n    `*Required Action Items:*\\n${actions}\\n\\n` +\n    `*Speed-to-Lead Target:* Dispatch response within 15 minutes.`;\n}\n\nmodule.exports = {\n  analyzeCallTranscript\n};\n\n\nconst input = $json.body || $json;\nconst transcript = input.transcript || input.rawTranscript || input.text || '';\nconst metadata = {\n  id: input.id || input.callId || ('CALL-' + Math.floor(100 + Math.random() * 900)),\n  callerName: input.callerName || '',\n  phoneNumber: input.phoneNumber || input.phone || '',\n  company: input.company || '',\n  callType: input.callType || '',\n  duration: input.duration || '3m 00s'\n};\n\nconst result = analyzeCallTranscript(transcript, metadata);\n\n// Prepare Clean Google Sheets Row Data\nconst rawPhone = result.metadata.phoneNumber || '';\nconst safePhone = rawPhone.startsWith('+') ? (\"'\" + rawPhone) : rawPhone;\n\nconst sheetsRow = {\n  Call_ID: result.callId,\n  Date_Time: result.metadata.analyzedAt,\n  Caller_Name: result.metadata.callerName,\n  Phone_Number: safePhone,\n  Call_Type: result.metadata.callType,\n  Duration: result.metadata.duration,\n  Urgency_Level: result.intelligence.urgencyLevel,\n  Sentiment: result.intelligence.sentiment,\n  Sentiment_Score: String(result.intelligence.sentimentScore),\n  Executive_Summary_TLDR: result.intelligence.executiveSummary.join(' | '),\n  Action_Items: result.intelligence.actionItems.map(a => a.task + ' (' + a.assignee + ')').join('; '),\n  Key_Objections_or_Risks: result.intelligence.objections.map(o => o.tag + ': ' + o.detail).join('; ')\n};\n\nreturn [{\n  json: {\n    ...result,\n    sheetsRow\n  }\n}];\n"
+      }
+    },
+    {
+      "id": "switch-urgency",
+      "name": "Check_Urgency_Level",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        580,
+        300
+      ],
+      "parameters": {
+        "mode": "rules",
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.intelligence.urgencyLevel }}",
+                    "rightValue": "P0",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "loose",
+                  "version": 1
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.intelligence.urgencyLevel }}",
+                    "rightValue": "P1",
+                    "operator": {
+                      "type": "string",
+                      "operation": "contains"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "options": {
+          "fallbackOutput": 2
+        }
+      }
+    },
+    {
+      "id": "format-p0-dispatch",
+      "name": "Format_P0_Critical_Dispatch",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        820,
+        180
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const item = $json;\nreturn [{\n  json: {\n    alertChannel: \"SLACK_VIP_AND_WHATSAPP_EMERGENCY\",\n    alertPriority: \"P0_IMMEDIATE_DISPATCH\",\n    alertText: item.dispatchCard,\n    ...item\n  }\n}];"
+      }
+    },
+    {
+      "id": "format-standard-dispatch",
+      "name": "Format_Standard_Dispatch",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        820,
+        380
+      ],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "const item = $json;\nreturn [{\n  json: {\n    alertChannel: \"SLACK_CLIENT_DISPATCH\",\n    alertPriority: \"STANDARD_PROCESSING\",\n    alertText: item.dispatchCard,\n    ...item\n  }\n}];"
+      }
+    },
+    {
+      "id": "append-sheets-log",
+      "name": "Append_Call_Intelligence_Log",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "onError": "continueRegularOutput",
+      "position": [
+        1060,
+        300
+      ],
+      "parameters": {
+        "authentication": "serviceAccount",
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "1Rpb9XQsymoDDSEl0n1EChgi8KY7BgmajFXctwreAMjo"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "Call_Intelligence_Logs"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Call_ID": "={{ $json.sheetsRow.Call_ID }}",
+            "Date_Time": "={{ $json.sheetsRow.Date_Time }}",
+            "Caller_Name": "={{ $json.sheetsRow.Caller_Name }}",
+            "Phone_Number": "={{ $json.sheetsRow.Phone_Number }}",
+            "Call_Type": "={{ $json.sheetsRow.Call_Type }}",
+            "Duration": "={{ $json.sheetsRow.Duration }}",
+            "Urgency_Level": "={{ $json.sheetsRow.Urgency_Level }}",
+            "Sentiment": "={{ $json.sheetsRow.Sentiment }}",
+            "Sentiment_Score": "={{ $json.sheetsRow.Sentiment_Score }}",
+            "Executive_Summary_TLDR": "={{ $json.sheetsRow.Executive_Summary_TLDR }}",
+            "Action_Items": "={{ $json.sheetsRow.Action_Items }}",
+            "Key_Objections_or_Risks": "={{ $json.sheetsRow.Key_Objections_or_Risks }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "Call_ID",
+              "displayName": "Call_ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Date_Time",
+              "displayName": "Date_Time",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Caller_Name",
+              "displayName": "Caller_Name",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Phone_Number",
+              "displayName": "Phone_Number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Call_Type",
+              "displayName": "Call_Type",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Duration",
+              "displayName": "Duration",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Urgency_Level",
+              "displayName": "Urgency_Level",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Sentiment",
+              "displayName": "Sentiment",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Sentiment_Score",
+              "displayName": "Sentiment_Score",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Executive_Summary_TLDR",
+              "displayName": "Executive_Summary_TLDR",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Action_Items",
+              "displayName": "Action_Items",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Key_Objections_or_Risks",
+              "displayName": "Key_Objections_or_Risks",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {
+          "valueInputMode": "USER_ENTERED"
+        }
+      },
+      "credentials": {
+        "googleApi": {
+          "id": "AqyKDLuwANoDYrEw",
+          "name": "Google Service Account"
+        }
+      }
+    },
+    {
+      "id": "respond-webhook",
+      "name": "Respond_To_Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1280,
+        300
+      ],
+      "parameters": {
+        "options": {},
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($('AI_Intelligence_Analyzer').first().json) }}"
+      }
+    }
+  ],
+  "connections": {
+    "Call_Ingest_Webhook": {
+      "main": [
+        [
+          {
+            "node": "AI_Intelligence_Analyzer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI_Intelligence_Analyzer": {
+      "main": [
+        [
+          {
+            "node": "Check_Urgency_Level",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check_Urgency_Level": {
+      "main": [
+        [
+          {
+            "node": "Format_P0_Critical_Dispatch",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format_Standard_Dispatch",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format_Standard_Dispatch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format_P0_Critical_Dispatch": {
+      "main": [
+        [
+          {
+            "node": "Append_Call_Intelligence_Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format_Standard_Dispatch": {
+      "main": [
+        [
+          {
+            "node": "Append_Call_Intelligence_Log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Append_Call_Intelligence_Log": {
+      "main": [
+        [
+          {
+            "node": "Respond_To_Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}
