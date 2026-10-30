@@ -1,0 +1,21 @@
+{
+  "name": "day-07-post-call-intelligence",
+  "version": "1.0.0",
+  "description": "Day 07: Post-Call Intelligence Pipeline (Audio Summarizer + Sentiment Analysis + Speed-to-Lead Executive Dispatch)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": [
+    "voice-ai",
+    "call-intelligence",
+    "speech-analytics",
+    "sentiment-analysis",
+    "n8n",
+    "google-sheets",
+    "speed-to-lead"
+  ],
+  "author": "Muhammad Rehan",
+  "license": "MIT"
+}

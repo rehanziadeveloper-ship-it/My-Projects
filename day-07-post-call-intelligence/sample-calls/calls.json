@@ -1,0 +1,44 @@
+[
+  {
+    "id": "CALL-701",
+    "callerName": "Harrison Vance",
+    "phoneNumber": "+1 (310) 555-8910",
+    "company": "Vance Capital Group",
+    "callType": "Luxury Real Estate Lead",
+    "duration": "3m 42s",
+    "timestamp": "10/30/2026, 09:14 AM",
+    "audioUrl": "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3",
+    "rawTranscript": "Agent: Good morning, Apex Realty Private Advisory Desk. This is Sarah speaking.\nCaller: Hi Sarah, my name is Harrison Vance. I'm calling regarding the Bel-Air Modern Estate on Bellagio Road.\nAgent: Wonderful to speak with you, Mr. Vance. That is one of our premier trophy listings. What caught your eye?\nCaller: Well, I'm relocating my family from Manhattan to LA next month. We need at least 6,000 square feet, absolute privacy, and a dedicated home office. I reviewed the digital dossier and it matches our criteria closely.\nAgent: Excellent. And regarding budget and financing, are you planning a jumbo mortgage or an all-cash acquisition?\nCaller: This will be an all-cash purchase. Our funds are already liquid with Morgan Stanley Private Wealth. Budget is between 4 and 4.5 million dollars. I can provide the verification letter immediately.\nAgent: That's fantastic, Mr. Vance. That puts you in an elite position for negotiation.\nCaller: Great. The only issue is my timeline: I'm flying out to London on Friday evening, so I need to inspect the property in person tomorrow afternoon—say around 2:00 PM. Can your managing broker arrange a private walkthrough?\nAgent: Absolutely. I am reserving tomorrow at 2:00 PM for you with our managing broker right now. I will send confirmation via WhatsApp and email within 10 minutes.\nCaller: Perfect. Appreciate the swift response, Sarah. Have a good day.",
+    "expectedSentiment": "Enthusiastic",
+    "expectedScore": 88,
+    "expectedUrgency": "P0 - CRITICAL (<15 min)"
+  },
+  {
+    "id": "CALL-702",
+    "callerName": "Marcus Brody",
+    "phoneNumber": "+1 (212) 555-4321",
+    "company": "Private Patient",
+    "callType": "Dental Clinic Emergency",
+    "duration": "2m 18s",
+    "timestamp": "10/30/2026, 10:02 AM",
+    "audioUrl": "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3",
+    "rawTranscript": "Receptionist: Apex Dental Urgent Care, how can we assist you today?\nCaller: Look, I'm in agonizing pain. My lower right molar cracked while having breakfast, and the root is exposed.\nReceptionist: I am so sorry to hear that, sir. Let me help you right away. May I have your name?\nCaller: Marcus Brody. I tried calling my regular dentist down on 5th Avenue and got an answering machine telling me to call back on Monday! That is completely unacceptable when someone is in severe pain.\nReceptionist: We understand completely, Mr. Brody. We specialize in immediate same-day emergency relief. Are you experiencing any swelling or fever?\nCaller: Yes, swelling on my lower jaw, and 800 milligrams of ibuprofen didn't touch the pain. I need a dentist to see me this morning. Can you get me in within the next hour or two?\nReceptionist: Yes, Mr. Brody. Dr. Reynolds has an emergency surgical slot open at 11:30 AM today. Can you make it to our Midtown clinic by then?\nCaller: 11:30? Yes! Thank goodness. What do I need to bring?\nReceptionist: Just your photo ID and dental insurance card if you have one. If not, we provide immediate transparent fee estimations on arrival. I am locking in Dr. Reynolds for you right now.\nCaller: Thank you so much. I'm leaving my apartment now.",
+    "expectedSentiment": "Frustrated & Distressed",
+    "expectedScore": -72,
+    "expectedUrgency": "P0 - CRITICAL (<15 min)"
+  },
+  {
+    "id": "CALL-703",
+    "callerName": "Elena Rostova",
+    "phoneNumber": "+1 (415) 555-7799",
+    "company": "Summit Global Partners",
+    "callType": "VIP Restaurant Buyout",
+    "duration": "4m 05s",
+    "timestamp": "10/30/2026, 11:45 AM",
+    "audioUrl": "https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3",
+    "rawTranscript": "Host: Heritage Bistro Private Events, this is Julian.\nCaller: Hello Julian, this is Elena Rostova from Summit Global Partners. I'm organizing our annual executive partner dinner next Thursday evening.\nHost: A pleasure, Ms. Rostova. We'd love to host Summit Global Partners. How many guests are you expecting?\nCaller: We will have approximately 42 to 45 C-suite executives. We are interested in either a full mezzanine buyout or the private wine cellar dining room.\nHost: The mezzanine buyout is ideal for 45 guests—it gives you private bar service, dedicated servers, and panoramic views of the main dining room.\nCaller: Sounds lovely, but I do have two specific concerns. First, acoustics: we will have two brief keynote presentations, so we cannot have loud background music bleed through. Second, dietary requirements: four of our managing partners require strict vegan and gluten-free tasting menus.\nHost: Understood. Our mezzanine is acoustically treated with independent sound zoning, so we can isolate audio completely during speeches. And Chef Antoine prepares bespoke 5-course dietary menus for private galas.\nCaller: That's reassuring. What is the approximate minimum spend for Thursday evening?\nHost: For the mezzanine buyout, our food and beverage minimum is $12,500, which includes custom printed menus and dedicated sommelier service.\nCaller: That fits comfortably within our $15,000 corporate entertainment budget. Could you send me the sample autumn menu and a draft contract by 3:00 PM today?\nHost: I will prepare the complete proposal and have it in your inbox by 2:00 PM, Ms. Rostova.\nCaller: Excellent, Julian. Looking forward to reviewing it.",
+    "expectedSentiment": "Inquisitive & Professional",
+    "expectedScore": 65,
+    "expectedUrgency": "P1 - HIGH (<2 hr)"
+  }
+]
