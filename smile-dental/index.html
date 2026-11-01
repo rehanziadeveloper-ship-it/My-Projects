@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Smile Dental Clinic | Painless Dentistry & Smile Makeovers</title>
+    <meta name="description" content="Smile Dental Clinic in Islamabad, Pakistan. Expert dental checkups, painless root canals, teeth whitening, and personalized smile care by Dr. Zeeshan Ahmad." />
+    
+    <!-- Google Fonts: Outfit (Sans) + Cormorant Garamond (Serif Italic) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@1,400;1,600;1,700&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Dentist JSON-LD Structured Data for Local SEO -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Dentist",
+      "name": "Smile Dental Clinic",
+      "image": "https://smiledental.pk/images/clinic.jpg",
+      "telephone": "+923001234567",
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "Plot 14-B, Sector F-7 Markaz",
+        "addressLocality": "Islamabad",
+        "addressRegion": "Islamabad Capital Territory",
+        "postalCode": "44000",
+        "addressCountry": "PK"
+      },
+      "geo": {
+        "@type": "GeoCoordinates",
+        "latitude": 33.7215,
+        "longitude": 73.0553
+      },
+      "openingHoursSpecification": [
+        {
+          "@type": "OpeningHoursSpecification",
+          "dayOfWeek": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+          "opens": "10:00",
+          "closes": "20:00"
+        }
+      ],
+      "priceRange": "PKR"
+    }
+    </script>
+  </head>
+  <body class="bg-clinic-bg text-clinic-text antialiased selection:bg-clinic-lightGreen selection:text-clinic-dark">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
