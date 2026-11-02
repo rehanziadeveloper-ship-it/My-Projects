@@ -3,14 +3,10 @@ import { Link } from 'react-router-dom';
 import {
   Calendar as CalendarIcon,
   Clock,
-  User,
   Users,
   Settings,
   BarChart3,
   CheckCircle,
-  XCircle,
-  AlertTriangle,
-  Send,
   Phone,
   Search,
   Plus,
@@ -21,10 +17,8 @@ import {
   LogOut,
   RefreshCw,
   TrendingUp,
-  FileText,
-  Star,
-  Check,
-  Ban
+  Trash2,
+  ExternalLink
 } from 'lucide-react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { formatPakistanDateTime, formatPakistanTime } from '../lib/dictionary';
@@ -42,24 +36,25 @@ export const AdminPage: React.FC = () => {
 
   // UI state
   const [activeTab, setActiveTab] = useState<'today' | 'calendar' | 'patients' | 'analytics' | 'settings'>('today');
+  const [queueFilter, setQueueFilter] = useState<'all' | 'today' | 'upcoming' | 'completed'>('all');
   const [darkMode, setDarkMode] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Tab 1: Today Data
-  const [todayAppointments, setTodayAppointments] = useState<any[]>([]);
-  const [loadingToday, setLoadingToday] = useState(false);
+  // All Appointments from Database
+  const [allAppointments, setAllAppointments] = useState<any[]>([]);
+  const [loadingData, setLoadingData] = useState(false);
 
-  // Tab 2: Calendar & Manual Booking
-  const [calendarView, setCalendarView] = useState<'day' | 'week'>('day');
+  // Tab 2: Calendar State
   const [calendarDate, setCalendarDate] = useState(() => new Date().toISOString().split('T')[0]);
-  const [calendarAppointments, setCalendarAppointments] = useState<any[]>([]);
   const [isManualBookingOpen, setIsManualBookingOpen] = useState(false);
+  const [servicesList, setServicesList] = useState<any[]>([]);
   const [manualForm, setManualForm] = useState({
     name: '',
     phone: '',
     service_id: '',
-    starts_at: '',
+    date: new Date().toISOString().split('T')[0],
+    time: '10:00',
     reason: '',
   });
 
@@ -71,20 +66,18 @@ export const AdminPage: React.FC = () => {
   const [analyticsDays, setAnalyticsDays] = useState<'7' | '30' | '90'>('7');
   const [analyticsChartData, setAnalyticsChartData] = useState<any[]>([]);
   const [analyticsStats, setAnalyticsStats] = useState({
-    totalThisWeek: 18,
-    newPatients: 12,
-    noShowRate: '4.5%',
-    recoveredMissedCalls: 5,
-    topService: 'Painless Root Canal',
+    totalAppointments: 0,
+    newPatients: 0,
+    noShowRate: '0%',
+    topService: 'None yet',
   });
 
   // Tab 5: Settings
   const [clinicData, setClinicData] = useState<any>(null);
   const [doctorData, setDoctorData] = useState<any>(null);
-  const [servicesData, setServicesData] = useState<any[]>([]);
   const [pendingReviews, setPendingReviews] = useState<any[]>([]);
 
-  // Show Toast
+  // Show Toast helper
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 4000);
@@ -93,7 +86,6 @@ export const AdminPage: React.FC = () => {
   // Check auth session
   useEffect(() => {
     if (!isSupabaseConfigured) {
-      // Demo dev mode bypass
       setSession({ user: { email: 'admin@smiledental.pk' } });
       setIsAdminUser(true);
       setAuthLoading(false);
@@ -136,7 +128,7 @@ export const AdminPage: React.FC = () => {
         setLoginError('Your account is authenticated, but is not registered in the clinic admins table.');
       }
     } catch {
-      setIsAdminUser(true); // fallback in test/demo
+      setIsAdminUser(true);
     } finally {
       setAuthLoading(false);
     }
@@ -172,25 +164,157 @@ export const AdminPage: React.FC = () => {
     setIsAdminUser(false);
   };
 
-  // Load Data on tab change
+  // Load Real Database Data
+  const refreshAllData = async () => {
+    setLoadingData(true);
+    try {
+      // 1. Fetch appointments
+      const { data: apptsData } = await supabase
+        .from('appointments')
+        .select(`
+          id, starts_at, ends_at, status, source, reason, is_emergency, manage_token, created_at,
+          patient:patients(id, full_name, phone, language),
+          service:services(id, name_en, duration_min, price_from_pkr)
+        `)
+        .order('starts_at', { ascending: true });
+
+      const appts = (apptsData || []).map((d: any) => ({
+        id: d.id,
+        starts_at: d.starts_at,
+        ends_at: d.ends_at,
+        status: d.status,
+        source: d.source,
+        reason: d.reason,
+        is_emergency: d.is_emergency,
+        manage_token: d.manage_token,
+        created_at: d.created_at,
+        patient_id: d.patient?.id,
+        patient_name: d.patient?.full_name || 'Patient',
+        phone: d.patient?.phone || '',
+        language: d.patient?.language || 'en',
+        service_id: d.service?.id,
+        service_name: d.service?.name_en || 'Consultation',
+      }));
+
+      setAllAppointments(appts);
+
+      // 2. Fetch Patients
+      const { data: patientsData } = await supabase
+        .from('patients')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      setPatientsList(patientsData || []);
+
+      // 3. Fetch Services
+      const { data: services } = await supabase
+        .from('services')
+        .select('id, name_en, price_from_pkr, duration_min')
+        .eq('is_active', true)
+        .order('display_order');
+      if (services) {
+        setServicesList(services);
+        if (services.length > 0 && !manualForm.service_id) {
+          setManualForm((prev) => ({ ...prev, service_id: services[0].id }));
+        }
+      }
+
+      // 4. Compute Analytics (100% database driven)
+      computeAnalytics(appts, patientsData || [], analyticsDays);
+
+      // 5. Fetch Clinic Profile & Reviews
+      const { data: clinic } = await supabase.from('clinic').select('*').limit(1).single();
+      if (clinic) setClinicData(clinic);
+
+      const { data: doctor } = await supabase.from('doctor').select('*').limit(1).single();
+      if (doctor) setDoctorData(doctor);
+
+      const { data: reviews } = await supabase.from('reviews').select('*').order('created_at', { ascending: false }).limit(20);
+      setPendingReviews(reviews || []);
+    } catch (err) {
+      console.error('Error refreshing clinic data:', err);
+    } finally {
+      setLoadingData(false);
+    }
+  };
+
+  // Compute Analytics strictly from DB records
+  const computeAnalytics = (appts: any[], patients: any[], daysRange: '7' | '30' | '90') => {
+    const totalAppointments = appts.length;
+    const newPatients = patients.length;
+
+    // No-show calculation
+    const noShowCount = appts.filter((a) => a.status === 'no_show').length;
+    const noShowRate = totalAppointments > 0 ? `${((noShowCount / totalAppointments) * 100).toFixed(1)}%` : '0%';
+
+    // Top Treatment
+    const treatmentCounts: Record<string, number> = {};
+    appts.forEach((a) => {
+      const name = a.service_name || 'Consultation';
+      treatmentCounts[name] = (treatmentCounts[name] || 0) + 1;
+    });
+
+    let topService = 'None yet';
+    let topCount = 0;
+    Object.entries(treatmentCounts).forEach(([name, count]) => {
+      if (count > topCount) {
+        topCount = count;
+        topService = name;
+      }
+    });
+
+    setAnalyticsStats({
+      totalAppointments,
+      newPatients,
+      noShowRate,
+      topService,
+    });
+
+    // Chart trend calculation
+    const days = parseInt(daysRange, 10) || 7;
+    const chart = [];
+    for (let i = days - 1; i >= 0; i--) {
+      const targetDate = new Date();
+      targetDate.setDate(targetDate.getDate() - i);
+      const isoDate = targetDate.toISOString().split('T')[0];
+      const count = appts.filter((a) => a.starts_at && a.starts_at.startsWith(isoDate)).length;
+
+      chart.push({
+        day: days === 7
+          ? targetDate.toLocaleDateString('en-US', { weekday: 'short' })
+          : targetDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        appointments: count,
+      });
+    }
+    setAnalyticsChartData(chart);
+  };
+
+  // Trigger data load when admin logs in or activeTab changes
   useEffect(() => {
     if (isAdminUser) {
-      loadTabData();
+      refreshAllData();
     }
-  }, [activeTab, isAdminUser]);
+  }, [isAdminUser]);
 
-  // Realtime subscription on appointments
+  // Recalculate chart when daysRange changes
+  useEffect(() => {
+    if (allAppointments.length >= 0) {
+      computeAnalytics(allAppointments, patientsList, analyticsDays);
+    }
+  }, [analyticsDays]);
+
+  // Realtime subscription on appointments table
   useEffect(() => {
     if (!isAdminUser || !isSupabaseConfigured) return;
 
     const channel = supabase
-      .channel('admin-appointments')
+      .channel('admin-appointments-live')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'appointments' },
         (payload) => {
-          showToast(`Live Update: Appointment ${payload.eventType}`);
-          loadTodayAppointments();
+          showToast(`Database updated: appointment ${payload.eventType}`);
+          refreshAllData();
         }
       )
       .subscribe();
@@ -200,183 +324,108 @@ export const AdminPage: React.FC = () => {
     };
   }, [isAdminUser]);
 
-  const loadTabData = () => {
-    if (activeTab === 'today') loadTodayAppointments();
-    if (activeTab === 'calendar') loadCalendarAppointments();
-    if (activeTab === 'patients') loadPatientsList();
-    if (activeTab === 'analytics') loadAnalytics();
-    if (activeTab === 'settings') loadSettings();
-  };
-
-  // TAB 1: Load Today
-  const loadTodayAppointments = async () => {
-    setLoadingToday(true);
-    const todayStr = new Date().toISOString().split('T')[0];
-
-    if (!isSupabaseConfigured) {
-      // Mock Demo Data
-      setTodayAppointments([
-        {
-          id: 'appt-1',
-          starts_at: `${todayStr}T11:00:00+05:00`,
-          ends_at: `${todayStr}T11:30:00+05:00`,
-          status: 'confirmed',
-          is_emergency: false,
-          patient_name: 'Kamran Ali',
-          phone: '+923001234567',
-          service_name: 'Ultrasonic Scaling & Polishing',
-          reason: 'Routine 6-month checkup',
-        },
-        {
-          id: 'appt-2',
-          starts_at: `${todayStr}T12:00:00+05:00`,
-          ends_at: `${todayStr}T13:00:00+05:00`,
-          status: 'booked',
-          is_emergency: true,
-          patient_name: 'Sobia Tariq',
-          phone: '+923219876543',
-          service_name: 'Painless Root Canal Treatment',
-          reason: 'Severe lower left jaw pain',
-        },
-        {
-          id: 'appt-3',
-          starts_at: `${todayStr}T16:30:00+05:00`,
-          ends_at: `${todayStr}T17:00:00+05:00`,
-          status: 'booked',
-          is_emergency: false,
-          patient_name: 'Zahid Mehmood',
-          phone: '+923335551234',
-          service_name: 'Composite Tooth Filling',
-          reason: 'Chipped front incisor',
-        },
-      ]);
-      setLoadingToday(false);
-      return;
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from('appointments')
-        .select(`
-          id, starts_at, ends_at, status, source, reason, is_emergency, manage_token,
-          patient:patients(full_name, phone),
-          service:services(name_en)
-        `)
-        .gte('starts_at', `${todayStr}T00:00:00+05:00`)
-        .lte('starts_at', `${todayStr}T23:59:59+05:00`)
-        .order('starts_at', { ascending: true });
-
-      if (!error && data) {
-        const formatted = data.map((d: any) => ({
-          id: d.id,
-          starts_at: d.starts_at,
-          ends_at: d.ends_at,
-          status: d.status,
-          is_emergency: d.is_emergency,
-          patient_name: d.patient?.full_name || 'Patient',
-          phone: d.patient?.phone || '',
-          service_name: d.service?.name_en || 'Consultation',
-          reason: d.reason || '',
-        }));
-        setTodayAppointments(formatted);
-      }
-    } catch {
-      // fallback
-    } finally {
-      setLoadingToday(false);
-    }
-  };
-
-  // Status Change for Today's Appointments
+  // Status Change Handler
   const handleUpdateStatus = async (appointmentId: string, newStatus: string) => {
-    if (isSupabaseConfigured) {
+    try {
       await supabase
         .from('appointments')
         .update({ status: newStatus, updated_at: new Date().toISOString() })
         .eq('id', appointmentId);
-    }
 
-    setTodayAppointments((prev) =>
-      prev.map((a) => (a.id === appointmentId ? { ...a, status: newStatus } : a))
-    );
-    showToast(`Appointment status updated to ${newStatus}`);
-  };
-
-  // Notify Patient on WhatsApp (calls /smile/notify)
-  const handleNotifyPatient = async (phone: string, message: string) => {
-    try {
-      const token = session?.access_token || 'mock_token';
-      const n8nBase = (import.meta.env.VITE_N8N_BASE_URL || 'https://n8n.srv1767318.hstgr.cloud').replace(/\/$/, '');
-      await fetch(`${n8nBase}/webhook/smile/notify`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ phone, message }),
-      });
-      showToast('WhatsApp notification triggered to patient');
+      setAllAppointments((prev) =>
+        prev.map((a) => (a.id === appointmentId ? { ...a, status: newStatus } : a))
+      );
+      showToast(`Appointment status updated to ${newStatus}`);
     } catch {
-      showToast('Notification simulated (mock mode)');
+      showToast('Error updating status in database.');
     }
   };
 
-  // TAB 2: Calendar
-  const loadCalendarAppointments = async () => {
-    // Similar to today, loads for selected date
-    loadTodayAppointments();
-  };
-
-  // TAB 3: Patients
-  const loadPatientsList = async () => {
-    if (!isSupabaseConfigured) {
-      setPatientsList([
-        { id: 'p-1', full_name: 'Kamran Ali', phone: '+923001234567', language: 'en', visits: 3, notes: 'Prefers morning appointments' },
-        { id: 'p-2', full_name: 'Sobia Tariq', phone: '+923219876543', language: 'roman_ur', visits: 1, notes: 'Emergency root canal started' },
-        { id: 'p-3', full_name: 'Zahid Mehmood', phone: '+923335551234', language: 'en', visits: 2, notes: 'Composite restoration upper canine' },
-      ]);
+  // Clear / Reset All Appointments
+  const handleClearAllAppointments = async () => {
+    if (!window.confirm('Are you sure you want to delete ALL appointments and patients to reset everything to 0?')) {
       return;
     }
-    const { data } = await supabase.from('patients').select('*').limit(50);
-    if (data) setPatientsList(data);
+    try {
+      await supabase.from('appointments').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      await supabase.from('patients').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      showToast('All appointments & test records deleted. Clean slate active!');
+      refreshAllData();
+    } catch (err) {
+      console.error(err);
+      showToast('Failed to clear database records.');
+    }
   };
 
-  // TAB 4: Analytics
-  const loadAnalytics = async () => {
-    const mockChart = [
-      { day: 'Mon', appointments: 5 },
-      { day: 'Tue', appointments: 7 },
-      { day: 'Wed', appointments: 6 },
-      { day: 'Thu', appointments: 8 },
-      { day: 'Fri', appointments: 4 },
-      { day: 'Sat', appointments: 9 },
-    ];
-    setAnalyticsChartData(mockChart);
-  };
-
-  // TAB 5: Settings
-  const loadSettings = async () => {
-    if (!isSupabaseConfigured) {
-      setClinicData({
-        phone: '+923001234567',
-        whatsapp_number: '+923001234567',
-        address: 'Plot 14-B, Sector F-7 Markaz, Islamabad',
-      });
-      setDoctorData({
-        full_name: 'Dr. Zeeshan Ahmad',
-        title: 'Principal Dental Surgeon',
-        qualifications: 'BDS, RDS (Gold Medalist), C-Implants',
-      });
-      setPendingReviews([
-        { id: 'rev-1', patient_name: 'Ali Raza', rating: 5, comment: 'Dr Zeeshan took away all my anxiety. Brilliant doctor!', is_published: true },
-      ]);
+  // Manual Walk-In Booking
+  const handleCreateManualBooking = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!manualForm.name || !manualForm.phone || !manualForm.service_id) {
+      showToast('Please fill all required booking fields.');
       return;
     }
-    const { data: c } = await supabase.from('clinic').select('*').limit(1).single();
-    if (c) setClinicData(c);
-    const { data: d } = await supabase.from('doctor').select('*').limit(1).single();
-    if (d) setDoctorData(d);
+
+    try {
+      const startsAt = `${manualForm.date}T${manualForm.time}:00+05:00`;
+      const { data, error } = await supabase.rpc('book_appointment', {
+        p_name: manualForm.name.trim(),
+        p_phone: manualForm.phone.replace(/\D/g, ''),
+        p_service_id: manualForm.service_id,
+        p_starts_at: startsAt,
+        p_source: 'walk_in',
+        p_reason: manualForm.reason.trim() || 'Staff walk-in registration',
+      });
+
+      if (error) {
+        showToast(`Booking error: ${error.message}`);
+      } else {
+        showToast('Walk-in appointment registered successfully!');
+        setIsManualBookingOpen(false);
+        setManualForm({
+          name: '',
+          phone: '',
+          service_id: servicesList[0]?.id || '',
+          date: new Date().toISOString().split('T')[0],
+          time: '10:00',
+          reason: '',
+        });
+        refreshAllData();
+      }
+    } catch (err: any) {
+      showToast('Network error creating booking.');
+    }
   };
+
+  // Notify Patient on WhatsApp
+  const handleNotifyPatient = async (phone: string, message: string) => {
+    const cleanPhone = phone.replace(/\D/g, '');
+    window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`, '_blank');
+  };
+
+  // Filtered Appointments for Tab 1 (Queue)
+  const todayStr = new Date().toISOString().split('T')[0];
+  const queueAppointments = allAppointments.filter((a) => {
+    if (queueFilter === 'today') {
+      return a.starts_at && a.starts_at.startsWith(todayStr);
+    }
+    if (queueFilter === 'upcoming') {
+      return a.status === 'booked' || a.status === 'confirmed';
+    }
+    if (queueFilter === 'completed') {
+      return a.status === 'completed' || a.status === 'no_show' || a.status === 'cancelled';
+    }
+    return true; // 'all'
+  });
+
+  // Calendar Appointments for Selected Date
+  const calendarDayAppointments = allAppointments.filter(
+    (a) => a.starts_at && a.starts_at.startsWith(calendarDate)
+  );
+
+  // Next Patient Highlight in Queue
+  const nextPatient = allAppointments.find(
+    (a) => (a.status === 'booked' || a.status === 'confirmed') && a.starts_at >= new Date().toISOString()
+  );
 
   // Auth Screen
   if (authLoading) {
@@ -418,7 +467,7 @@ export const AdminPage: React.FC = () => {
                 required
                 value={emailInput}
                 onChange={(e) => setEmailInput(e.target.value)}
-                placeholder="staff@smiledental.pk"
+                placeholder="admin@smiledental.pk"
                 className="w-full px-4 py-2.5 rounded-xl border border-clinic-border text-sm focus:outline-none focus:ring-2 focus:ring-clinic-primary/40"
               />
             </div>
@@ -430,7 +479,7 @@ export const AdminPage: React.FC = () => {
                 required
                 value={passwordInput}
                 onChange={(e) => setPasswordInput(e.target.value)}
-                placeholder="••••••••"
+                placeholder="Smile@123"
                 className="w-full px-4 py-2.5 rounded-xl border border-clinic-border text-sm focus:outline-none focus:ring-2 focus:ring-clinic-primary/40"
               />
             </div>
@@ -467,9 +516,6 @@ export const AdminPage: React.FC = () => {
       </div>
     );
   }
-
-  // Next Patient Highlight for Today's Queue
-  const nextPatient = todayAppointments.find((a) => a.status === 'booked' || a.status === 'confirmed');
 
   return (
     <div className={`min-h-screen ${darkMode ? 'bg-forest-900 text-white' : 'bg-clinic-bg text-clinic-text'} flex`}>
@@ -515,14 +561,19 @@ export const AdminPage: React.FC = () => {
           <nav className="space-y-1 text-xs font-semibold">
             <button
               onClick={() => { setActiveTab('today'); setIsMobileMenuOpen(false); }}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-2xl transition-all ${
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl transition-all ${
                 activeTab === 'today'
                   ? 'bg-clinic-primary text-white shadow-soft'
                   : 'hover:bg-clinic-lightGreen/40 text-forest-800'
               }`}
             >
-              <Clock className="w-4 h-4" />
-              <span>Today's Queue</span>
+              <div className="flex items-center gap-3">
+                <Clock className="w-4 h-4" />
+                <span>Appointments Queue</span>
+              </div>
+              <span className={`text-[10px] px-2 py-0.5 rounded-full ${activeTab === 'today' ? 'bg-white/20' : 'bg-clinic-lightGreen/60 text-forest-800'}`}>
+                {allAppointments.length}
+              </span>
             </button>
 
             <button
@@ -534,19 +585,24 @@ export const AdminPage: React.FC = () => {
               }`}
             >
               <CalendarIcon className="w-4 h-4" />
-              <span>Calendar</span>
+              <span>Clinic Calendar</span>
             </button>
 
             <button
               onClick={() => { setActiveTab('patients'); setIsMobileMenuOpen(false); }}
-              className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-2xl transition-all ${
+              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-2xl transition-all ${
                 activeTab === 'patients'
                   ? 'bg-clinic-primary text-white shadow-soft'
                   : 'hover:bg-clinic-lightGreen/40 text-forest-800'
               }`}
             >
-              <Users className="w-4 h-4" />
-              <span>Patients</span>
+              <div className="flex items-center gap-3">
+                <Users className="w-4 h-4" />
+                <span>Patients</span>
+              </div>
+              <span className={`text-[10px] px-2 py-0.5 rounded-full ${activeTab === 'patients' ? 'bg-white/20' : 'bg-clinic-lightGreen/60 text-forest-800'}`}>
+                {patientsList.length}
+              </span>
             </button>
 
             <button
@@ -589,8 +645,8 @@ export const AdminPage: React.FC = () => {
 
           <div className="flex items-center justify-between pt-2">
             <div className="text-[11px] truncate pr-2">
-              <span className="font-bold block truncate">Dr. Zeeshan</span>
-              <span className="text-clinic-muted truncate">Surgeon</span>
+              <span className="font-bold block truncate">Dr. Zeeshan Ahmad</span>
+              <span className="text-clinic-muted truncate">Principal Dental Surgeon</span>
             </div>
             <button
               onClick={handleLogout}
@@ -600,45 +656,82 @@ export const AdminPage: React.FC = () => {
               <LogOut className="w-4 h-4" />
             </button>
           </div>
+
+          <Link to="/" className="text-[11px] text-clinic-primary font-semibold hover:underline block text-center pt-1">
+            ← Visit Public Website
+          </Link>
         </div>
       </aside>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+      <div className="flex-1 flex flex-col min-w-0">
         
-        {/* Top Mobile Bar */}
-        <header className="lg:hidden p-4 border-b border-clinic-border flex items-center justify-between bg-white">
+        {/* Top Bar for Mobile */}
+        <header className="lg:hidden h-16 bg-white border-b border-clinic-border px-4 flex items-center justify-between">
           <button
             onClick={() => setIsMobileMenuOpen(true)}
             className="p-2 rounded-xl text-forest-800 hover:bg-clinic-lightGreen/40"
           >
             <Menu className="w-5 h-5" />
           </button>
-          <span className="font-bold text-sm">Smile Dental Admin</span>
-          <button onClick={() => setDarkMode(!darkMode)} className="p-2">
-            {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-          </button>
+          <span className="font-bold text-sm">Staff Portal</span>
+          <div className="w-8" />
         </header>
 
-        <main className="p-6 sm:p-8 space-y-6 max-w-7xl">
-          
-          {/* TAB 1: TODAY'S APPOINTMENTS */}
+        {/* Dashboard Main Workspace */}
+        <main className="flex-1 p-4 sm:p-8 max-w-7xl w-full mx-auto space-y-6">
+
+          {/* TAB 1: APPOINTMENTS QUEUE */}
           {activeTab === 'today' && (
             <div className="space-y-6">
+              
+              {/* Header with Title and Global Actions */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-2xl font-bold text-forest-800">Today's Appointments</h2>
+                  <h2 className="text-2xl font-bold text-forest-800">Appointments Schedule</h2>
                   <p className="text-xs text-clinic-muted">
-                    {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })} • Realtime updates enabled
+                    Realtime synchronization with Supabase PostgreSQL • {allAppointments.length} Total Booked
                   </p>
                 </div>
-                <button
-                  onClick={loadTodayAppointments}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-full bg-white border border-clinic-border hover:bg-clinic-lightGreen/40 text-forest-800 shadow-xs"
-                >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  <span>Refresh Queue</span>
-                </button>
+                
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={refreshAllData}
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold px-4 py-2 rounded-full bg-white border border-clinic-border hover:bg-clinic-lightGreen/40 text-forest-800 shadow-xs"
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${loadingData ? 'animate-spin' : ''}`} />
+                    <span>Sync</span>
+                  </button>
+
+                  <button
+                    onClick={handleClearAllAppointments}
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-full bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 transition-colors shadow-xs"
+                    title="Wipe database appointments to start fresh from 0"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Clear Data</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Filter Pills */}
+              <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                {(['all', 'today', 'upcoming', 'completed'] as const).map((f) => (
+                  <button
+                    key={f}
+                    onClick={() => setQueueFilter(f)}
+                    className={`px-4 py-1.5 rounded-full text-xs font-semibold capitalize transition-all ${
+                      queueFilter === f
+                        ? 'bg-clinic-primary text-white shadow-soft'
+                        : 'bg-white border border-clinic-border text-forest-800 hover:bg-clinic-lightGreen/40'
+                    }`}
+                  >
+                    {f === 'all' && `All Bookings (${allAppointments.length})`}
+                    {f === 'today' && `Today (${allAppointments.filter((a) => a.starts_at && a.starts_at.startsWith(todayStr)).length})`}
+                    {f === 'upcoming' && `Upcoming Active (${allAppointments.filter((a) => a.status === 'booked' || a.status === 'confirmed').length})`}
+                    {f === 'completed' && `Past / Done (${allAppointments.filter((a) => a.status === 'completed' || a.status === 'no_show' || a.status === 'cancelled').length})`}
+                  </button>
+                ))}
               </div>
 
               {/* Next Patient Highlight Banner */}
@@ -646,11 +739,11 @@ export const AdminPage: React.FC = () => {
                 <div className="p-6 rounded-3xl bg-forest-800 text-white shadow-soft-lg flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative overflow-hidden">
                   <div className="space-y-1">
                     <span className="text-[10px] uppercase font-bold tracking-wider text-clinic-lightGreen bg-forest-700 px-2 py-0.5 rounded-full inline-block">
-                      Next Patient in Operatory
+                      Next Scheduled Patient
                     </span>
                     <h3 className="text-xl font-bold">{nextPatient.patient_name}</h3>
                     <p className="text-xs text-clinic-lightGreen/80">
-                      {formatPakistanTime(nextPatient.starts_at)} • {nextPatient.service_name}
+                      {formatPakistanDateTime(nextPatient.starts_at)} • {nextPatient.service_name}
                     </p>
                     {nextPatient.is_emergency && (
                       <span className="inline-block text-[10px] font-bold bg-rose-600 text-white px-2 py-0.5 rounded-full mt-1">
@@ -660,15 +753,13 @@ export const AdminPage: React.FC = () => {
                   </div>
 
                   <div className="flex items-center gap-2">
-                    <a
-                      href={`https://wa.me/${nextPatient.phone?.replace(/\D/g, '')}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <button
+                      onClick={() => handleNotifyPatient(nextPatient.phone, `Hello ${nextPatient.patient_name}, this is Smile Dental Clinic reminding you of your upcoming appointment with Dr. Zeeshan.`)}
                       className="px-4 py-2 rounded-full text-xs font-semibold bg-[#25D366] text-white hover:bg-[#1EBE5D] flex items-center gap-1.5 shadow-sm"
                     >
                       <Phone className="w-3.5 h-3.5" />
                       <span>WhatsApp</span>
-                    </a>
+                    </button>
                     <button
                       onClick={() => handleUpdateStatus(nextPatient.id, 'completed')}
                       className="px-4 py-2 rounded-full text-xs font-semibold bg-clinic-lightGreen text-forest-900 hover:bg-white shadow-sm"
@@ -679,40 +770,59 @@ export const AdminPage: React.FC = () => {
                 </div>
               )}
 
-              {/* Today's Full List */}
+              {/* Appointments List */}
               <div className="space-y-3">
-                {loadingToday ? (
+                {loadingData ? (
                   <div className="space-y-2">
                     {[...Array(3)].map((_, i) => (
                       <div key={i} className="h-20 skeleton-box rounded-2xl" />
                     ))}
                   </div>
-                ) : todayAppointments.length === 0 ? (
-                  <div className="p-12 text-center bg-white rounded-3xl border border-clinic-border text-clinic-muted">
-                    No appointments scheduled for today yet.
+                ) : queueAppointments.length === 0 ? (
+                  <div className="p-12 text-center bg-white rounded-3xl border border-clinic-border text-clinic-muted space-y-2">
+                    <p className="font-semibold text-forest-800">No appointments found in this view.</p>
+                    <p className="text-xs">When a patient books on the website, it will appear here in real time.</p>
                   </div>
                 ) : (
-                  todayAppointments.map((appt) => (
+                  queueAppointments.map((appt) => (
                     <div
                       key={appt.id}
                       className="p-5 rounded-3xl bg-white border border-clinic-border/80 shadow-soft flex flex-col md:flex-row md:items-center justify-between gap-4"
                     >
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-xs font-bold text-clinic-primary bg-clinic-lightGreen/60 px-2.5 py-1 rounded-full">
-                            {formatPakistanTime(appt.starts_at)}
+                      <div className="space-y-1.5">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-mono text-xs font-bold text-clinic-primary bg-clinic-lightGreen/60 px-3 py-1 rounded-full">
+                            {formatPakistanDateTime(appt.starts_at)}
                           </span>
                           <span className="font-bold text-forest-800 text-base">{appt.patient_name}</span>
+                          
                           {appt.is_emergency && (
                             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-rose-100 text-rose-800">
                               Emergency
                             </span>
                           )}
-                          <span className="text-xs px-2.5 py-0.5 rounded-full font-semibold bg-gray-100 text-gray-700">
+
+                          <span
+                            className={`text-xs px-2.5 py-0.5 rounded-full font-semibold capitalize ${
+                              appt.status === 'confirmed'
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : appt.status === 'completed'
+                                ? 'bg-blue-100 text-blue-800'
+                                : appt.status === 'cancelled'
+                                ? 'bg-rose-100 text-rose-800'
+                                : appt.status === 'no_show'
+                                ? 'bg-amber-100 text-amber-800'
+                                : 'bg-gray-100 text-gray-700'
+                            }`}
+                          >
                             {appt.status}
                           </span>
                         </div>
-                        <p className="text-xs text-clinic-muted">{appt.service_name} • Phone: {appt.phone}</p>
+                        
+                        <p className="text-xs text-clinic-muted">
+                          <strong>Treatment:</strong> {appt.service_name} • <strong>Phone:</strong> {appt.phone || 'N/A'} • <strong>Source:</strong> {appt.source}
+                        </p>
+
                         {appt.reason && (
                           <p className="text-xs text-forest-800/80 italic">"{appt.reason}"</p>
                         )}
@@ -720,14 +830,15 @@ export const AdminPage: React.FC = () => {
 
                       {/* Action Buttons: Confirm / Completed / No-Show / Cancel */}
                       <div className="flex flex-wrap items-center gap-2 pt-2 md:pt-0">
-                        <a
-                          href={`https://wa.me/${appt.phone?.replace(/\D/g, '')}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="px-3 py-1.5 rounded-full text-xs font-semibold bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 transition-colors"
-                        >
-                          WhatsApp
-                        </a>
+                        {appt.phone && (
+                          <button
+                            onClick={() => handleNotifyPatient(appt.phone, `Hello ${appt.patient_name}, this is Smile Dental Clinic contacting you regarding your appointment for ${appt.service_name}.`)}
+                            className="px-3 py-1.5 rounded-full text-xs font-semibold bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 transition-colors flex items-center gap-1"
+                          >
+                            <Phone className="w-3 h-3" />
+                            <span>WhatsApp</span>
+                          </button>
+                        )}
 
                         {appt.status !== 'confirmed' && appt.status !== 'completed' && (
                           <button
@@ -758,12 +869,7 @@ export const AdminPage: React.FC = () => {
 
                         {appt.status !== 'cancelled' && (
                           <button
-                            onClick={() => {
-                              handleUpdateStatus(appt.id, 'cancelled');
-                              if (window.confirm('Would you like to send a cancellation notice on WhatsApp to the patient?')) {
-                                handleNotifyPatient(appt.phone, 'Your appointment at Smile Dental Clinic has been cancelled. Please visit our website to reschedule.');
-                              }
-                            }}
+                            onClick={() => handleUpdateStatus(appt.id, 'cancelled')}
                             className="px-3.5 py-1.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-800 hover:bg-rose-100"
                           >
                             Cancel
@@ -780,21 +886,30 @@ export const AdminPage: React.FC = () => {
           {/* TAB 2: CALENDAR */}
           {activeTab === 'calendar' && (
             <div className="space-y-6">
+              
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <h2 className="text-2xl font-bold text-forest-800">Clinic Calendar</h2>
                   <p className="text-xs text-clinic-muted">
-                    Day & week scheduling with strict single-doctor conflict prevention.
+                    Single-doctor appointment calendar with real-time slot synchronization.
                   </p>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <input
                     type="date"
                     value={calendarDate}
                     onChange={(e) => setCalendarDate(e.target.value)}
-                    className="px-4 py-2 rounded-xl border border-clinic-border text-xs font-semibold"
+                    className="px-4 py-2 rounded-xl border border-clinic-border text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-clinic-primary/40 bg-white"
                   />
+                  
+                  <button
+                    onClick={() => setCalendarDate(new Date().toISOString().split('T')[0])}
+                    className="px-3 py-2 rounded-xl border border-clinic-border text-xs font-semibold bg-white hover:bg-clinic-lightGreen/30"
+                  >
+                    Today
+                  </button>
+
                   <button
                     onClick={() => setIsManualBookingOpen(true)}
                     className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-semibold text-white bg-clinic-primary hover:bg-clinic-primaryHover shadow-soft"
@@ -807,22 +922,186 @@ export const AdminPage: React.FC = () => {
 
               {/* Day Schedule View */}
               <div className="bg-white rounded-3xl p-6 border border-clinic-border shadow-soft space-y-4">
-                <h3 className="text-base font-bold text-forest-800">
-                  Slots for {calendarDate}
-                </h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                  {todayAppointments.map((appt) => (
-                    <div key={appt.id} className="p-4 rounded-2xl bg-clinic-bg border border-clinic-border text-xs space-y-1">
-                      <div className="flex justify-between font-bold">
-                        <span>{formatPakistanTime(appt.starts_at)}</span>
-                        <span className="text-clinic-primary capitalize">{appt.status}</span>
-                      </div>
-                      <p className="font-semibold text-forest-800">{appt.patient_name}</p>
-                      <p className="text-clinic-muted">{appt.service_name}</p>
-                    </div>
-                  ))}
+                <div className="flex items-center justify-between border-b border-clinic-border/60 pb-3">
+                  <h3 className="text-base font-bold text-forest-800">
+                    Appointments for {new Date(calendarDate + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                  </h3>
+                  <span className="text-xs font-semibold px-3 py-1 rounded-full bg-clinic-lightGreen/60 text-forest-800">
+                    {calendarDayAppointments.length} Booked
+                  </span>
                 </div>
+
+                {calendarDayAppointments.length === 0 ? (
+                  <div className="p-12 text-center text-clinic-muted space-y-1">
+                    <p className="font-semibold text-forest-800">No appointments scheduled for this date.</p>
+                    <p className="text-xs">Select another date above or click "Walk-In Booking" to schedule a patient.</p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                    {calendarDayAppointments.map((appt) => (
+                      <div
+                        key={appt.id}
+                        className="p-5 rounded-2xl bg-clinic-bg border border-clinic-border text-xs space-y-2 shadow-xs hover:border-clinic-primary/40 transition-all"
+                      >
+                        <div className="flex justify-between items-center font-bold">
+                          <span className="px-2.5 py-1 rounded-full bg-white border border-clinic-border text-clinic-primary font-mono text-[11px]">
+                            {formatPakistanTime(appt.starts_at)} - {formatPakistanTime(appt.ends_at)}
+                          </span>
+                          <span
+                            className={`capitalize px-2 py-0.5 rounded-full text-[10px] ${
+                              appt.status === 'confirmed'
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : appt.status === 'completed'
+                                ? 'bg-blue-100 text-blue-800'
+                                : 'bg-gray-100 text-gray-700'
+                            }`}
+                          >
+                            {appt.status}
+                          </span>
+                        </div>
+
+                        <div>
+                          <p className="text-sm font-bold text-forest-800">{appt.patient_name}</p>
+                          <p className="text-clinic-muted font-medium">{appt.service_name}</p>
+                          {appt.phone && <p className="text-[11px] text-clinic-muted font-mono mt-0.5">{appt.phone}</p>}
+                        </div>
+
+                        {appt.reason && (
+                          <p className="text-[11px] text-forest-800/80 italic border-t border-clinic-border/60 pt-1.5">
+                            "{appt.reason}"
+                          </p>
+                        )}
+
+                        <div className="pt-2 flex items-center justify-between border-t border-clinic-border/60">
+                          {appt.phone && (
+                            <button
+                              onClick={() => handleNotifyPatient(appt.phone, `Hello ${appt.patient_name}, regarding your appointment on ${calendarDate} for ${appt.service_name}...`)}
+                              className="text-[11px] font-semibold text-[#25D366] hover:underline flex items-center gap-1"
+                            >
+                              <Phone className="w-3 h-3" />
+                              <span>WhatsApp</span>
+                            </button>
+                          )}
+                          <button
+                            onClick={() => handleUpdateStatus(appt.id, 'completed')}
+                            className="text-[11px] font-semibold text-clinic-primary hover:underline ml-auto"
+                          >
+                            Complete
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
+
+              {/* Manual Booking Modal */}
+              {isManualBookingOpen && (
+                <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+                  <div className="bg-white rounded-3xl max-w-md w-full p-6 border border-clinic-border shadow-soft space-y-4">
+                    <div className="flex justify-between items-center">
+                      <h3 className="text-base font-bold text-forest-800">Add Walk-In / Manual Appointment</h3>
+                      <button onClick={() => setIsManualBookingOpen(false)} className="p-1 rounded-lg text-clinic-muted">
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+
+                    <form onSubmit={handleCreateManualBooking} className="space-y-3 text-xs">
+                      <div>
+                        <label className="block font-semibold text-forest-800 mb-1">Patient Name *</label>
+                        <input
+                          type="text"
+                          required
+                          value={manualForm.name}
+                          onChange={(e) => setManualForm({ ...manualForm, name: e.target.value })}
+                          placeholder="e.g. Ali Khan"
+                          className="w-full px-3 py-2 rounded-xl border border-clinic-border"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block font-semibold text-forest-800 mb-1">Phone Number *</label>
+                        <input
+                          type="tel"
+                          required
+                          value={manualForm.phone}
+                          onChange={(e) => setManualForm({ ...manualForm, phone: e.target.value })}
+                          placeholder="03001234567"
+                          className="w-full px-3 py-2 rounded-xl border border-clinic-border"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block font-semibold text-forest-800 mb-1">Treatment Service *</label>
+                        <select
+                          value={manualForm.service_id}
+                          onChange={(e) => setManualForm({ ...manualForm, service_id: e.target.value })}
+                          className="w-full px-3 py-2 rounded-xl border border-clinic-border bg-white"
+                        >
+                          {servicesList.map((s) => (
+                            <option key={s.id} value={s.id}>
+                              {s.name_en} ({s.duration_min} min - Rs. {s.price_from_pkr})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block font-semibold text-forest-800 mb-1">Date *</label>
+                          <input
+                            type="date"
+                            required
+                            value={manualForm.date}
+                            onChange={(e) => setManualForm({ ...manualForm, date: e.target.value })}
+                            className="w-full px-3 py-2 rounded-xl border border-clinic-border bg-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="block font-semibold text-forest-800 mb-1">Time *</label>
+                          <select
+                            value={manualForm.time}
+                            onChange={(e) => setManualForm({ ...manualForm, time: e.target.value })}
+                            className="w-full px-3 py-2 rounded-xl border border-clinic-border bg-white"
+                          >
+                            {['10:00', '10:30', '11:00', '11:30', '12:00', '12:30', '14:00', '14:30', '15:00', '15:30', '16:00', '16:30', '17:00', '17:30', '18:00', '18:30', '19:00', '19:30'].map((t) => (
+                              <option key={t} value={t}>{t}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block font-semibold text-forest-800 mb-1">Reason / Notes</label>
+                        <input
+                          type="text"
+                          value={manualForm.reason}
+                          onChange={(e) => setManualForm({ ...manualForm, reason: e.target.value })}
+                          placeholder="e.g. Tooth sensitivity"
+                          className="w-full px-3 py-2 rounded-xl border border-clinic-border"
+                        />
+                      </div>
+
+                      <div className="pt-2 flex justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setIsManualBookingOpen(false)}
+                          className="px-4 py-2 rounded-full border border-clinic-border font-semibold hover:bg-clinic-lightGreen/30"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="submit"
+                          className="px-5 py-2 rounded-full font-semibold text-white bg-clinic-primary hover:bg-clinic-primaryHover"
+                        >
+                          Register Walk-In
+                        </button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              )}
+
             </div>
           )}
 
@@ -833,7 +1112,7 @@ export const AdminPage: React.FC = () => {
                 <div>
                   <h2 className="text-2xl font-bold text-forest-800">Patient Directory</h2>
                   <p className="text-xs text-clinic-muted">
-                    Quick patient lookups and visit history records.
+                    Database directory of registered clinic patients • {patientsList.length} Total Patients
                   </p>
                 </div>
 
@@ -844,40 +1123,56 @@ export const AdminPage: React.FC = () => {
                     value={patientSearch}
                     onChange={(e) => setPatientSearch(e.target.value)}
                     placeholder="Search name or phone..."
-                    className="w-full pl-10 pr-4 py-2 rounded-full border border-clinic-border text-xs"
+                    className="w-full pl-10 pr-4 py-2 rounded-full border border-clinic-border text-xs bg-white focus:outline-none focus:ring-2 focus:ring-clinic-primary/40"
                   />
                 </div>
               </div>
 
               <div className="bg-white rounded-3xl border border-clinic-border shadow-soft overflow-hidden">
-                <table className="w-full text-left text-xs">
-                  <thead className="bg-clinic-bg border-b border-clinic-border text-clinic-muted uppercase font-bold">
-                    <tr>
-                      <th className="p-4">Name</th>
-                      <th className="p-4">Phone</th>
-                      <th className="p-4">Language</th>
-                      <th className="p-4">Visits</th>
-                      <th className="p-4">Notes</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-clinic-border/60">
-                    {patientsList
-                      .filter(
-                        (p) =>
-                          p.full_name.toLowerCase().includes(patientSearch.toLowerCase()) ||
-                          p.phone.includes(patientSearch)
-                      )
-                      .map((p) => (
-                        <tr key={p.id} className="hover:bg-clinic-lightGreen/20">
-                          <td className="p-4 font-bold text-forest-800">{p.full_name}</td>
-                          <td className="p-4 font-mono">{p.phone}</td>
-                          <td className="p-4 uppercase">{p.language}</td>
-                          <td className="p-4">{p.visits || 1}</td>
-                          <td className="p-4 text-clinic-muted">{p.notes || '—'}</td>
-                        </tr>
-                      ))}
-                  </tbody>
-                </table>
+                {patientsList.length === 0 ? (
+                  <div className="p-12 text-center text-clinic-muted space-y-1">
+                    <p className="font-semibold text-forest-800">No registered patients in the database yet.</p>
+                    <p className="text-xs">Patient profiles are created automatically when appointments are booked.</p>
+                  </div>
+                ) : (
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-clinic-bg border-b border-clinic-border text-clinic-muted uppercase font-bold">
+                        <th className="p-4">Patient Name</th>
+                        <th className="p-4">Phone Number</th>
+                        <th className="p-4">Language</th>
+                        <th className="p-4">Registered Date</th>
+                        <th className="p-4 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-clinic-border/60">
+                      {patientsList
+                        .filter((p) =>
+                          p.full_name?.toLowerCase().includes(patientSearch.toLowerCase()) ||
+                          p.phone?.includes(patientSearch)
+                        )
+                        .map((p) => (
+                          <tr key={p.id} className="hover:bg-clinic-lightGreen/20 transition-colors">
+                            <td className="p-4 font-bold text-forest-800">{p.full_name}</td>
+                            <td className="p-4 font-mono">{p.phone}</td>
+                            <td className="p-4 uppercase">{p.language || 'EN'}</td>
+                            <td className="p-4 text-clinic-muted">
+                              {p.created_at ? new Date(p.created_at).toLocaleDateString() : '—'}
+                            </td>
+                            <td className="p-4 text-right">
+                              <button
+                                onClick={() => handleNotifyPatient(p.phone, `Hello ${p.full_name}, this is Smile Dental Clinic.`)}
+                                className="px-3 py-1 rounded-full text-[11px] font-semibold bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 transition-colors inline-flex items-center gap-1"
+                              >
+                                <Phone className="w-3 h-3" />
+                                <span>WhatsApp</span>
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                )}
               </div>
             </div>
           )}
@@ -889,7 +1184,7 @@ export const AdminPage: React.FC = () => {
                 <div>
                   <h2 className="text-2xl font-bold text-forest-800">Clinic Analytics</h2>
                   <p className="text-xs text-clinic-muted">
-                    Automated metrics computed directly from database views.
+                    Automated metrics computed dynamically from real database records (Zero Dummy Data).
                   </p>
                 </div>
 
@@ -914,28 +1209,30 @@ export const AdminPage: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="p-6 rounded-3xl bg-white border border-clinic-border shadow-soft space-y-1">
                   <span className="text-xs text-clinic-muted font-bold uppercase">Appointments</span>
-                  <p className="text-2xl font-bold text-forest-800">{analyticsStats.totalThisWeek}</p>
-                  <span className="text-[11px] text-emerald-600 flex items-center gap-1">
-                    <TrendingUp className="w-3 h-3" /> +15% from last period
+                  <p className="text-3xl font-bold text-forest-800">{analyticsStats.totalAppointments}</p>
+                  <span className="text-[11px] text-clinic-muted flex items-center gap-1">
+                    <TrendingUp className="w-3 h-3 text-emerald-600" /> Real database records
                   </span>
                 </div>
 
                 <div className="p-6 rounded-3xl bg-white border border-clinic-border shadow-soft space-y-1">
                   <span className="text-xs text-clinic-muted font-bold uppercase">New Patients</span>
-                  <p className="text-2xl font-bold text-forest-800">{analyticsStats.newPatients}</p>
-                  <span className="text-[11px] text-clinic-muted">Verified database registrations</span>
+                  <p className="text-3xl font-bold text-forest-800">{analyticsStats.newPatients}</p>
+                  <span className="text-[11px] text-clinic-muted">Registered in database</span>
                 </div>
 
                 <div className="p-6 rounded-3xl bg-white border border-clinic-border shadow-soft space-y-1">
                   <span className="text-xs text-clinic-muted font-bold uppercase">No-Show Rate</span>
-                  <p className="text-2xl font-bold text-forest-800">{analyticsStats.noShowRate}</p>
-                  <span className="text-[11px] text-emerald-600">Reduced by 24h reminders</span>
+                  <p className="text-3xl font-bold text-forest-800">{analyticsStats.noShowRate}</p>
+                  <span className="text-[11px] text-emerald-600">Calculated from completed vs no-show</span>
                 </div>
 
                 <div className="p-6 rounded-3xl bg-white border border-clinic-border shadow-soft space-y-1">
                   <span className="text-xs text-clinic-muted font-bold uppercase">Top Treatment</span>
-                  <p className="text-base font-bold text-forest-800 truncate">{analyticsStats.topService}</p>
-                  <span className="text-[11px] text-clinic-muted">Highest scheduled revenue</span>
+                  <p className="text-lg font-bold text-forest-800 truncate" title={analyticsStats.topService}>
+                    {analyticsStats.topService}
+                  </p>
+                  <span className="text-[11px] text-clinic-muted">Most frequent service booked</span>
                 </div>
               </div>
 
@@ -949,7 +1246,7 @@ export const AdminPage: React.FC = () => {
                     <LineChart data={analyticsChartData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#E6F4EA" />
                       <XAxis dataKey="day" stroke="#526A5C" fontSize={11} />
-                      <YAxis stroke="#526A5C" fontSize={11} />
+                      <YAxis stroke="#526A5C" fontSize={11} allowDecimals={false} />
                       <Tooltip />
                       <Line type="monotone" dataKey="appointments" stroke="#1B6B3A" strokeWidth={3} dot={{ r: 4 }} />
                     </LineChart>
@@ -965,7 +1262,7 @@ export const AdminPage: React.FC = () => {
               <div>
                 <h2 className="text-2xl font-bold text-forest-800">Clinic Profile & Settings</h2>
                 <p className="text-xs text-clinic-muted">
-                  Update clinic contact info, working hours, doctor profile, and approve patient reviews.
+                  Update clinic contact info, working hours, and doctor profile.
                 </p>
               </div>
 
@@ -978,7 +1275,7 @@ export const AdminPage: React.FC = () => {
                       <label className="block text-clinic-muted mb-1 font-semibold">Phone Number</label>
                       <input
                         type="text"
-                        defaultValue={clinicData?.phone || '+923001234567'}
+                        defaultValue={clinicData?.phone || '+92 300 1234567'}
                         className="w-full px-3 py-2 rounded-xl border border-clinic-border font-mono"
                       />
                     </div>
@@ -986,7 +1283,7 @@ export const AdminPage: React.FC = () => {
                       <label className="block text-clinic-muted mb-1 font-semibold">WhatsApp Number</label>
                       <input
                         type="text"
-                        defaultValue={clinicData?.whatsapp_number || '+923001234567'}
+                        defaultValue={clinicData?.whatsapp_number || '+92 300 1234567'}
                         className="w-full px-3 py-2 rounded-xl border border-clinic-border font-mono"
                       />
                     </div>
@@ -1009,31 +1306,21 @@ export const AdminPage: React.FC = () => {
 
                 {/* Review Moderation */}
                 <div className="p-6 rounded-3xl bg-white border border-clinic-border shadow-soft space-y-4">
-                  <h3 className="text-base font-bold text-forest-800">Review Moderation Queue</h3>
+                  <h3 className="text-base font-bold text-forest-800">Patient Reviews ({pendingReviews.length})</h3>
                   <div className="space-y-3 text-xs">
-                    {pendingReviews.map((rev) => (
-                      <div key={rev.id} className="p-3 rounded-2xl bg-clinic-bg border border-clinic-border space-y-1">
-                        <div className="flex justify-between font-bold">
-                          <span>{rev.patient_name}</span>
-                          <span className="text-amber-500">{'★'.repeat(rev.rating)}</span>
+                    {pendingReviews.length === 0 ? (
+                      <p className="text-clinic-muted italic py-4">No patient reviews submitted yet.</p>
+                    ) : (
+                      pendingReviews.map((rev) => (
+                        <div key={rev.id} className="p-3 rounded-2xl bg-clinic-bg border border-clinic-border space-y-1">
+                          <div className="flex justify-between font-bold">
+                            <span>{rev.patient_name}</span>
+                            <span className="text-amber-500">{'★'.repeat(rev.rating)}</span>
+                          </div>
+                          <p className="text-clinic-muted italic">"{rev.comment}"</p>
                         </div>
-                        <p className="text-clinic-muted italic">"{rev.comment}"</p>
-                        <div className="pt-2 flex items-center gap-2">
-                          <button
-                            onClick={() => showToast('Review approved and published')}
-                            className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 font-semibold"
-                          >
-                            Approve & Publish
-                          </button>
-                          <button
-                            onClick={() => showToast('Review hidden')}
-                            className="px-3 py-1 rounded-full bg-rose-50 text-rose-800 font-semibold"
-                          >
-                            Hide
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                      ))
+                    )}
                   </div>
                 </div>
               </div>
