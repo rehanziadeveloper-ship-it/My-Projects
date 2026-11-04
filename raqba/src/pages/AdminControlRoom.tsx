@@ -7,6 +7,7 @@ import { PipelineKanbanView } from '../components/admin/PipelineKanbanView';
 import { PropertiesManagerView } from '../components/admin/PropertiesManagerView';
 import { PropertySubmissionsView } from '../components/admin/PropertySubmissionsView';
 import { ShowingsManagerView } from '../components/admin/ShowingsManagerView';
+import { CalendarView } from '../components/admin/CalendarView';
 import { AgreementsManagerView } from '../components/admin/AgreementsManagerView';
 import { ManualLeadEntryView } from '../components/admin/ManualLeadEntryView';
 import { LeadDetailModal } from '../components/admin/LeadDetailModal';
@@ -302,6 +303,15 @@ export const AdminControlRoom: React.FC = () => {
 
           {activeTab === 'showings' && (
             <ShowingsManagerView
+              showings={visibleShowings}
+              agents={agents}
+              currentAgentId={selectedAgentId}
+              onRefresh={fetchData}
+            />
+          )}
+
+          {activeTab === 'calendar' && (
+            <CalendarView
               showings={visibleShowings}
               agents={agents}
               currentAgentId={selectedAgentId}

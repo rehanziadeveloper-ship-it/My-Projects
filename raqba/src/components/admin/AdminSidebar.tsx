@@ -18,7 +18,7 @@ import {
 import { Link } from 'react-router-dom';
 import { Agent, UserRole } from '../../types';
 
-export type AdminTab = 'dashboard' | 'pipeline' | 'properties' | 'submissions' | 'showings' | 'agreements' | 'manual_lead';
+export type AdminTab = 'dashboard' | 'pipeline' | 'properties' | 'submissions' | 'calendar' | 'showings' | 'agreements' | 'manual_lead';
 
 interface AdminSidebarProps {
   activeTab: AdminTab;
@@ -75,6 +75,13 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       icon: Inbox,
       badge: pendingSubmissionsCount > 0 ? `${pendingSubmissionsCount} Pending` : undefined,
       badgeColor: 'bg-purple-500/20 text-purple-400 border border-purple-500/30',
+    },
+    {
+      id: 'calendar' as AdminTab,
+      label: 'Appointments Calendar',
+      icon: Calendar,
+      badge: 'G-Cal Sync',
+      badgeColor: 'bg-blue-500/20 text-blue-400 border border-blue-500/30',
     },
     {
       id: 'showings' as AdminTab,

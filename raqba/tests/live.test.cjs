@@ -251,7 +251,29 @@ async function runTests() {
     assert(showingData.brokerConfirmed === true, 'n8n issued broker showing clearance');
     assert(showingData.gateCode && showingData.gateCode.startsWith('#'), `n8n issued gate clearance PIN: ${showingData.gateCode}`);
 
-    // 4. Backward Compatibility Check on Legacy Paths
+    // 4. Google Calendar Sync Webhook
+    const calendarSyncRes = await fetch(`${N8N_BASE_URL}/webhook/raqba/calendar-sync`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        showingId: 's-test-calendar-sync-1',
+        leadName: 'Hamza Tariq',
+        clientPhone: '+92 300 1234567',
+        propertyTitle: '1 Kanal Modern Designer Villa',
+        propertyAddress: 'Sector J, Phase 6, DHA Lahore',
+        showingTime: new Date(Date.now() + 86400000).toISOString(),
+        brokerName: 'Chaudhry Kamran',
+        brokerEmail: 'kamran@raqba.pk',
+        gateCode: '#8492'
+      })
+    });
+    assert(calendarSyncRes.status === 200, 'n8n Webhook /webhook/raqba/calendar-sync returned HTTP 200');
+    const calData = await calendarSyncRes.json();
+    assert(calData.success === true, 'n8n calendar sync engine returned success');
+    assert(calData.googleCalendarUrl && calData.googleCalendarUrl.includes('calendar.google.com'), 'n8n generated pre-filled Google Calendar URL');
+    assert(calData.eventId, `n8n calendar sync event ID created: ${calData.eventId}`);
+
+    // 5. Backward Compatibility Check on Legacy Paths
     const legacyLeadRes = await fetch(`${N8N_BASE_URL}/webhook/realtypulse/lead`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

@@ -219,7 +219,7 @@
     },
     {
       "parameters": {
-        "jsCode": "\nconst body = $input.item.json.body || $input.item.json;\nconst isGated = body.isGated !== false;\nconst gateCode = isGated ? ('#' + Math.floor(1000 + Math.random() * 9000) + '*') : null;\nconst visitorToken = 'PASS-' + Math.random().toString(36).substring(2, 9).toUpperCase();\nconst googleMapsPin = body.googleMapsPin || 'https://maps.google.com/?q=31.4782,74.4312';\n\nreturn {\n  success: true,\n  status: 'confirmed',\n  brokerConfirmed: true,\n  gateCode: gateCode,\n  visitorToken: visitorToken,\n  googleMapsPin: googleMapsPin,\n  propertyAddress: body.propertyAddress || 'Sector J, Phase 6, DHA, Lahore',\n  showingTime: body.showingTime || new Date(Date.now() + 86400000).toISOString(),\n  instructions: isGated\n    ? 'Showing confirmed. Google Maps location and Gate PIN (' + gateCode + ') dispatched to buyer via SMS & WhatsApp.'\n    : 'Showing confirmed. Location pin dispatched to buyer. Broker will welcome client at the main entrance.'\n};\n"
+        "jsCode": "\nconst body = $input.item.json.body || $input.item.json;\nconst isGated = body.isGated !== false;\nconst gateCode = isGated ? ('#' + Math.floor(1000 + Math.random() * 9000) + '*') : null;\nconst visitorToken = 'PASS-' + Math.random().toString(36).substring(2, 9).toUpperCase();\nconst googleMapsPin = body.googleMapsPin || 'https://maps.google.com/?q=31.4782,74.4312';\nconst showingTime = body.showingTime || new Date(Date.now() + 86400000).toISOString();\nconst startDate = new Date(showingTime);\nconst endDate = new Date(startDate.getTime() + 60 * 60 * 1000); // 1 hour duration\nconst startIso = startDate.toISOString().replace(/-|:|.\\d\\d\\d/g, '');\nconst endIso = endDate.toISOString().replace(/-|:|.\\d\\d\\d/g, '');\n\nconst propTitle = body.propertyTitle || 'Luxury Pakistani Property';\nconst clientName = body.leadName || body.clientName || 'Valued Client';\nconst brokerName = body.brokerName || 'Licensed Broker';\nconst summary = 'Showing Walkthrough: ' + propTitle + ' (' + clientName + ')';\nconst details = 'Private walkthrough confirmed by ' + brokerName + '.\\nClient: ' + clientName + '\\nProperty: ' + propTitle + '\\nLocation: ' + (body.propertyAddress || 'DHA Lahore') + (gateCode ? ('\\nGate PIN: ' + gateCode) : '') + '\\nGoogle Maps: ' + googleMapsPin;\n\nconst gcalUrl = 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + encodeURIComponent(summary) + '&dates=' + startIso + '/' + endIso + '&details=' + encodeURIComponent(details) + '&location=' + encodeURIComponent(googleMapsPin);\n\nreturn {\n  success: true,\n  status: 'confirmed',\n  brokerConfirmed: true,\n  gateCode: gateCode,\n  visitorToken: visitorToken,\n  googleMapsPin: googleMapsPin,\n  propertyAddress: body.propertyAddress || 'Sector J, Phase 6, DHA, Lahore',\n  showingTime: showingTime,\n  calendarSync: {\n    synced: true,\n    calendarType: 'Google Calendar',\n    summary: summary,\n    startTime: startDate.toISOString(),\n    endTime: endDate.toISOString(),\n    googleCalendarUrl: gcalUrl\n  },\n  instructions: isGated\n    ? 'Showing confirmed. Google Maps location and Gate PIN (' + gateCode + ') dispatched to buyer via SMS & WhatsApp.'\n    : 'Showing confirmed. Location pin dispatched to buyer. Broker will welcome client at the main entrance.'\n};\n"
       },
       "id": "node-showing-clearance",
       "name": "Showing Confirmation Engine",
@@ -256,6 +256,79 @@
       "position": [
         580,
         580
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "raqba/calendar-sync",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-raqba-cal-sync",
+      "name": "Webhook POST /raqba/calendar-sync",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        100,
+        1060
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "calendar-sync",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-legacy-cal-sync",
+      "name": "Webhook POST /calendar-sync",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        100,
+        1220
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst body = $input.item.json.body || $input.item.json;\nconst showingTime = body.showingTime || body.startTime || new Date(Date.now() + 86400000).toISOString();\nconst startDate = new Date(showingTime);\nconst durationMinutes = body.durationMinutes || 60;\nconst endDate = new Date(startDate.getTime() + durationMinutes * 60 * 1000);\n\nconst startIso = startDate.toISOString().replace(/-|:|.\\d\\d\\d/g, '');\nconst endIso = endDate.toISOString().replace(/-|:|.\\d\\d\\d/g, '');\n\nconst propTitle = body.propertyTitle || 'Luxury Property Walkthrough';\nconst clientName = body.leadName || body.clientName || 'Valued Client';\nconst brokerName = body.brokerName || 'Licensed Broker';\nconst brokerEmail = body.brokerEmail || 'info@raqba.pk';\nconst gatePin = body.gateCode || body.gatePin || null;\nconst location = body.propertyAddress || body.googleMapsPin || 'DHA Lahore, Pakistan';\n\nconst summary = 'Raqba Showing: ' + propTitle + ' (' + clientName + ')';\nconst description = 'CONFIRMED PRIVATE WALKTHROUGH\\n' +\n  '-----------------------------------------\\n' +\n  'Client: ' + clientName + (body.clientPhone ? (' (' + body.clientPhone + ')') : '') + '\\n' +\n  'Property: ' + propTitle + '\\n' +\n  'Address: ' + location + '\\n' +\n  (gatePin ? ('Society Security PIN: ' + gatePin + '\\n') : '') +\n  'Assigned Broker: ' + brokerName + ' (' + brokerEmail + ')\\n' +\n  (body.notes ? ('Client Notes: ' + body.notes + '\\n') : '') +\n  'Brokerage: Raqba — Your Trusted Property Partner';\n\nconst googleCalendarUrl = 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=' + \n  encodeURIComponent(summary) + \n  '&dates=' + startIso + '/' + endIso + \n  '&details=' + encodeURIComponent(description) + \n  '&location=' + encodeURIComponent(location) +\n  (brokerEmail ? ('&add=' + encodeURIComponent(brokerEmail)) : '');\n\nconst eventId = 'gcal-rqb-' + Math.random().toString(36).substring(2, 10);\n\nreturn {\n  success: true,\n  synced: true,\n  calendarProvider: 'Google Calendar',\n  eventId: eventId,\n  summary: summary,\n  startTime: startDate.toISOString(),\n  endTime: endDate.toISOString(),\n  location: location,\n  googleCalendarUrl: googleCalendarUrl,\n  broker: {\n    name: brokerName,\n    email: brokerEmail\n  },\n  client: {\n    name: clientName,\n    phone: body.clientPhone || null\n  },\n  gatePin: gatePin,\n  syncedAt: new Date().toISOString()\n};\n"
+      },
+      "id": "node-cal-sync",
+      "name": "Google Calendar Sync Engine",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        340,
+        1140
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, Authorization"
+              }
+            ]
+          }
+        }
+      },
+      "id": "node-resp-cal-sync",
+      "name": "Respond Calendar Sync",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        580,
+        1140
       ]
     },
     {
@@ -449,6 +522,39 @@
         [
           {
             "node": "Respond AI Concierge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook POST /raqba/calendar-sync": {
+      "main": [
+        [
+          {
+            "node": "Google Calendar Sync Engine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook POST /calendar-sync": {
+      "main": [
+        [
+          {
+            "node": "Google Calendar Sync Engine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Calendar Sync Engine": {
+      "main": [
+        [
+          {
+            "node": "Respond Calendar Sync",
             "type": "main",
             "index": 0
           }

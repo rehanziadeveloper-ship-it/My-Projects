@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Showing, Agent } from '../../types';
 import { supabase } from '../../lib/supabase';
+import { CalendarView } from './CalendarView';
 import { 
   Calendar, 
   Clock, 
@@ -11,7 +12,9 @@ import {
   Key, 
   ShieldCheck, 
   AlertCircle,
-  ExternalLink
+  ExternalLink,
+  List,
+  CalendarDays
 } from 'lucide-react';
 
 interface ShowingsManagerViewProps {
@@ -27,6 +30,7 @@ export const ShowingsManagerView: React.FC<ShowingsManagerViewProps> = ({
   currentAgentId,
   onRefresh,
 }) => {
+  const [layoutMode, setLayoutMode] = useState<'list' | 'calendar'>('list');
   const [filter, setFilter] = useState<'all' | 'pending' | 'confirmed'>('all');
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
@@ -70,25 +74,65 @@ export const ShowingsManagerView: React.FC<ShowingsManagerViewProps> = ({
           </p>
         </div>
 
-        <div className="flex items-center rounded-xl bg-slate-900 p-1 border border-slate-800 text-xs self-start sm:self-auto">
-          {(['all', 'pending', 'confirmed'] as const).map((tab) => (
+        <div className="flex items-center gap-2 flex-wrap self-start sm:self-auto">
+          {/* Layout Mode Toggle: List vs Calendar */}
+          <div className="flex items-center rounded-xl bg-slate-900 p-1 border border-slate-800 text-xs">
             <button
-              key={tab}
-              onClick={() => setFilter(tab)}
-              className={`px-3 py-1 rounded-lg font-medium capitalize transition-colors ${
-                filter === tab
+              onClick={() => setLayoutMode('list')}
+              className={`px-3 py-1 rounded-lg font-medium flex items-center gap-1.5 transition-colors ${
+                layoutMode === 'list'
+                  ? 'bg-slate-800 text-gold-400 font-semibold'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <List className="w-3.5 h-3.5" />
+              <span>List</span>
+            </button>
+            <button
+              onClick={() => setLayoutMode('calendar')}
+              className={`px-3 py-1 rounded-lg font-medium flex items-center gap-1.5 transition-colors ${
+                layoutMode === 'calendar'
                   ? 'bg-gold-500 text-slate-950 font-semibold'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              {tab === 'all' ? `All (${showings.length})` : tab}
+              <CalendarDays className="w-3.5 h-3.5" />
+              <span>Calendar</span>
             </button>
-          ))}
+          </div>
+
+          {/* Status Filter (only active in list view) */}
+          {layoutMode === 'list' && (
+            <div className="flex items-center rounded-xl bg-slate-900 p-1 border border-slate-800 text-xs">
+              {(['all', 'pending', 'confirmed'] as const).map((tab) => (
+                <button
+                  key={tab}
+                  onClick={() => setFilter(tab)}
+                  className={`px-3 py-1 rounded-lg font-medium capitalize transition-colors ${
+                    filter === tab
+                      ? 'bg-gold-500 text-slate-950 font-semibold'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  {tab === 'all' ? `All (${showings.length})` : tab}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Showings List */}
-      <div className="space-y-4">
+      {/* Conditional Rendering: Calendar View or List View */}
+      {layoutMode === 'calendar' ? (
+        <CalendarView
+          showings={showings}
+          agents={agents}
+          currentAgentId={currentAgentId}
+          onRefresh={onRefresh}
+        />
+      ) : (
+        /* Showings List */
+        <div className="space-y-4">
         {filteredShowings.map((showing) => {
           const isPending = !showing.broker_confirmed;
           const property = showing.property;
@@ -99,7 +143,7 @@ export const ShowingsManagerView: React.FC<ShowingsManagerViewProps> = ({
             `Assalam-o-Alaikum ${lead?.full_name || 'Client'},\n\nYour private walkthrough for "${property?.title || 'Property'}" is CONFIRMED for ${new Date(showing.showing_time).toLocaleString('en-PK', { dateStyle: 'medium', timeStyle: 'short' })}.\n\n` +
             `📍 Location: ${showing.google_maps_pin || property?.google_maps_url || property?.address}\n` +
             (showing.gate_pin_code ? `🔑 Security Gate Pass: ${showing.gate_pin_code}\n\n` : '\n') +
-            `Our licensed specialist will meet you at the property. Let us know if you need to adjust timing.\n- RealtyPulse 360`
+            `Our licensed specialist will meet you at the property. Let us know if you need to adjust timing.\n- Raqba`
           );
           const cleanPhone = (lead?.phone || '').replace(/[^0-9]/g, '');
           const waLink = `https://wa.me/${cleanPhone.startsWith('92') ? cleanPhone : '92' + cleanPhone.replace(/^0/, '')}?text=${waMessage}`;
@@ -214,6 +258,7 @@ export const ShowingsManagerView: React.FC<ShowingsManagerViewProps> = ({
           </div>
         )}
       </div>
+      )}
 
     </div>
   );
