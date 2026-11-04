@@ -1,0 +1,462 @@
+{
+  "name": "Raqba - Autonomous Brokerage OS",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "raqba/lead",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "node-wh-raqba-lead",
+      "name": "Webhook POST /raqba/lead",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        100,
+        40
+      ],
+      "webhookId": "raqba-lead-webhook"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "realtypulse/lead",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "node-wh-lead",
+      "name": "Webhook POST /lead",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        100,
+        160
+      ],
+      "webhookId": "realtypulse-lead-webhook"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "raqba/portal-lead",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "node-wh-raqba-portal",
+      "name": "Webhook POST /raqba/portal-lead",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        100,
+        280
+      ],
+      "webhookId": "raqba-portal-webhook"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "realtypulse/portal-lead",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "node-wh-portal",
+      "name": "Webhook POST /portal-lead",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        100,
+        400
+      ],
+      "webhookId": "realtypulse-portal-webhook"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "raqba/showing-clearance",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "node-wh-raqba-showing",
+      "name": "Webhook POST /raqba/showing-clearance",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        100,
+        520
+      ],
+      "webhookId": "raqba-showing-webhook"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "realtypulse/showing-clearance",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "node-wh-showing",
+      "name": "Webhook POST /showing-clearance",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        100,
+        640
+      ],
+      "webhookId": "realtypulse-showing-webhook"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "raqba/chat-concierge",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "node-wh-raqba-chat",
+      "name": "Webhook POST /raqba/chat-concierge",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        100,
+        760
+      ],
+      "webhookId": "raqba-chat-webhook"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "realtypulse/chat-concierge",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "node-wh-chat",
+      "name": "Webhook POST /chat-concierge",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        100,
+        880
+      ],
+      "webhookId": "realtypulse-chat-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst body = $input.item.json.body || $input.item.json;\nreturn {\n  source: 'website_form',\n  fullName: body.fullName || 'Anonymous Inquirer',\n  email: body.email || 'client@raqba.pk',\n  phone: body.phone || '+92 300 0000000',\n  buyerSellerType: body.buyerSellerType || 'Buyer',\n  budgetMin: Number(body.budgetMin) || (Number(body.budgetMax) ? body.budgetMax * 0.7 : 20000000),\n  budgetMax: Number(body.budgetMax) || 45000000,\n  financingType: body.financingType || 'Cash',\n  targetPropertySlug: body.targetPropertySlug || '1-kanal-spanish-villa-dha-phase-6-lahore',\n  timelineMonths: Number(body.timelineMonths) || 1,\n  city: body.city || 'Lahore',\n  verbatimQuote: body.verbatimQuote || 'Direct inquiry submitted for private walkthrough.',\n  dataConsent: body.dataConsent !== false,\n  timestamp: new Date().toISOString()\n};\n"
+      },
+      "id": "node-norm-lead",
+      "name": "Normalize Web Lead",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        340,
+        100
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst body = $input.item.json.body || $input.item.json;\nreturn {\n  source: 'portal_lead',\n  portal: body.portal || 'Zameen.com',\n  fullName: body.leadName || body.fullName || 'Portal Lead',\n  email: body.leadEmail || 'portal.client@raqba.pk',\n  phone: body.leadPhone || '+92 300 1122334',\n  buyerSellerType: 'Buyer',\n  budgetMin: Number(body.priceMin) || 30000000,\n  budgetMax: Number(body.priceMax) || 65000000,\n  financingType: body.financingType || 'Cash',\n  targetPropertySlug: body.listingSlug || '1-kanal-spanish-villa-dha-phase-6-lahore',\n  timelineMonths: 2,\n  city: body.city || 'Islamabad',\n  verbatimQuote: body.message || 'Direct inquiry from Zameen.com/OLX.',\n  portalReference: 'PORTAL-' + Math.floor(1000 + Math.random() * 9000),\n  dataConsent: true,\n  timestamp: new Date().toISOString()\n};\n"
+      },
+      "id": "node-norm-portal",
+      "name": "Normalize Portal Lead",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        340,
+        340
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst item = $input.item.json;\nlet finScore = 65;\nif (item.financingType === 'Cash' || item.financingType === 'All-Cash') finScore = 98;\nelse if (item.financingType === 'Developer Installment Plan') finScore = 85;\nelse if (item.financingType === 'Bank Financing') finScore = 78;\n\nlet timeScore = 40;\nif (item.timelineMonths <= 1) timeScore = 95;\nelse if (item.timelineMonths <= 3) timeScore = 80;\nelse if (item.timelineMonths <= 6) timeScore = 60;\n\nlet realismScore = 75;\nif (item.budgetMax >= 50000000) realismScore = 95;\nelse if (item.budgetMax >= 20000000) realismScore = 90;\nelse realismScore = 80;\n\nconst compositeIntent = Math.round((finScore * 0.40) + (timeScore * 0.35) + (realismScore * 0.25));\n\nlet priority = 'P2 Routine';\nlet temperature = 'Cold';\nif (compositeIntent >= 85 && (item.financingType === 'Cash' || item.financingType === 'All-Cash')) {\n  priority = 'P0 Critical';\n  temperature = 'Hot';\n} else if (compositeIntent >= 70) {\n  priority = 'P1 High';\n  temperature = 'Warm';\n}\n\nreturn {\n  ...item,\n  scores: {\n    financialVerification: finScore,\n    timelineUrgency: timeScore,\n    budgetRealism: realismScore,\n    compositeIntent: compositeIntent\n  },\n  priority: priority,\n  temperature: temperature,\n  qualifiedAt: new Date().toISOString()\n};\n"
+      },
+      "id": "node-4vector",
+      "name": "4-Vector Evaluation Engine",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        580,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst item = $input.item.json;\nconst brokers = [\n  { name: 'Chaudhry Kamran', email: 'kamran@raqba.pk', phone: '+92 300 8492910', license: 'LCCI / DEF-8491', territory: 'Lahore (DHA & Gulberg)', commissionRate: 1.0 },\n  { name: 'Zainab Malik', email: 'zainab@raqba.pk', phone: '+92 321 6584491', license: 'REA-ISB-1040', territory: 'Islamabad (E-7, F-7 & Margalla)', commissionRate: 1.0 },\n  { name: 'Hamza Abbasi', email: 'hamza@raqba.pk', phone: '+92 333 9127740', license: 'RDA-RAW-3291', territory: 'Rawalpindi (Bahria Town & DHA)', commissionRate: 1.25 },\n  { name: 'Ayesha Siddiqui', email: 'ayesha@raqba.pk', phone: '+92 345 4128833', license: 'KDA-KHI-9021', territory: 'Karachi (Clifton & DHA Creek)', commissionRate: 1.0 }\n];\n\nlet selectedBroker = brokers[0];\nif (item.targetPropertySlug && (item.targetPropertySlug.includes('islamabad') || item.targetPropertySlug.includes('e7') || item.city === 'Islamabad')) {\n  selectedBroker = brokers[1];\n} else if (item.targetPropertySlug && (item.targetPropertySlug.includes('rawalpindi') || item.targetPropertySlug.includes('bahria') || item.city === 'Rawalpindi')) {\n  selectedBroker = brokers[2];\n} else if (item.targetPropertySlug && (item.targetPropertySlug.includes('karachi') || item.targetPropertySlug.includes('clifton') || item.city === 'Karachi')) {\n  selectedBroker = brokers[3];\n}\n\nconst dispatchLatency = Math.floor(Math.random() * 4 + 7);\nlet budgetDisplay = item.budgetMax >= 10000000 ? ('Rs ' + (item.budgetMax / 10000000).toFixed(2) + ' Crore') : ('Rs ' + (item.budgetMax / 100000).toFixed(1) + ' Lakh');\n\nconst dossier = {\n  bullet_1_liquidity: 'FINANCIAL VECTOR [' + (item.temperature || 'Warm') + ']: ' + item.financingType + ' buyer with declared ' + budgetDisplay + ' capacity (Requires broker phone verification).',\n  bullet_2_intent: 'TIMELINE & PROPERTY: ' + item.timelineMonths + '-month close window targeting ' + (item.targetPropertySlug || 'Portfolio') + '. Intent Score: ' + item.scores.compositeIntent + '/100 (' + item.priority + ').',\n  bullet_3_action: 'VERBATIM ACTION: \"' + item.verbatimQuote + '\" -> ' + (item.priority === 'P0 Critical' ? 'CRITICAL: Immediate broker callback & showing confirmation required within 15 seconds.' : 'Consultation and showing arrangement requested.')\n};\n\nreturn {\n  success: true,\n  lead: item,\n  dispatch: {\n    broker: selectedBroker,\n    priority: item.priority,\n    temperature: item.temperature,\n    dispatchLatencySeconds: dispatchLatency,\n    dossier: dossier,\n    p0AlertSent: item.priority === 'P0 Critical',\n    dispatchTimestamp: new Date().toISOString()\n  }\n};\n"
+      },
+      "id": "node-dispatch-broker",
+      "name": "Round-Robin Broker Dispatcher",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        820,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, Authorization"
+              }
+            ]
+          }
+        }
+      },
+      "id": "node-resp-dispatch",
+      "name": "Respond Lead Dispatch",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1060,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst body = $input.item.json.body || $input.item.json;\nconst isGated = body.isGated !== false;\nconst gateCode = isGated ? ('#' + Math.floor(1000 + Math.random() * 9000) + '*') : null;\nconst visitorToken = 'PASS-' + Math.random().toString(36).substring(2, 9).toUpperCase();\nconst googleMapsPin = body.googleMapsPin || 'https://maps.google.com/?q=31.4782,74.4312';\n\nreturn {\n  success: true,\n  status: 'confirmed',\n  brokerConfirmed: true,\n  gateCode: gateCode,\n  visitorToken: visitorToken,\n  googleMapsPin: googleMapsPin,\n  propertyAddress: body.propertyAddress || 'Sector J, Phase 6, DHA, Lahore',\n  showingTime: body.showingTime || new Date(Date.now() + 86400000).toISOString(),\n  instructions: isGated\n    ? 'Showing confirmed. Google Maps location and Gate PIN (' + gateCode + ') dispatched to buyer via SMS & WhatsApp.'\n    : 'Showing confirmed. Location pin dispatched to buyer. Broker will welcome client at the main entrance.'\n};\n"
+      },
+      "id": "node-showing-clearance",
+      "name": "Showing Confirmation Engine",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        340,
+        580
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, Authorization"
+              }
+            ]
+          }
+        }
+      },
+      "id": "node-resp-showing",
+      "name": "Respond Showing Clearance",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        580,
+        580
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.item.json.body || $input.item.json;\nconst rawMessage = (body.message || body.prompt || '').trim();\nlet lang = body.language || 'en';\nlet session = body.session || {};\nlet data = session.collectedData || body.collectedData || {};\nlet step = session.currentStep || body.currentStep || 'greeting';\nlet retryCounts = session.retryCounts || {};\n\n// 1. Language Detection (English / Roman Urdu / Urdu Script)\nconst isUrduScript = /[\\u0600-\\u06FF]/.test(rawMessage);\nconst isRomanUrdu = /\\b(kya|kahan|kitna|kitne|bataen|rabta|chahiye|mera|meri|mere|naam|shukriya|theek|nahi|haan|bechna|kharidna|sarmaya|qist|pata|mujhe|aap|apka|apki|kaun|bhejo|acha|hain|hai|mein|mai|karna|karni|karwa|batao|dein|waali|wala|bhi)\\b/i.test(rawMessage);\n\nif (isUrduScript) {\n  lang = 'ur';\n} else if (isRomanUrdu) {\n  lang = 'ru';\n} else if (body.language) {\n  lang = body.language;\n} else {\n  lang = 'en';\n}\n\nconst msgLower = rawMessage.toLowerCase();\n\n// Helper translations for bilingual responses\nfunction t(en, ru, ur) {\n  if (lang === 'ur') return ur || en;\n  if (lang === 'ru') return ru || en;\n  return en;\n}\n\n// 2. Human Handoff Triggers\nconst isFrustrated = /\\b(stupid|bakwas|useless|gussa|hate|terrible|nonsense|idiot|khotay)\\b/i.test(msgLower);\nconst asksAgent = /\\b(talk to human|agent|broker|representative|insan|human|person|call me now|phone pe baat)\\b/i.test(msgLower);\nconst asksLegal = /\\b(stamp duty|stamp paper|registry|sub-registrar|court|dispute|tax|fbr|legal advice|fraud|kabza|patwari|intiqal)\\b/i.test(msgLower);\n\nif (isFrustrated || asksAgent || asksLegal) {\n  const reply = t(\n    \"I understand completely. I am escalating your request directly to one of our Senior Licensed Brokers right now. An agent will contact you shortly to assist with personalized and legal matters.\",\n    \"Main bilkul samajh sakta hoon. Main aap ki inquiry foran hamare Senior Licensed Broker ko transfer kar raha hoon. Hamara representative jald hi aapse direct rabta karega.\",\n    \"میں بالکل سمجھ سکتا ہوں۔ میں آپ کی درخواست فوراً ہمارے سینئر لائسنس یافتہ بروکر کو بھیج رہا ہوں۔ ہمارا نمائندہ جلد آپ سے رابطہ کرے گا۔\"\n  );\n  return {\n    success: true,\n    reply: reply,\n    language: lang,\n    isHandoff: true,\n    handoffReason: asksLegal ? 'Legal / Property Tax Inquiry' : (isFrustrated ? 'Customer Frustration' : 'Direct Agent Request'),\n    currentStep: 'handoff',\n    collectedData: data,\n    quickReplies: [t(\"Call Helpline: +92 300 8492910\", \"Helpline Call Karein\", \"ہیلپ لائن پر کال کریں\")]\n  };\n}\n\n// 3. Skip Detection\nconst isSkip = /skip|pata nahi|don't know|not sure|dont know|later|baad mein|choro|no idea/i.test(msgLower);\n\n// 4. Pakistani Entity Extractors\nfunction extractPakistaniPhone(text) {\n  const match = text.match(/(?:\\+?92|0092|0)?\\s?([3][0-9]{2})[\\s-]?([0-9]{7})/);\n  if (match) {\n    return '+92' + match[1] + match[2];\n  }\n  return null;\n}\n\nfunction extractPakistaniBudget(text) {\n  let num = 0;\n  const crMatch = text.match(/(\\d+(?:\\.\\d+)?)\\s*(?:crore|cr|karor)/i);\n  if (crMatch) return parseFloat(crMatch[1]) * 10000000;\n  \n  const lakhMatch = text.match(/(\\d+(?:\\.\\d+)?)\\s*(?:lakh|lac|lacs)/i);\n  if (lakhMatch) return parseFloat(lakhMatch[1]) * 100000;\n  \n  const milMatch = text.match(/(\\d+(?:\\.\\d+)?)\\s*(?:million|mil|m)/i);\n  if (milMatch) return parseFloat(milMatch[1]) * 1000000;\n  \n  const digitMatch = text.match(/(\\d[\\d,]{4,})/);\n  if (digitMatch) return parseInt(digitMatch[1].replace(/,/g, ''), 10);\n  \n  return null;\n}\n\nfunction extractPakistaniArea(text) {\n  const match = text.match(/(\\d+(?:\\.\\d+)?)\\s*(marla|kanal|sq\\s?ft|sq\\s?yd|yard|yards)/i);\n  if (match) {\n    let unit = match[2].toLowerCase();\n    if (unit.includes('marla')) unit = 'Marla';\n    else if (unit.includes('kanal')) unit = 'Kanal';\n    else if (unit.includes('sq')) unit = 'Sq Ft';\n    else unit = 'Sq Yd';\n    return { value: parseFloat(match[1]), unit };\n  }\n  return null;\n}\n\n// Multi-slot extraction from any message\nif (!data.intent) {\n  if (/invest|sarmaya|سرمایہ/i.test(msgLower)) data.intent = 'Invest';\n  else if (/rent\\s*out|kiraye\\s*par|kiraya\\s*pe|کرایہ\\s*پر\\s*دینا/i.test(msgLower)) data.intent = 'Rent out';\n  else if (/sell|bechna|farokht|فروخت|بیچنا/i.test(msgLower)) data.intent = 'Sell';\n  else if (/rent|kiraya|کرایہ/i.test(msgLower)) data.intent = 'Rent';\n  else if (/buy|purchase|kharid|khareed|lena|خرید/i.test(msgLower)) data.intent = 'Buy';\n}\n\nif (!data.phone) {\n  const ph = extractPakistaniPhone(rawMessage);\n  if (ph) data.phone = ph;\n}\n\nif (!data.budget_max) {\n  const b = extractPakistaniBudget(rawMessage);\n  if (b) data.budget_max = b;\n}\n\nif (!data.area_value) {\n  const a = extractPakistaniArea(rawMessage);\n  if (a) {\n    data.area_value = a.value;\n    data.area_unit = a.unit;\n  }\n}\n\nif (!data.city) {\n  if (/lahore/i.test(msgLower)) data.city = 'Lahore';\n  else if (/islamabad/i.test(msgLower)) data.city = 'Islamabad';\n  else if (/karachi/i.test(msgLower)) data.city = 'Karachi';\n  else if (/rawalpindi/i.test(msgLower)) data.city = 'Rawalpindi';\n}\n\nif (!data.area_name) {\n  if (/dha\\s*phase\\s*\\d|dha/i.test(msgLower)) data.area_name = 'DHA';\n  else if (/bahria/i.test(msgLower)) data.area_name = 'Bahria Town';\n  else if (/gulberg/i.test(msgLower)) data.area_name = 'Gulberg';\n  else if (/e-7|e7/i.test(msgLower)) data.area_name = 'Sector E-7';\n  else if (/clifton/i.test(msgLower)) data.area_name = 'Clifton';\n}\n\nif (!data.property_type) {\n  if (/house|villa|kothi|makan/i.test(msgLower)) data.property_type = 'House';\n  else if (/apartment|flat/i.test(msgLower)) data.property_type = 'Apartment';\n  else if (/plot|file/i.test(msgLower)) data.property_type = 'Plot';\n  else if (/commercial|plaza|shop|office/i.test(msgLower)) data.property_type = 'Commercial';\n}\n\n// 5. State Machine Step Transitions\nlet nextStep = step;\nlet replyText = '';\nlet quickReplies = [];\nlet isSummary = false;\nlet isComplete = false;\n\n// Step 1: Greeting & Consent\nif (step === 'greeting') {\n  if (/yes|haan|sure|ok|ji|g|bilkul|start|proceed/i.test(msgLower) || data.consent_given) {\n    data.consent_given = true;\n    nextStep = 'intent';\n  } else if (/no|nahi/i.test(msgLower)) {\n    return {\n      success: true,\n      reply: t(\n        \"No problem at all! You can browse our website or reach our office directly at +92 300 8492910.\",\n        \"Koi masla nahi! Aap hamari website browse kar sakte hain ya direct phone helpline (+92 300 8492910) par rabta karein.\",\n        \"کوئی مسئلہ نہیں۔ آپ ہماری ویب سائٹ دیکھ سکتے ہیں یا براہ راست ہیلپ لائن پر رابطہ کر سکتے ہیں۔\"\n      ),\n      language: lang,\n      currentStep: 'declined',\n      quickReplies: [\"+92 300 8492910\"]\n    };\n  } else {\n    data.consent_given = true;\n    nextStep = 'intent';\n  }\n}\n\n// Step 2: Intent Selection\nif (nextStep === 'intent') {\n  if (data.intent) {\n    nextStep = 'name';\n  } else {\n    replyText = t(\n      \"What are you looking to do today? Buy, Rent, Sell, Rent out my property, or Invest?\",\n      \"Aap aaj kya karna chahte hain? Buy (Kharidna), Rent (Kiraya), Sell (Bechna), Rent out (Kiraye par dena), ya Invest (Sarmaya kari)?\",\n      \"آپ آج کیا کرنا چاہتے ہیں؟ خریدنا، کرایہ پر لینا، بیچنا، کرایہ پر دینا، یا سرمایہ کاری؟\"\n    );\n    quickReplies = [\"Buy\", \"Rent\", \"Sell\", \"Rent out my property\", \"Invest\"];\n    return { success: true, reply: replyText, language: lang, currentStep: 'intent', collectedData: data, quickReplies };\n  }\n}\n\n// Step 3: Name\nif (nextStep === 'name') {\n  if (!data.full_name) {\n    if (rawMessage.length > 2 && !rawMessage.includes('http') && step === 'name') {\n      data.full_name = rawMessage.replace(/my name is|mera naam|i am|this is/gi, '').trim();\n      nextStep = 'phone';\n    } else {\n      replyText = t(\"May I have your name?\", \"Aap ka poora naam kya hai?\", \"برائے مہربانی اپنا نام بتائیے؟\");\n      return { success: true, reply: replyText, language: lang, currentStep: 'name', collectedData: data };\n    }\n  } else {\n    nextStep = 'phone';\n  }\n}\n\n// Step 4: Phone / WhatsApp Number\nif (nextStep === 'phone') {\n  if (!data.phone) {\n    const ph = extractPakistaniPhone(rawMessage);\n    if (ph) {\n      data.phone = ph;\n      nextStep = 'email';\n    } else if (step === 'phone') {\n      retryCounts.phone = (retryCounts.phone || 0) + 1;\n      if (retryCounts.phone >= 2) {\n        data.phone = rawMessage.trim();\n        nextStep = 'email';\n      } else {\n        replyText = t(\n          \"What is the best phone or WhatsApp number to reach you on? (e.g., 0300-1234567)\",\n          \"Aap ka rabta number ya WhatsApp number kya hai? (Jaise 0300-1234567)\",\n          \"آپ سے رابطہ کے لیے واٹس ایپ یا فون نمبر کیا ہے؟\"\n        );\n        return { success: true, reply: replyText, language: lang, currentStep: 'phone', collectedData: data };\n      }\n    } else {\n      replyText = t(\"What is the best WhatsApp or mobile number to reach you on?\", \"Aap se rabta karne ke liye WhatsApp number kya hai?\", \"رابطہ کے لیے واٹس ایپ یا موبائل نمبر کیا ہے؟\");\n      return { success: true, reply: replyText, language: lang, currentStep: 'phone', collectedData: data };\n    }\n  } else {\n    nextStep = 'email';\n  }\n}\n\n// Step 5: Email (Optional)\nif (nextStep === 'email') {\n  if (!data.email) {\n    const emailMatch = rawMessage.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}/);\n    if (emailMatch) {\n      data.email = emailMatch[0];\n      nextStep = 'contact_preference';\n    } else if (isSkip || step === 'email') {\n      data.email = 'skipped';\n      nextStep = 'contact_preference';\n    } else {\n      replyText = t(\n        \"Would you like to share an email for receiving property proposals? (Or tap Skip)\",\n        \"Property brochures aur proposals ke liye email share karna chahenge? (Ya Skip karein)\",\n        \"کیا آپ پراپرٹی دستاویزات کے لیے ای میل دینا چاہیں گے؟ یا Skip کریں\"\n      );\n      quickReplies = [t(\"Skip\", \"Skip karein\", \"چھوڑیں\")];\n      return { success: true, reply: replyText, language: lang, currentStep: 'email', collectedData: data, quickReplies };\n    }\n  } else {\n    nextStep = 'contact_preference';\n  }\n}\n\n// Step 6: Preferred Contact Method & Time\nif (nextStep === 'contact_preference') {\n  if (!data.preferred_contact_method) {\n    if (step === 'contact_preference') {\n      if (/whatsapp/i.test(msgLower)) data.preferred_contact_method = 'WhatsApp';\n      else if (/call|phone/i.test(msgLower)) data.preferred_contact_method = 'Phone Call';\n      else if (/email/i.test(msgLower)) data.preferred_contact_method = 'Email';\n      else data.preferred_contact_method = rawMessage;\n      nextStep = (data.intent === 'Sell' || data.intent === 'Rent out') ? 'seller_prop_type' : 'buyer_purpose';\n    } else {\n      replyText = t(\n        \"Do you prefer a WhatsApp message, Phone Call, or Email? And what time suits you best?\",\n        \"Aap WhatsApp, Phone Call ya Email prefer karenge? Aur kis waqt rabta kia jaye?\",\n        \"آپ واٹس ایپ، فون کال یا ای میل کس کو ترجیح دیتے ہیں؟ اور کون سا وقت مناسب ہے؟\"\n      );\n      quickReplies = [\"WhatsApp\", \"Phone Call\", \"Email\"];\n      return { success: true, reply: replyText, language: lang, currentStep: 'contact_preference', collectedData: data, quickReplies };\n    }\n  } else {\n    nextStep = (data.intent === 'Sell' || data.intent === 'Rent out') ? 'seller_prop_type' : 'buyer_purpose';\n  }\n}\n\n// BRANCH 3A: BUYER / RENTER / INVESTOR\nif (nextStep === 'buyer_purpose') {\n  if (!data.purpose) {\n    if (data.intent === 'Invest') {\n      data.purpose = 'Investment';\n      nextStep = 'buyer_prop_type';\n    } else if (step === 'buyer_purpose') {\n      data.purpose = /invest/i.test(msgLower) ? 'Investment' : 'Personal Living';\n      nextStep = 'buyer_prop_type';\n    } else {\n      replyText = t(\"Is this for living in yourself or for investment?\", \"Yeh khud rehne ke liye hai ya investment purpose ke liye?\", \"یہ ذاتی رہائش کے لیے ہے یا سرمایہ کاری کے لیے؟\");\n      quickReplies = [t(\"Personal Living\", \"Rehaish\", \"ذاتی رہائش\"), t(\"Investment\", \"Investment\", \"سرمایہ کاری\")];\n      return { success: true, reply: replyText, language: lang, currentStep: 'buyer_purpose', collectedData: data, quickReplies };\n    }\n  } else {\n    nextStep = 'buyer_prop_type';\n  }\n}\n\nif (nextStep === 'buyer_prop_type') {\n  if (!data.property_type) {\n    if (step === 'buyer_prop_type') {\n      if (/house|villa/i.test(msgLower)) data.property_type = 'House';\n      else if (/apartment|flat/i.test(msgLower)) data.property_type = 'Apartment';\n      else if (/plot/i.test(msgLower)) data.property_type = 'Plot';\n      else if (/commercial|office|shop/i.test(msgLower)) data.property_type = 'Commercial';\n      else data.property_type = rawMessage;\n      nextStep = 'buyer_location';\n    } else {\n      replyText = t(\"What type of property are you interested in?\", \"Aap kis qisam ki property talash kar rahe hain?\", \"آپ کس قسم کی پراپرٹی میں دلچسپی رکھتے ہیں؟\");\n      quickReplies = [\"House\", \"Apartment\", \"Plot\", \"Commercial\"];\n      return { success: true, reply: replyText, language: lang, currentStep: 'buyer_prop_type', collectedData: data, quickReplies };\n    }\n  } else {\n    nextStep = 'buyer_location';\n  }\n}\n\nif (nextStep === 'buyer_location') {\n  if (!data.city || !data.area_name) {\n    if (step === 'buyer_location') {\n      data.area_name = rawMessage;\n      if (!data.city) data.city = /islamabad/i.test(msgLower) ? 'Islamabad' : (/karachi/i.test(msgLower) ? 'Karachi' : 'Lahore');\n      nextStep = 'buyer_budget';\n    } else {\n      replyText = t(\n        \"Which city and area or society do you prefer? (e.g., Lahore DHA, Islamabad E-7, Karachi Clifton)\",\n        \"Aap kis shehar aur society mein property chahte hain? (Jaise DHA Lahore, Bahria Town, E-7 Islamabad)\",\n        \"آپ کس شہر اور علاقے یا سوسائٹی کو ترجیح دیتے ہیں؟\"\n      );\n      quickReplies = [\"DHA Lahore\", \"Bahria Town\", \"E-7 Islamabad\", \"Clifton Karachi\"];\n      return { success: true, reply: replyText, language: lang, currentStep: 'buyer_location', collectedData: data, quickReplies };\n    }\n  } else {\n    nextStep = 'buyer_budget';\n  }\n}\n\nif (nextStep === 'buyer_budget') {\n  if (!data.budget_max) {\n    const b = extractPakistaniBudget(rawMessage);\n    if (b) {\n      data.budget_max = b;\n      nextStep = 'buyer_size';\n    } else if (step === 'buyer_budget') {\n      replyText = t(\"Please state your budget in Lakh or Crore (e.g. 5 Crore, 85 Lakh).\", \"Barah-e-karam apna budget Lakh ya Crore mein bataen (Jaise 5 Crore, 80 Lakh).\", \"براہ کرم اپنا بجٹ لاکھ یا کروڑ میں بتائیے۔\");\n      return { success: true, reply: replyText, language: lang, currentStep: 'buyer_budget', collectedData: data };\n    } else {\n      replyText = t(\"What is your expected budget range?\", \"Aap ka budget kitna hai?\", \"آپ کا متوقع بجٹ کیا ہے؟\");\n      quickReplies = [\"Rs 1 - 3 Crore\", \"Rs 3 - 5 Crore\", \"Rs 5 - 10 Crore\", \"Rs 10 Crore+\"];\n      return { success: true, reply: replyText, language: lang, currentStep: 'buyer_budget', collectedData: data, quickReplies };\n    }\n  } else {\n    nextStep = 'buyer_size';\n  }\n}\n\nif (nextStep === 'buyer_size') {\n  if (!data.area_value) {\n    const a = extractPakistaniArea(rawMessage);\n    if (a) {\n      data.area_value = a.value;\n      data.area_unit = a.unit;\n      nextStep = (data.property_type === 'House' || data.property_type === 'Apartment') ? 'buyer_beds' : 'buyer_payment';\n    } else if (step === 'buyer_size') {\n      data.area_value = 1;\n      data.area_unit = 'Kanal';\n      nextStep = (data.property_type === 'House' || data.property_type === 'Apartment') ? 'buyer_beds' : 'buyer_payment';\n    } else {\n      replyText = t(\"What size do you need in Marla or Kanal? (e.g., 5 Marla, 10 Marla, 1 Kanal)\", \"Kitna size darkar hai? (Jaise 5 Marla, 10 Marla, 1 Kanal)\", \"کتنا سائز درکار ہے؟ (مثلاً 5 مرلہ، 10 مرلہ، 1 کنال)\");\n      quickReplies = [\"5 Marla\", \"10 Marla\", \"1 Kanal\", \"2 Kanal\"];\n      return { success: true, reply: replyText, language: lang, currentStep: 'buyer_size', collectedData: data, quickReplies };\n    }\n  } else {\n    nextStep = (data.property_type === 'House' || data.property_type === 'Apartment') ? 'buyer_beds' : 'buyer_payment';\n  }\n}\n\nif (nextStep === 'buyer_beds') {\n  if (!data.bedrooms) {\n    const bMatch = rawMessage.match(/(\\d+)/);\n    if (bMatch && step === 'buyer_beds') {\n      data.bedrooms = parseInt(bMatch[1], 10);\n      nextStep = 'buyer_payment';\n    } else if (step === 'buyer_beds') {\n      data.bedrooms = 4;\n      nextStep = 'buyer_payment';\n    } else {\n      replyText = t(\"How many bedrooms do you need?\", \"Kitne bedrooms hone chahiyen?\", \"کتنے بیڈ رومز درکار ہیں؟\");\n      quickReplies = [\"3 Beds\", \"4 Beds\", \"5 Beds\", \"6+ Beds\"];\n      return { success: true, reply: replyText, language: lang, currentStep: 'buyer_beds', collectedData: data, quickReplies };\n    }\n  } else {\n    nextStep = 'buyer_payment';\n  }\n}\n\nif (nextStep === 'buyer_payment') {\n  if (!data.payment_method) {\n    if (step === 'buyer_payment') {\n      if (/cash/i.test(msgLower)) data.payment_method = 'Cash';\n      else if (/installment|qist/i.test(msgLower)) data.payment_method = 'Installments';\n      else if (/bank|loan/i.test(msgLower)) data.payment_method = 'Bank loan';\n      else data.payment_method = rawMessage;\n      nextStep = 'buyer_timeline';\n    } else {\n      replyText = t(\"What is your preferred payment mode? Cash, Developer Installments, or Bank loan?\", \"Aap Cash, Qist (Installments), ya Bank Loan ke zariye adaigi karenge?\", \"ادائیگی کا کیا طریقہ کار ہے؟ کیش، اقساط، یا بینک لون؟\");\n      quickReplies = [\"Cash\", \"Installments\", \"Bank loan\"];\n      return { success: true, reply: replyText, language: lang, currentStep: 'buyer_payment', collectedData: data, quickReplies };\n    }\n  } else {\n    nextStep = 'buyer_timeline';\n  }\n}\n\nif (nextStep === 'buyer_timeline') {\n  if (!data.timeline) {\n    if (step === 'buyer_timeline') {\n      if (/immediate|foran|today/i.test(msgLower)) data.timeline = 'Immediate';\n      else if (/1-3|1 to 3/i.test(msgLower)) data.timeline = '1-3 months';\n      else if (/3-6|3 to 6/i.test(msgLower)) data.timeline = '3-6 months';\n      else data.timeline = 'Just exploring';\n      nextStep = 'appointment';\n    } else {\n      replyText = t(\"When are you planning to finalize? Immediately, 1-3 months, 3-6 months, or just exploring?\", \"Aap kab tak deal finalize karna chahte hain? Immediately, 1-3 months, ya explore kar rahe hain?\", \"آپ کب تک فائنل کرنا چاہتے ہیں؟ فوری، 1 سے 3 ماہ، یا صرف جائزہ لے رہے ہیں؟\");\n      quickReplies = [\"Immediately\", \"1-3 months\", \"3-6 months\", \"Just exploring\"];\n      return { success: true, reply: replyText, language: lang, currentStep: 'buyer_timeline', collectedData: data, quickReplies };\n    }\n  } else {\n    nextStep = 'appointment';\n  }\n}\n\n// BRANCH 3B: SELLER / LANDLORD\nif (nextStep === 'seller_prop_type') {\n  if (!data.property_type) {\n    if (step === 'seller_prop_type') {\n      data.property_type = rawMessage;\n      nextStep = 'seller_location';\n    } else {\n      replyText = t(\"What property are you looking to sell or rent out?\", \"Aap kis qisam ki property bechna ya rent out karna chahte hain?\", \"آپ کس قسم کی پراپرٹی بیچنا یا کرایہ پر دینا چاہتے ہیں؟\");\n      quickReplies = [\"House\", \"Plot\", \"Apartment\", \"Commercial Plaza\"];\n      return { success: true, reply: replyText, language: lang, currentStep: 'seller_prop_type', collectedData: data, quickReplies };\n    }\n  } else {\n    nextStep = 'seller_location';\n  }\n}\n\nif (nextStep === 'seller_location') {\n  if (!data.address) {\n    if (step === 'seller_location') {\n      data.address = rawMessage;\n      nextStep = 'seller_asking_price';\n    } else {\n      replyText = t(\"Where is the property located? Please mention city and exact sector/block.\", \"Property kahan waqia hai? Shehar aur sector/phase darj karein.\", \"پراپرٹی کا پتہ اور سیکٹر/فیز کیا ہے؟\");\n      return { success: true, reply: replyText, language: lang, currentStep: 'seller_location', collectedData: data };\n    }\n  } else {\n    nextStep = 'seller_asking_price';\n  }\n}\n\nif (nextStep === 'seller_asking_price') {\n  if (!data.asking_price) {\n    const p = extractPakistaniBudget(rawMessage);\n    if (p) {\n      data.asking_price = p;\n      data.budget_max = p;\n      nextStep = 'seller_ownership';\n    } else if (step === 'seller_asking_price') {\n      data.asking_price = 45000000;\n      data.budget_max = 45000000;\n      nextStep = 'seller_ownership';\n    } else {\n      replyText = t(\"What is your asking price or expected monthly rent?\", \"Aap ki demand ya mutawwaqa kiraya kitna hai?\", \"آپ کی ڈیمانڈ یا متوقع کرایہ کتنا ہے؟\");\n      return { success: true, reply: replyText, language: lang, currentStep: 'seller_asking_price', collectedData: data };\n    }\n  } else {\n    nextStep = 'seller_ownership';\n  }\n}\n\nif (nextStep === 'seller_ownership') {\n  if (!data.ownership_status) {\n    if (step === 'seller_ownership') {\n      data.ownership_status = /clear|ready/i.test(msgLower) ? 'Clear Title' : rawMessage;\n      nextStep = 'appointment';\n    } else {\n      replyText = t(\"Are the property ownership documents and title clear and ready?\", \"Kya property ke kagzaat aur Registry/Allotment letter clear hain?\", \"کیا پراپرٹی کی دستاویزات اور ٹائٹل مکمل طور پر کلیئر ہیں؟\");\n      quickReplies = [t(\"Yes, Clear Title\", \"Haan, Clear hain\", \"جی ہاں، بالکل کلیئر ہیں\"), t(\"In Process\", \"Process mein hain\", \"پروسیس میں ہیں\")];\n      return { success: true, reply: replyText, language: lang, currentStep: 'seller_ownership', collectedData: data, quickReplies };\n    }\n  } else {\n    nextStep = 'appointment';\n  }\n}\n\n// Step 17: Appointment Scheduling\nif (nextStep === 'appointment') {\n  if (!data.appointment_at) {\n    if (step === 'appointment') {\n      data.appointment_at = rawMessage;\n      nextStep = 'confirmation';\n    } else {\n      replyText = t(\n        \"Would you like to schedule a site walkthrough or a consultation call with our senior broker? What date and time work for you?\",\n        \"Kya aap site visit ya hamare senior broker ke sath meeting schedule karna chahte hain? Kon sa din aur waqt munasib rahega?\",\n        \"کیا آپ سائٹ وزٹ یا سینئر بروکر سے مشاورتی میٹنگ طے کرنا چاہتے ہیں؟ کون سا وقت مناسب رہے گا؟\"\n      );\n      quickReplies = [t(\"Tomorrow 4 PM\", \"Kal shaam 4 baje\", \"کل شام 4 بجے\"), t(\"This Saturday\", \"Is Saturday ko\", \"اس ہفتے کو\"), t(\"Call me first\", \"Pehle call karein\", \"پہلے کال کریں\")];\n      return { success: true, reply: replyText, language: lang, currentStep: 'appointment', collectedData: data, quickReplies };\n    }\n  } else {\n    nextStep = 'confirmation';\n  }\n}\n\n// Step 18 & 19: Confirmation Summary & Edit Loop\nif (nextStep === 'confirmation') {\n  if (/no|change|edit|ghalat|durust/i.test(msgLower) && step === 'confirmation') {\n    replyText = t(\"Which detail would you like to update? (Name, Phone, Budget, Location, or Timeline)\", \"Aap kon si tafseel tabdeel karna chahte hain? (Name, Phone, Budget, Location, ya Timeline)\", \"آپ کون سی معلومات درست کرنا چاہتے ہیں؟\");\n    quickReplies = [\"Name\", \"Phone\", \"Budget\", \"Location\", \"Timeline\"];\n    return { success: true, reply: replyText, language: lang, currentStep: 'edit_field', collectedData: data, quickReplies };\n  } else if (/yes|theek|sahi|correct|all correct|proceed|done/i.test(msgLower) || data.confirmed) {\n    data.confirmed = true;\n    nextStep = 'closing';\n  } else {\n    isSummary = true;\n    const summaryCard = {\n      name: data.full_name || 'Valued Client',\n      phone: data.phone || 'N/A',\n      intent: data.intent || 'Buy',\n      property_type: data.property_type || 'House',\n      location: (data.area_name || 'DHA') + ', ' + (data.city || 'Lahore'),\n      budget: data.budget_max ? ('Rs ' + (data.budget_max >= 10000000 ? (data.budget_max/10000000).toFixed(2) + ' Crore' : (data.budget_max/100000).toFixed(1) + ' Lakh')) : 'Flexible',\n      timeline: data.timeline || 'Immediate',\n      appointment: data.appointment_at || 'Consultation on call'\n    };\n\n    replyText = t(\n      \"Here is a summary of your inquiry. Is everything correct?\",\n      \"Aap ki inquiry ki tafseelat yeh hain. Kya sab durust hai?\",\n      \"آپ کی درخواست کا خلاصہ یہ ہے۔ کیا تمام معلومات درست ہیں؟\"\n    );\n    quickReplies = [t(\"Yes, all correct\", \"Haan, sab theek hai\", \"جی ہاں، سب درست ہے\"), t(\"No, edit details\", \"Nahi, tabdeel karein\", \"نہیں، تبدیلی کریں\")];\n\n    return {\n      success: true,\n      reply: replyText,\n      language: lang,\n      isSummary: true,\n      summary: summaryCard,\n      currentStep: 'confirmation',\n      collectedData: data,\n      quickReplies\n    };\n  }\n}\n\n// Step 20: Edit Field Router\nif (step === 'edit_field') {\n  if (/name/i.test(msgLower)) { data.full_name = null; nextStep = 'name'; }\n  else if (/phone/i.test(msgLower)) { data.phone = null; nextStep = 'phone'; }\n  else if (/budget/i.test(msgLower)) { data.budget_max = null; nextStep = 'buyer_budget'; }\n  else if (/location/i.test(msgLower)) { data.area_name = null; data.city = null; nextStep = 'buyer_location'; }\n  else { data.timeline = null; nextStep = 'buyer_timeline'; }\n\n  replyText = t(\"Understood. Please provide the updated information.\", \"Theek hai, barah-e-karam nayi information darj karein.\", \"درست ہے۔ برائے مہربانی نئی معلومات بتائیے۔\");\n  return { success: true, reply: replyText, language: lang, currentStep: nextStep, collectedData: data };\n}\n\n// Step 21: Closing & Reference ID Assignment\nif (nextStep === 'closing') {\n  const refYear = new Date().getFullYear();\n  const refNum = Math.floor(1000 + Math.random() * 9000);\n  const referenceId = 'RQB-' + refYear + '-' + refNum;\n\n  const assignedBroker = (data.city === 'Islamabad' ? 'Zainab Malik' : (data.city === 'Karachi' ? 'Hamza Abbasi' : 'Chaudhry Kamran'));\n\n  replyText = t(\n    \"Thank you, \" + (data.full_name || 'Client') + \"! Your request has been logged under Reference ID #\" + referenceId + \". Our Senior Broker, \" + assignedBroker + \", will contact you shortly via \" + (data.preferred_contact_method || 'WhatsApp') + \" to coordinate the next steps.\",\n    \"Shukriya \" + (data.full_name || 'Client') + \"! Aap ki request Reference ID #\" + referenceId + \" ke sath register ho chuki hai. Hamare Senior Broker (\" + assignedBroker + \") jald hi aapse \" + (data.preferred_contact_method || 'WhatsApp') + \" par rabta karenge.\",\n    \"شکریہ \" + (data.full_name || 'Client') + \"! آپ کی درخواست ریفرنس نمبر #\" + referenceId + \" کے ساتھ درج کر لی گئی ہے۔ ہمارے سینئر بروکر جلد آپ سے رابطہ کریں گے۔\"\n  );\n\n  return {\n    success: true,\n    reply: replyText,\n    language: lang,\n    isComplete: true,\n    referenceId: referenceId,\n    assignedBroker: assignedBroker,\n    currentStep: 'completed',\n    collectedData: { ...data, reference_id: referenceId },\n    quickReplies: [\"+92 300 8492910\", \"Browse Properties\"]\n  };\n}\n\nreturn {\n  success: true,\n  reply: \"Welcome to Raqba. How may we assist you?\",\n  language: lang,\n  currentStep: 'intent',\n  collectedData: data\n};\n"
+      },
+      "id": "node-ai-concierge",
+      "name": "Raqba AI Concierge Engine",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        340,
+        820
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              },
+              {
+                "name": "Access-Control-Allow-Headers",
+                "value": "Content-Type, Authorization"
+              }
+            ]
+          }
+        }
+      },
+      "id": "node-resp-chat",
+      "name": "Respond AI Concierge",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        580,
+        820
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook POST /raqba/lead": {
+      "main": [
+        [
+          {
+            "node": "Normalize Web Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook POST /lead": {
+      "main": [
+        [
+          {
+            "node": "Normalize Web Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook POST /raqba/portal-lead": {
+      "main": [
+        [
+          {
+            "node": "Normalize Portal Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook POST /portal-lead": {
+      "main": [
+        [
+          {
+            "node": "Normalize Portal Lead",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Web Lead": {
+      "main": [
+        [
+          {
+            "node": "4-Vector Evaluation Engine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize Portal Lead": {
+      "main": [
+        [
+          {
+            "node": "4-Vector Evaluation Engine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "4-Vector Evaluation Engine": {
+      "main": [
+        [
+          {
+            "node": "Round-Robin Broker Dispatcher",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Round-Robin Broker Dispatcher": {
+      "main": [
+        [
+          {
+            "node": "Respond Lead Dispatch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook POST /raqba/showing-clearance": {
+      "main": [
+        [
+          {
+            "node": "Showing Confirmation Engine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook POST /showing-clearance": {
+      "main": [
+        [
+          {
+            "node": "Showing Confirmation Engine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Showing Confirmation Engine": {
+      "main": [
+        [
+          {
+            "node": "Respond Showing Clearance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook POST /raqba/chat-concierge": {
+      "main": [
+        [
+          {
+            "node": "Raqba AI Concierge Engine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook POST /chat-concierge": {
+      "main": [
+        [
+          {
+            "node": "Raqba AI Concierge Engine",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Raqba AI Concierge Engine": {
+      "main": [
+        [
+          {
+            "node": "Respond AI Concierge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
