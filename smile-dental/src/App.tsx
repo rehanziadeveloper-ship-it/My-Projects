@@ -5,7 +5,6 @@ import { ServiceDetailPage } from './pages/ServiceDetailPage';
 import { AppointmentPage } from './pages/AppointmentPage';
 import { PrivacyPage } from './pages/PrivacyPage';
 import { AdminPage } from './pages/AdminPage';
-import { LeadProspectorPage } from './pages/LeadProspectorPage';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -74,7 +73,6 @@ export const App: React.FC = () => {
           <Route path="/appointment/:token" element={<AppointmentPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/admin" element={<AdminPage />} />
-          <Route path="/leads" element={<LeadProspectorPage />} />
           {/* Redirect removed insurance route back to home */}
           <Route path="/insurance" element={<Navigate to="/" replace />} />
           <Route path="*" element={<Navigate to="/" replace />} />
