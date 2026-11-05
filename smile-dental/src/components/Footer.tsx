@@ -158,8 +158,8 @@ export const Footer: React.FC<FooterProps> = ({
             <Link to="/privacy" className="hover:text-white transition-colors">
               Privacy Policy & Patient Consent
             </Link>
-            <Link to="/leads" className="hover:text-white transition-colors text-clinic-lightGreen font-medium">
-              Lead Prospector
+            <Link to="/insurance" className="hover:text-white transition-colors">
+              Insurance Guide
             </Link>
             <span>Asia/Karachi (PKT)</span>
           </div>
