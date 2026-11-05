@@ -1,21 +1,20 @@
 # Latest Session Memory (Sliding Window)
 
-**Last Synced:** 2026-10-29T14:45:00+05:00  
-**Rule:** Strict 2-session sliding window. Archived history lives in `memory/05_CHAT_SUMMARIES/`. Keep under 30 lines.
+**Last Synced:** 2026-11-05T14:45:00+05:00  
+**Rule:** Strict 2-session sliding window (< 30 lines). Permanent history in `memory/05_CHAT_SUMMARIES/`.
 
 ---
 
 ### Recent Work (Session N & N-1)
-- **Session N (Current - 2026-10-29):** Day 6 Apex Realty AI Pro-Level Refactor. Fixed price infinite loop bug with conversational currency normalization ("1 million", "around 1.5m", "100k"). Enforced strict 1-by-1 sequential contact extraction. Renamed sheet to "Apex Realty CRM Database" and created 4 dedicated tabs (`Buy_Property`, `Sell_Property`, `Rent_Out`, `Invest`) with 9 columns. Updated n8n workflow `TNibBZ9eGODuEUhC` with `Route_By_Intent` Switch node and auto-mapping appends. Integrated Google Calendar bookings. Double-tested live webhooks and CRM aggregation.
-- **Session N-1 (2026-10-29):** Mobile-first responsiveness fix for Day 5 Restaurant Project ("The Heritage Bistro"). Built dual-mode chatbot architecture (desktop sticky column, mobile floating widget expanding into full-screen view). Fixed mobile keyboard overlap with `interactive-widget=resizes-content` and `visualViewport`. Committed `0496920` to GitHub `main`.
+- **Session N (Current - 2026-11-05):** Complete purge & deletion of Dental Leads Scraper: deactivated & permanently deleted n8n workflow `20KUijjvbWri0WTx`, deleted `Apify_Dental_Leads` tab from Google Sheets CRM (`1Rpb9XQsymoDDSEl0n1EChgi8KY7BgmajFXctwreAMjo`), erased `dental-lead-finder/` from local disk and GitHub repo (`rehanziadeveloper-ship-it/My-Projects` commit `db84932f`), and scrubbed all traces from memory vault. `smile-dental` confirmed 100% clean.
+- **Session N-1 (2026-11-04):** Built interactive visual **Calendar View** (Month / Week / Day grid) in Admin Control Room + **Google Calendar Sync via n8n** (`/webhook/raqba/calendar-sync`). 116/116 tests pass. Synced to GitHub monorepo & deployed to Vercel production.
 
 ### Active Decisions & In-Flight Context
-- Day 6 Live Netlify URL: `https://apex-realty-ai.netlify.app`
-- Spreadsheet ID: `1Rpb9XQsymoDDSEl0n1EChgi8KY7BgmajFXctwreAMjo`
-- Tabs: `Buy_Property`, `Sell_Property`, `Rent_Out`, `Invest`
-- Active n8n Workflow: `TNibBZ9eGODuEUhC` on Hostinger cloud
-- Day 5 Live Netlify URL: `https://heritage-bistro-ai.netlify.app`
+- Active Systems: `smile-dental` (single-doctor clinic OS) & `raqba` (autonomous brokerage OS).
+- Monorepo: `rehanziadeveloper-ship-it/My-Projects` clean of any scraper code.
+- Google Sheets: Spreadsheet `1Rpb9XQsymoDDSEl0n1EChgi8KY7BgmajFXctwreAMjo` restored.
 
 ### Current Active Priorities & Next Action
-- [ ] Push commit to GitHub `rehanziadeveloper-ship-it/My-Projects` (`main` branch) to trigger Netlify deploy.
-- [ ] Verify live site on `https://apex-realty-ai.netlify.app`.
+- [x] Complete purge of Dental Leads Scraper across local disk, GitHub, n8n, Google Sheets & memory.
+- [x] Verified `smile-dental` and `raqba` production codebases remain 100% clean and intact.
+- [ ] Align with user on next sprint objectives.
