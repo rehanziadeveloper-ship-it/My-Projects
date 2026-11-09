@@ -26,13 +26,20 @@
 
   <script type="text/babel">
     const { useState, useEffect, useMemo, useCallback } = React;
-    const config = window.APP_CONFIG || {};
+    const config = window.APP_CONFIG || {
+      SUPABASE_URL: 'https://xfwaborsrhavnltjbtfc.supabase.co',
+      SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhmd2Fib3Jzcmhhdm5sdGpidGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQyMDc0NjIsImV4cCI6MjEwOTc4MzQ2Mn0.oRdkMZsdUPr9_ugi16cvrWEV2Z_oizdg4p-vlohO6sI',
+      N8N_BASE_URL: 'https://n8n.srv1767318.hstgr.cloud/webhook/kp-tours/dashboard'
+    };
 
-    // Initialize Supabase Client
-    let supabase = null;
+    // Initialize Supabase Client (named supabaseClient to avoid shadowing window.supabase)
+    let supabaseClient = null;
     try {
-      if (config.SUPABASE_URL && config.SUPABASE_ANON_KEY) {
-        supabase = window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY, {
+      const supaUrl = (config && config.SUPABASE_URL) || 'https://xfwaborsrhavnltjbtfc.supabase.co';
+      const supaKey = (config && config.SUPABASE_ANON_KEY) || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inhmd2Fib3Jzcmhhdm5sdGpidGZjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQyMDc0NjIsImV4cCI6MjEwOTc4MzQ2Mn0.oRdkMZsdUPr9_ugi16cvrWEV2Z_oizdg4p-vlohO6sI';
+      const supaLib = window.supabase || (typeof supabase !== 'undefined' ? supabase : null);
+      if (supaLib && typeof supaLib.createClient === 'function') {
+        supabaseClient = supaLib.createClient(supaUrl, supaKey, {
           auth: {
             persistSession: true,
             autoRefreshToken: true
@@ -108,8 +115,8 @@
         }
         setLoading(true);
         try {
-          if (!supabase) throw new Error('Supabase client not initialized.');
-          const { data, error: authError } = await supabase.auth.signInWithPassword({
+          if (!supabaseClient) throw new Error('Supabase client not initialized.');
+          const { data, error: authError } = await supabaseClient.auth.signInWithPassword({
             email: email.trim(),
             password: password
           });
@@ -210,11 +217,11 @@
       const [eventsLoading, setEventsLoading] = useState(false);
 
       useEffect(() => {
-        if (!booking || !booking.booking_id || !supabase) return;
+        if (!booking || !booking.booking_id || !supabaseClient) return;
         const fetchEvents = async () => {
           setEventsLoading(true);
           try {
-            const { data } = await supabase
+            const { data } = await supabaseClient
               .from('booking_events')
               .select('*')
               .eq('booking_id', booking.booking_id)
@@ -397,17 +404,17 @@
 
       // Check user authentication session on mount
       useEffect(() => {
-        if (!supabase) {
+        if (!supabaseClient) {
           setAuthChecking(false);
           return;
         }
 
-        supabase.auth.getSession().then(({ data }) => {
+        supabaseClient.auth.getSession().then(({ data }) => {
           setSession(data.session);
           setAuthChecking(false);
         });
 
-        const { data: authListener } = supabase.auth.onAuthStateChange((_event, currentSession) => {
+        const { data: authListener } = supabaseClient.auth.onAuthStateChange((_event, currentSession) => {
           setSession(currentSession);
         });
 
@@ -425,9 +432,9 @@
         let loadedData = null;
 
         try {
-          if (supabase) {
+          if (supabaseClient) {
             // Direct Supabase Query from view v_booking_dashboard
-            const { data, error: supaError } = await supabase
+            const { data, error: supaError } = await supabaseClient
               .from('v_booking_dashboard')
               .select('*')
               .order('created_at', { ascending: false });
@@ -526,8 +533,8 @@
       }, [bookings, searchQuery, statusFilter]);
 
       const handleLogout = async () => {
-        if (supabase) {
-          await supabase.auth.signOut();
+        if (supabaseClient) {
+          await supabaseClient.auth.signOut();
           setSession(null);
         }
       };
