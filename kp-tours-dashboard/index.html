@@ -3,9 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>KPK TOURS - Autonomous Fleet Dispatch Desk</title>
+  <title>KPK TOURS - Booking & Dispatch</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -13,383 +15,873 @@
   <script src="/config.js"></script>
   <style>
     body {
-      font-family: 'Plus Jakarta Sans', sans-serif;
-      background-color: #020617;
-      color: #f8fafc;
-    }
-    .font-mono {
-      font-family: 'JetBrains Mono', monospace;
+      font-family: 'Inter', sans-serif;
+      background-color: #F4F8FD;
+      color: #1E293B;
     }
   </style>
 </head>
-<body class="min-h-screen bg-slate-950 text-slate-100 antialiased selection:bg-emerald-500 selection:text-white">
+<body class="min-h-screen bg-[#F4F8FD] text-slate-800 antialiased">
   <div id="root"></div>
 
   <script type="text/babel">
-    const { useState, useEffect } = React;
+    const { useState, useEffect, useMemo, useCallback } = React;
     const config = window.APP_CONFIG || {};
 
-    // Initialize Supabase Client if real credentials provided
+    // Initialize Supabase Client
     let supabase = null;
     try {
-      if (config.SUPABASE_URL && !config.SUPABASE_URL.includes('xyzcompany')) {
-        supabase = window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
+      if (config.SUPABASE_URL && config.SUPABASE_ANON_KEY) {
+        supabase = window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY, {
+          auth: {
+            persistSession: true,
+            autoRefreshToken: true
+          }
+        });
       }
     } catch (e) {
-      console.warn("Supabase client init skipped:", e.message);
+      console.warn("Supabase init error:", e.message);
     }
 
+    // Status Badge Component
     function StatusBadge({ status, dispatchStatus }) {
-      const activeStatus = dispatchStatus || status;
-      switch (activeStatus) {
-        case 'DRIVER_ACCEPTED':
-        case 'CONFIRMED':
-          return (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-              {activeStatus === 'CONFIRMED' ? 'Confirmed' : 'Driver Accepted'}
-            </span>
-          );
-        case 'PENDING_DRIVER':
-        case 'PENDING':
-          return (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/30 animate-pulse">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
-              Pending Driver
-            </span>
-          );
-        case 'DRIVER_REJECTED':
-        case 'REJECTED':
-          return (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-500/15 text-rose-400 border border-rose-500/30">
-              <span className="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
-              Rejected
-            </span>
-          );
-        case 'DRIVER_TIMEOUT':
-        case 'TIMEOUT':
-          return (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-500/15 text-purple-300 border border-purple-500/30">
-              <span className="w-1.5 h-1.5 rounded-full bg-purple-400"></span>
-              Timeout
-            </span>
-          );
-        case 'PENDING_PAYMENT':
-          return (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-sky-500/15 text-sky-400 border border-sky-500/30">
-              <span className="w-1.5 h-1.5 rounded-full bg-sky-400"></span>
-              Awaiting 25% Advance
-            </span>
-          );
-        default:
-          return (
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-800 text-slate-300 border border-slate-700">
-              {activeStatus || 'Draft'}
-            </span>
-          );
+      const active = (dispatchStatus || status || 'DRAFT').toUpperCase();
+      let badgeStyle = "bg-slate-100 text-slate-700 border-slate-200";
+      let label = active;
+      let dotColor = "bg-slate-400";
+
+      if (active === 'CONFIRMED' || active === 'DRIVER_ACCEPTED' || active === 'ACCEPTED') {
+        badgeStyle = "bg-emerald-50 text-emerald-700 border-emerald-200";
+        label = "Driver Accepted";
+        dotColor = "bg-emerald-500";
+      } else if (active === 'PENDING_DRIVER' || active === 'PENDING') {
+        badgeStyle = "bg-amber-50 text-amber-700 border-amber-200";
+        label = "Pending Driver";
+        dotColor = "bg-amber-500";
+      } else if (active === 'PAYMENT_VERIFIED') {
+        badgeStyle = "bg-blue-50 text-blue-700 border-blue-200";
+        label = "Payment Verified";
+        dotColor = "bg-blue-500";
+      } else if (active === 'DRIVER_REJECTED' || active === 'REJECTED') {
+        badgeStyle = "bg-rose-50 text-rose-700 border-rose-200";
+        label = "Rejected";
+        dotColor = "bg-rose-500";
+      } else if (active === 'DRIVER_TIMEOUT' || active === 'TIMEOUT') {
+        badgeStyle = "bg-purple-50 text-purple-700 border-purple-200";
+        label = "Timeout";
+        dotColor = "bg-purple-500";
+      } else if (active === 'COMPLETED') {
+        badgeStyle = "bg-teal-50 text-teal-700 border-teal-200";
+        label = "Completed";
+        dotColor = "bg-teal-500";
+      } else if (active === 'PENDING_PAYMENT') {
+        badgeStyle = "bg-slate-100 text-slate-600 border-slate-200";
+        label = "Pending Payment";
+        dotColor = "bg-slate-400";
+      } else if (active === 'CANCELLED') {
+        badgeStyle = "bg-slate-100 text-slate-500 border-slate-200";
+        label = "Cancelled";
+        dotColor = "bg-slate-400";
       }
+
+      return (
+        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${badgeStyle}`}>
+          <span className={`w-1.5 h-1.5 rounded-full ${dotColor}`}></span>
+          {label}
+        </span>
+      );
     }
 
-    function App() {
-      const [bookings, setBookings] = useState([]);
-      const [gatewayStatus, setGatewayStatus] = useState(null);
-      const [loading, setLoading] = useState(true);
-      const [activeModalBooking, setActiveModalBooking] = useState(null);
-      const [reassignModalBooking, setReassignModalBooking] = useState(null);
-      const [cancelModalBooking, setCancelModalBooking] = useState(null);
-      const [targetDriverPhone, setTargetDriverPhone] = useState('923421353348');
-      const [actionLoading, setActionLoading] = useState(false);
-      const [feedbackMsg, setFeedbackMsg] = useState(null);
+    // Login Form Component
+    function LoginScreen({ onLoginSuccess }) {
+      const [email, setEmail] = useState('');
+      const [password, setPassword] = useState('');
+      const [loading, setLoading] = useState(false);
+      const [error, setError] = useState(null);
 
-      const fetchBookings = async () => {
+      const handleLogin = async (e) => {
+        e.preventDefault();
+        setError(null);
+        if (!email || !password) {
+          setError('Email aur password likhna zaroori hai.');
+          return;
+        }
+        setLoading(true);
         try {
-          if (supabase) {
-            // Direct Supabase Query
-            const { data, error } = await supabase.from('v_booking_dashboard').select('*').order('created_at', { ascending: false });
-            if (!error && data) setBookings(data);
-          } else {
-            // Fetch via n8n WF-08 Webhook
-            const res = await fetch(`${config.N8N_BASE_URL}/bookings`).catch(() => null);
-            if (res && res.ok) {
-              const bData = await res.json();
-              setBookings(bData.bookings || []);
-            }
-          }
-
-          // Fetch thin transport gateway health
-          const gwRes = await fetch(config.GATEWAY_STATUS_URL || '/status').catch(() => null);
-          if (gwRes && gwRes.ok) {
-            const gwData = await gwRes.json();
-            setGatewayStatus(gwData);
+          if (!supabase) throw new Error('Supabase client not initialized.');
+          const { data, error: authError } = await supabase.auth.signInWithPassword({
+            email: email.trim(),
+            password: password
+          });
+          if (authError) throw authError;
+          if (data && data.session) {
+            onLoginSuccess(data.session);
           }
         } catch (err) {
-          console.error("Dashboard fetch error:", err);
+          setError(err.message || 'Login failed. Barahe karam email aur password check karein.');
         } finally {
           setLoading(false);
         }
       };
 
-      useEffect(() => {
-        fetchBookings();
-        const interval = setInterval(fetchBookings, 5000);
-
-        // Supabase Realtime Subscription if available
-        let subscription = null;
-        if (supabase) {
-          subscription = supabase.channel('bookings-realtime')
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, () => fetchBookings())
-            .on('postgres_changes', { event: '*', schema: 'public', table: 'dispatch_requests' }, () => fetchBookings())
-            .subscribe();
-        }
-
-        return () => {
-          clearInterval(interval);
-          if (subscription && supabase) supabase.removeChannel(subscription);
-        };
-      }, []);
-
-      const handleManualReassign = async () => {
-        if (!reassignModalBooking) return;
-        setActionLoading(true);
-        try {
-          const res = await fetch(`${config.N8N_BASE_URL}/reassign`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              booking_id: reassignModalBooking.booking_id,
-              driver_phone: targetDriverPhone
-            })
-          });
-          if (res.ok) {
-            setFeedbackMsg({ type: 'success', text: `Reassignment triggered for ${reassignModalBooking.booking_code}!` });
-            setReassignModalBooking(null);
-            fetchBookings();
-          } else {
-            setFeedbackMsg({ type: 'error', text: 'Failed to reassign through n8n' });
-          }
-        } catch (err) {
-          setFeedbackMsg({ type: 'error', text: err.message });
-        } finally {
-          setActionLoading(false);
-          setTimeout(() => setFeedbackMsg(null), 5000);
-        }
-      };
-
-      const counts = {
-        total: bookings.length,
-        pending: bookings.filter(b => b.dispatch_status === 'PENDING' || b.booking_status === 'PENDING_DRIVER').length,
-        accepted: bookings.filter(b => b.dispatch_status === 'ACCEPTED' || b.booking_status === 'CONFIRMED').length,
-        rejected: bookings.filter(b => b.dispatch_status === 'REJECTED' || b.booking_status === 'DRIVER_REJECTED').length,
-        timeout: bookings.filter(b => b.dispatch_status === 'TIMEOUT' || b.booking_status === 'DRIVER_TIMEOUT').length
-      };
-
       return (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Header */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-8 border-b border-slate-800">
-            <div>
-              <div className="flex items-center gap-3">
-                <span className="text-3xl">🚗</span>
-                <h1 className="text-2xl font-bold tracking-tight text-white">
-                  KPK TOURS <span className="text-emerald-400 font-mono text-sm uppercase px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20">Fleet Dispatch Desk</span>
-                </h1>
+        <div className="min-h-screen flex items-center justify-center p-4">
+          <div className="w-full max-w-md bg-white rounded-xl shadow-sm border border-slate-200/80 p-8">
+            <div className="text-center mb-8">
+              <div className="inline-flex items-center justify-center w-14 h-14 rounded-xl bg-[#E0EEFF] text-[#3B82F6] mb-3">
+                <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                </svg>
               </div>
-              <p className="text-sm text-slate-400 mt-1">
-                Zero-Codebase Serverless Architecture • Supabase Postgres • n8n Engine • Baileys Transport
-              </p>
+              <h1 className="text-2xl font-bold text-slate-800 tracking-tight">KPK TOURS</h1>
+              <p className="text-sm text-slate-500 mt-1">Booking & Dispatch • Operator Login</p>
             </div>
 
-            <div className="flex items-center gap-3">
-              <div className="px-3.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 flex items-center gap-2 text-xs">
-                <span className={`w-2 h-2 rounded-full ${gatewayStatus?.state === 'connected' ? 'bg-emerald-400 animate-ping' : 'bg-amber-400'}`}></span>
-                <span className="text-slate-400 font-medium">Gateway:</span>
-                <span className="text-slate-200 font-mono font-semibold">{gatewayStatus?.connected_phone || 'Connecting...'}</span>
-              </div>
-              <button 
-                onClick={fetchBookings}
-                className="px-3 py-1.5 text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg transition border border-slate-700">
-                ↻ Refresh
-              </button>
-            </div>
-          </div>
-
-          {feedbackMsg && (
-            <div className={`mt-4 p-3 rounded-lg text-sm font-medium border flex items-center justify-between ${feedbackMsg.type === 'success' ? 'bg-emerald-950/60 text-emerald-200 border-emerald-800' : 'bg-rose-950/60 text-rose-200 border-rose-800'}`}>
-              <span>{feedbackMsg.text}</span>
-              <button onClick={() => setFeedbackMsg(null)} className="text-xs opacity-75 hover:opacity-100">✕</button>
-            </div>
-          )}
-
-          {/* Metric KPI Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 my-8">
-            <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800">
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Bookings</p>
-              <p className="text-2xl font-bold font-mono text-white mt-1">{counts.total}</p>
-            </div>
-            <div className="p-4 rounded-xl bg-amber-950/20 border border-amber-900/40">
-              <p className="text-xs font-semibold text-amber-400 uppercase tracking-wider flex items-center justify-between">
-                Pending Driver
-                <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
-              </p>
-              <p className="text-2xl font-bold font-mono text-amber-300 mt-1">{counts.pending}</p>
-            </div>
-            <div className="p-4 rounded-xl bg-emerald-950/20 border border-emerald-900/40">
-              <p className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">Driver Accepted</p>
-              <p className="text-2xl font-bold font-mono text-emerald-300 mt-1">{counts.accepted}</p>
-            </div>
-            <div className="p-4 rounded-xl bg-rose-950/20 border border-rose-900/40">
-              <p className="text-xs font-semibold text-rose-400 uppercase tracking-wider">Rejected</p>
-              <p className="text-2xl font-bold font-mono text-rose-300 mt-1">{counts.rejected}</p>
-            </div>
-            <div className="p-4 rounded-xl bg-purple-950/20 border border-purple-900/40">
-              <p className="text-xs font-semibold text-purple-400 uppercase tracking-wider">Timeouts</p>
-              <p className="text-2xl font-bold font-mono text-purple-300 mt-1">{counts.timeout}</p>
-            </div>
-          </div>
-
-          {/* Bookings Table */}
-          <div className="rounded-xl border border-slate-800 bg-slate-900/60 overflow-hidden shadow-2xl">
-            <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/90">
-              <h2 className="text-base font-semibold text-white flex items-center gap-2">
-                <span>📋</span> Live Dispatch & Driver Acceptance Queue
-              </h2>
-              <span className="text-xs text-slate-400 font-mono">Source of Truth: Supabase Postgres</span>
-            </div>
-
-            {loading ? (
-              <div className="p-12 text-center text-slate-400">Loading bookings from Supabase...</div>
-            ) : bookings.length === 0 ? (
-              <div className="p-12 text-center text-slate-400">
-                <p className="text-lg font-medium text-slate-300">No active bookings yet.</p>
-                <p className="text-sm mt-1">Bookings created via WhatsApp will stream here in real-time.</p>
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                  <thead className="bg-slate-950/60 text-slate-400 text-xs uppercase font-mono border-b border-slate-800">
-                    <tr>
-                      <th className="py-3 px-4">Booking Code</th>
-                      <th className="py-3 px-4">Customer</th>
-                      <th className="py-3 px-4">Route & Schedule</th>
-                      <th className="py-3 px-4">Vehicle</th>
-                      <th className="py-3 px-4">Driver Assigned</th>
-                      <th className="py-3 px-4">Payment</th>
-                      <th className="py-3 px-4">Status</th>
-                      <th className="py-3 px-4">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-800/60 text-slate-200">
-                    {bookings.map((b) => (
-                      <tr key={b.booking_id} className="hover:bg-slate-800/40 transition">
-                        <td className="py-3 px-4 font-mono font-bold text-emerald-400">
-                          {b.booking_code}
-                        </td>
-                        <td className="py-3 px-4">
-                          <div className="font-semibold text-white">{b.customer_name}</div>
-                          <div className="text-xs text-slate-400 font-mono">{b.customer_phone}</div>
-                        </td>
-                        <td className="py-3 px-4">
-                          <div className="font-medium text-slate-200">{b.pickup} → {b.destination}</div>
-                          <div className="text-xs text-slate-400">{b.trip_date} at {b.trip_time}</div>
-                        </td>
-                        <td className="py-3 px-4">
-                          <div className="font-medium text-white uppercase text-xs">{b.vehicle_type}</div>
-                          <div className="text-xs text-slate-400 font-mono">{b.vehicle_plate || 'Auto-Allocated'}</div>
-                        </td>
-                        <td className="py-3 px-4">
-                          <div className="font-semibold text-slate-100">{b.driver_name || 'Unassigned'}</div>
-                          <div className="text-xs text-slate-400 font-mono">{b.driver_phone || '-'}</div>
-                          {b.attempt_count > 1 && (
-                            <span className="text-[10px] text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded font-mono">
-                              Attempt #{b.attempt_count}
-                            </span>
-                          )}
-                        </td>
-                        <td className="py-3 px-4">
-                          <div className="text-xs font-semibold text-emerald-400 font-mono">PKR {Number(b.advance_paid).toLocaleString()} Paid</div>
-                          <div className="text-[11px] text-slate-400 font-mono">Due: PKR {Number(b.balance_due).toLocaleString()}</div>
-                        </td>
-                        <td className="py-3 px-4">
-                          <StatusBadge status={b.booking_status} dispatchStatus={b.dispatch_status} />
-                        </td>
-                        <td className="py-3 px-4">
-                          <div className="flex items-center gap-2">
-                            <button
-                              onClick={() => setReassignModalBooking(b)}
-                              className="px-2.5 py-1 text-xs font-semibold bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 rounded transition"
-                              title="Manual Driver Reassign">
-                              Reassign
-                            </button>
-                            {b.receipt_image_url && (
-                              <a
-                                href={b.receipt_image_url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="px-2 py-1 text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700">
-                                Receipt
-                              </a>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+            {error && (
+              <div className="mb-6 p-3 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-sm flex items-start gap-2">
+                <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>{error}</span>
               </div>
             )}
-          </div>
 
-          {/* Reassign Driver Modal */}
-          {reassignModalBooking && (
-            <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-              <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl">
-                <div className="flex justify-between items-center pb-4 border-b border-slate-800">
-                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                    <span>🔄</span> Reassign Trip to Driver
-                  </h3>
-                  <button onClick={() => setReassignModalBooking(null)} className="text-slate-400 hover:text-white text-xl">✕</button>
-                </div>
-
-                <div className="my-4 space-y-4 text-sm">
-                  <div className="p-3 bg-slate-950/80 rounded-lg border border-slate-800 text-xs text-slate-300">
-                    <div><strong className="text-white">Booking:</strong> {reassignModalBooking.booking_code}</div>
-                    <div><strong className="text-white">Route:</strong> {reassignModalBooking.pickup} → {reassignModalBooking.destination}</div>
-                    <div><strong className="text-white">Current Driver:</strong> {reassignModalBooking.driver_name || 'None'}</div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-300 uppercase mb-2">Driver WhatsApp Target</label>
-                    <input
-                      type="text"
-                      value={targetDriverPhone}
-                      onChange={(e) => setTargetDriverPhone(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 font-mono focus:outline-none focus:border-emerald-500"
-                    />
-                    <p className="text-[11px] text-slate-400 mt-1">Default target: +923421353348 (normalized)</p>
-                  </div>
-                </div>
-
-                <div className="pt-4 border-t border-slate-800 flex justify-end gap-3">
-                  <button
-                    onClick={() => setReassignModalBooking(null)}
-                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg">
-                    Cancel
-                  </button>
-                  <button
-                    disabled={actionLoading}
-                    onClick={handleManualReassign}
-                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-semibold rounded-lg">
-                    {actionLoading ? 'Dispatching...' : 'Dispatch Trip via n8n'}
-                  </button>
-                </div>
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
+                  Email Address
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="admin@kpktours.com"
+                  className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent text-sm text-slate-800 placeholder-slate-400 bg-white"
+                />
               </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
+                  Password
+                </label>
+                <input
+                  type="password"
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full px-3.5 py-2.5 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent text-sm text-slate-800 placeholder-slate-400 bg-white"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full mt-2 py-2.5 px-4 rounded-lg bg-[#3B82F6] hover:bg-blue-600 text-white font-medium text-sm transition-colors shadow-sm disabled:opacity-60 flex items-center justify-center gap-2"
+              >
+                {loading ? (
+                  <>
+                    <svg className="animate-spin w-4 h-4 text-white" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                    </svg>
+                    Signing in...
+                  </>
+                ) : (
+                  'Sign In to Dashboard'
+                )}
+              </button>
+            </form>
+
+            <div className="mt-6 pt-5 border-t border-slate-100 text-center">
+              <p className="text-xs text-slate-400">
+                Secured via Supabase Authentication
+              </p>
             </div>
-          )}
+          </div>
         </div>
       );
     }
 
-    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    // Booking Details Modal Component
+    function BookingDetailModal({ booking, onClose }) {
+      const [events, setEvents] = useState([]);
+      const [eventsLoading, setEventsLoading] = useState(false);
+
+      useEffect(() => {
+        if (!booking || !booking.booking_id || !supabase) return;
+        const fetchEvents = async () => {
+          setEventsLoading(true);
+          try {
+            const { data } = await supabase
+              .from('booking_events')
+              .select('*')
+              .eq('booking_id', booking.booking_id)
+              .order('created_at', { ascending: false });
+            setEvents(data || []);
+          } catch (e) {
+            console.warn("Could not fetch events:", e.message);
+          } finally {
+            setEventsLoading(false);
+          }
+        };
+        fetchEvents();
+      }, [booking]);
+
+      if (!booking) return null;
+
+      return (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-2xl bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden my-8">
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <div className="flex items-center gap-3">
+                <span className="text-lg font-bold text-slate-800">{booking.booking_code}</span>
+                <StatusBadge status={booking.booking_status} dispatchStatus={booking.dispatch_status} />
+              </div>
+              <button
+                onClick={onClose}
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-6 max-h-[75vh] overflow-y-auto">
+              {/* Trip Overview Card */}
+              <div className="p-4 rounded-lg bg-[#F4F8FD] border border-blue-100/60 flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Route</span>
+                  <p className="text-base font-bold text-slate-800 mt-0.5">
+                    {booking.pickup} <span className="text-blue-500 font-normal mx-1.5">➔</span> {booking.destination}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Trip Schedule</span>
+                  <p className="text-sm font-semibold text-slate-700 mt-0.5">
+                    {booking.trip_date} at {booking.trip_time || 'TBD'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Grid 2-col info */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {/* Customer Details */}
+                <div className="p-4 rounded-lg border border-slate-200/80 bg-white">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Customer Details</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Name:</span>
+                      <span className="font-semibold text-slate-800">{booking.customer_name || 'N/A'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Phone:</span>
+                      <a
+                        href={`https://wa.me/${booking.customer_phone}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="font-semibold text-blue-600 hover:underline flex items-center gap-1"
+                      >
+                        {booking.customer_phone}
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                        </svg>
+                      </a>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Vehicle Type:</span>
+                      <span className="font-semibold text-slate-800 capitalize">{booking.vehicle_type || 'Standard'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Driver Details */}
+                <div className="p-4 rounded-lg border border-slate-200/80 bg-white">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Driver & Vehicle</h4>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Assigned Driver:</span>
+                      <span className="font-semibold text-slate-800">{booking.driver_name || 'Not yet assigned'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Driver Phone:</span>
+                      <span className="font-semibold text-slate-800">{booking.driver_phone || '—'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Vehicle Plate:</span>
+                      <span className="font-semibold text-slate-800">{booking.vehicle_plate || '—'}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Financial Breakdown */}
+              <div className="p-4 rounded-lg border border-slate-200/80 bg-white">
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Fare & Payment</h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+                  <div className="p-2.5 rounded-lg bg-slate-50">
+                    <span className="text-xs text-slate-500">Total Fare</span>
+                    <p className="text-base font-bold text-slate-800 mt-0.5">PKR {Number(booking.fare_total || 0).toLocaleString()}</p>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-emerald-50">
+                    <span className="text-xs text-emerald-700">Advance Paid</span>
+                    <p className="text-base font-bold text-emerald-800 mt-0.5">PKR {Number(booking.advance_paid || 0).toLocaleString()}</p>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-blue-50">
+                    <span className="text-xs text-blue-700">Cash on Arrival</span>
+                    <p className="text-base font-bold text-blue-800 mt-0.5">PKR {Number(booking.balance_due || 0).toLocaleString()}</p>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-slate-50">
+                    <span className="text-xs text-slate-500">Payment TID</span>
+                    <p className="text-xs font-mono font-semibold text-slate-700 mt-1 truncate" title={booking.payment_tid || 'None'}>
+                      {booking.payment_tid || '—'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Timeline Section */}
+              <div className="border-t border-slate-100 pt-5">
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Booking Timeline & Logs</h4>
+                {eventsLoading ? (
+                  <div className="text-center py-4 text-xs text-slate-400">Loading timeline...</div>
+                ) : events.length === 0 ? (
+                  <p className="text-xs text-slate-400 italic">Is booking ke liye abhi koi timeline logs available nahi hain.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {events.map((ev, i) => (
+                      <div key={ev.id || i} className="flex items-start gap-3 text-xs">
+                        <span className="w-2 h-2 rounded-full bg-blue-500 mt-1.5 flex-shrink-0"></span>
+                        <div className="flex-1">
+                          <span className="font-semibold text-slate-700 capitalize">{ev.event_type.replace(/_/g, ' ')}</span>
+                          <span className="text-slate-400 ml-2">by {ev.actor || 'system'}</span>
+                          <div className="text-slate-400 text-[11px] mt-0.5">{new Date(ev.created_at).toLocaleString()}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-100 flex justify-end">
+              <button
+                onClick={onClose}
+                className="px-4 py-2 rounded-lg bg-slate-200 hover:bg-slate-300 text-slate-700 text-sm font-medium transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Main Dashboard App Component
+    function DashboardApp() {
+      const [session, setSession] = useState(null);
+      const [authChecking, setAuthChecking] = useState(true);
+      const [bookings, setBookings] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [error, setError] = useState(null);
+      const [systemOnline, setSystemOnline] = useState(true);
+      const [lastUpdated, setLastUpdated] = useState(null);
+      const [searchQuery, setSearchQuery] = useState('');
+      const [statusFilter, setStatusFilter] = useState('ALL');
+      const [activeBooking, setActiveBooking] = useState(null);
+
+      // Check user authentication session on mount
+      useEffect(() => {
+        if (!supabase) {
+          setAuthChecking(false);
+          return;
+        }
+
+        supabase.auth.getSession().then(({ data }) => {
+          setSession(data.session);
+          setAuthChecking(false);
+        });
+
+        const { data: authListener } = supabase.auth.onAuthStateChange((_event, currentSession) => {
+          setSession(currentSession);
+        });
+
+        return () => {
+          if (authListener && authListener.subscription) {
+            authListener.subscription.unsubscribe();
+          }
+        };
+      }, []);
+
+      // Fetch Bookings Data
+      const fetchBookings = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        let loadedData = null;
+
+        try {
+          if (supabase) {
+            // Direct Supabase Query from view v_booking_dashboard
+            const { data, error: supaError } = await supabase
+              .from('v_booking_dashboard')
+              .select('*')
+              .order('created_at', { ascending: false });
+
+            if (!supaError && data) {
+              loadedData = data;
+              setSystemOnline(true);
+            } else if (supaError) {
+              console.warn("Supabase view error, falling back to n8n:", supaError.message);
+            }
+          }
+
+          // Fallback to n8n WF-08 Webhook if Supabase returns nothing or errors
+          if (!loadedData && config.N8N_BASE_URL) {
+            const res = await fetch(`${config.N8N_BASE_URL}/bookings`).catch(() => null);
+            if (res && res.ok) {
+              const bData = await res.json();
+              loadedData = bData.bookings || [];
+              setSystemOnline(true);
+            }
+          }
+
+          if (loadedData !== null) {
+            setBookings(loadedData);
+            setLastUpdated(new Date().toLocaleTimeString());
+          } else {
+            setSystemOnline(false);
+            setError('Data load karne mein masla aya hai. Barahe karam Refresh button click karein.');
+          }
+        } catch (err) {
+          console.error("Fetch error:", err);
+          setSystemOnline(false);
+          setError('Data load karne mein masla aya hai. Barahe karam Refresh button click karein.');
+        } finally {
+          setLoading(false);
+        }
+      }, []);
+
+      // Auto-refresh every 15 seconds
+      useEffect(() => {
+        if (!session) return;
+        fetchBookings();
+        const interval = setInterval(fetchBookings, 15000);
+        return () => clearInterval(interval);
+      }, [session, fetchBookings]);
+
+      // Calculate 5 Summary Counts
+      const summaryStats = useMemo(() => {
+        let total = bookings.length;
+        let pendingDriver = 0;
+        let driverAccepted = 0;
+        let rejected = 0;
+        let timeout = 0;
+
+        bookings.forEach(b => {
+          const st = (b.dispatch_status || b.booking_status || '').toUpperCase();
+          if (st === 'PENDING_DRIVER' || st === 'PENDING') pendingDriver++;
+          else if (st === 'CONFIRMED' || st === 'DRIVER_ACCEPTED' || st === 'ACCEPTED') driverAccepted++;
+          else if (st === 'DRIVER_REJECTED' || st === 'REJECTED') rejected++;
+          else if (st === 'DRIVER_TIMEOUT' || st === 'TIMEOUT') timeout++;
+        });
+
+        return { total, pendingDriver, driverAccepted, rejected, timeout };
+      }, [bookings]);
+
+      // Filtered Bookings
+      const filteredBookings = useMemo(() => {
+        return bookings.filter(b => {
+          const matchQuery = !searchQuery || [
+            b.booking_code,
+            b.customer_name,
+            b.customer_phone,
+            b.pickup,
+            b.destination,
+            b.driver_name
+          ].some(val => val && String(val).toLowerCase().includes(searchQuery.toLowerCase()));
+
+          const activeStatus = (b.dispatch_status || b.booking_status || '').toUpperCase();
+          let matchStatus = true;
+          if (statusFilter !== 'ALL') {
+            if (statusFilter === 'CONFIRMED') {
+              matchStatus = (activeStatus === 'CONFIRMED' || activeStatus === 'DRIVER_ACCEPTED' || activeStatus === 'ACCEPTED');
+            } else if (statusFilter === 'PENDING_DRIVER') {
+              matchStatus = (activeStatus === 'PENDING_DRIVER' || activeStatus === 'PENDING');
+            } else if (statusFilter === 'REJECTED') {
+              matchStatus = (activeStatus === 'DRIVER_REJECTED' || activeStatus === 'REJECTED');
+            } else if (statusFilter === 'TIMEOUT') {
+              matchStatus = (activeStatus === 'DRIVER_TIMEOUT' || activeStatus === 'TIMEOUT');
+            } else {
+              matchStatus = (activeStatus === statusFilter);
+            }
+          }
+
+          return matchQuery && matchStatus;
+        });
+      }, [bookings, searchQuery, statusFilter]);
+
+      const handleLogout = async () => {
+        if (supabase) {
+          await supabase.auth.signOut();
+          setSession(null);
+        }
+      };
+
+      if (authChecking) {
+        return (
+          <div className="min-h-screen flex items-center justify-center bg-[#F4F8FD]">
+            <div className="flex items-center gap-2 text-slate-500 text-sm">
+              <svg className="animate-spin w-5 h-5 text-[#3B82F6]" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+              </svg>
+              <span>Checking authorization...</span>
+            </div>
+          </div>
+        );
+      }
+
+      // If user not authenticated, show login lock
+      if (!session) {
+        return <LoginScreen onLoginSuccess={(s) => setSession(s)} />;
+      }
+
+      return (
+        <div className="min-h-screen flex flex-col pb-12">
+          {/* Top Header */}
+          <header className="bg-white border-b border-slate-200/80 sticky top-0 z-40 shadow-[0_1px_2px_0_rgba(0,0,0,0.03)]">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+              {/* Brand Logo & Name */}
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#E0EEFF] text-[#3B82F6] flex items-center justify-center font-bold text-lg shadow-sm">
+                  KP
+                </div>
+                <div>
+                  <h1 className="text-base font-bold text-slate-800 leading-tight">KPK TOURS</h1>
+                  <p className="text-xs text-slate-500 font-medium">Booking & Dispatch</p>
+                </div>
+              </div>
+
+              {/* Status & Actions */}
+              <div className="flex items-center gap-3 sm:gap-4">
+                {/* System Online Badge */}
+                <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-50 border border-slate-200 text-xs font-medium text-slate-600">
+                  <span className={`w-2 h-2 rounded-full ${systemOnline ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'}`}></span>
+                  <span>{systemOnline ? 'Online' : 'Offline'}</span>
+                </div>
+
+                {/* Last updated text */}
+                {lastUpdated && (
+                  <span className="hidden sm:inline text-xs text-slate-400">
+                    Last updated: {lastUpdated}
+                  </span>
+                )}
+
+                {/* Refresh Button */}
+                <button
+                  onClick={fetchBookings}
+                  disabled={loading}
+                  title="Refresh data"
+                  className="p-2 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors border border-slate-200 flex items-center gap-1.5 text-xs font-medium"
+                >
+                  <svg className={`w-4 h-4 ${loading ? 'animate-spin text-blue-500' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  <span className="hidden sm:inline">Refresh</span>
+                </button>
+
+                {/* Logout Button */}
+                <button
+                  onClick={handleLogout}
+                  className="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-rose-600 hover:bg-rose-50 border border-slate-200 transition-colors"
+                >
+                  Logout
+                </button>
+              </div>
+            </div>
+          </header>
+
+          <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-6 w-full flex-1 space-y-6">
+            {/* Error Banner if loading failed */}
+            {error && (
+              <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-sm flex items-center justify-between shadow-sm">
+                <div className="flex items-center gap-2">
+                  <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <span>{error}</span>
+                </div>
+                <button
+                  onClick={fetchBookings}
+                  className="px-3 py-1 bg-white rounded-lg border border-rose-300 text-rose-700 hover:bg-rose-100 text-xs font-semibold"
+                >
+                  Retry
+                </button>
+              </div>
+            )}
+
+            {/* 5 Summary Stat Cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5">
+              {/* Total Bookings */}
+              <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200/80 flex items-center justify-between">
+                <div>
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Bookings</span>
+                  <p className="text-2xl font-bold text-slate-800 mt-1">{summaryStats.total}</p>
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 text-[#3B82F6] flex items-center justify-center">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                </div>
+              </div>
+
+              {/* Pending Driver */}
+              <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200/80 flex items-center justify-between">
+                <div>
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Pending Driver</span>
+                  <p className="text-2xl font-bold text-amber-600 mt-1">{summaryStats.pendingDriver}</p>
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-amber-50 border border-amber-100 text-amber-600 flex items-center justify-center">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+              </div>
+
+              {/* Driver Accepted */}
+              <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200/80 flex items-center justify-between">
+                <div>
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Driver Accepted</span>
+                  <p className="text-2xl font-bold text-emerald-600 mt-1">{summaryStats.driverAccepted}</p>
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-600 flex items-center justify-center">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+              </div>
+
+              {/* Rejected */}
+              <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200/80 flex items-center justify-between">
+                <div>
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Rejected</span>
+                  <p className="text-2xl font-bold text-rose-600 mt-1">{summaryStats.rejected}</p>
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-rose-50 border border-rose-100 text-rose-600 flex items-center justify-center">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+              </div>
+
+              {/* Timeout */}
+              <div className="bg-white rounded-xl p-4 shadow-sm border border-slate-200/80 flex items-center justify-between col-span-2 sm:col-span-1">
+                <div>
+                  <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Timeout</span>
+                  <p className="text-2xl font-bold text-purple-600 mt-1">{summaryStats.timeout}</p>
+                </div>
+                <div className="w-10 h-10 rounded-xl bg-purple-50 border border-purple-100 text-purple-600 flex items-center justify-center">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            {/* Main Bookings Card Container */}
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200/80 overflow-hidden">
+              {/* Search & Status Filters */}
+              <div className="p-4 sm:p-5 border-b border-slate-100 bg-white flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+                {/* Search Box */}
+                <div className="relative flex-1 max-w-md">
+                  <svg className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search by code, customer, phone, route..."
+                    className="w-full pl-9 pr-3.5 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-[#3B82F6] focus:border-transparent placeholder-slate-400 bg-white"
+                  />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 text-xs"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+
+                {/* Filter Dropdown */}
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-slate-500 font-medium hidden sm:inline">Status:</span>
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="px-3 py-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#3B82F6]"
+                  >
+                    <option value="ALL">All Statuses ({bookings.length})</option>
+                    <option value="CONFIRMED">Driver Accepted / Confirmed</option>
+                    <option value="PENDING_DRIVER">Pending Driver</option>
+                    <option value="PAYMENT_VERIFIED">Payment Verified</option>
+                    <option value="PENDING_PAYMENT">Pending Payment</option>
+                    <option value="REJECTED">Rejected</option>
+                    <option value="TIMEOUT">Timeout</option>
+                    <option value="COMPLETED">Completed</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Bookings View: Desktop Table & Mobile Cards */}
+              {loading && bookings.length === 0 ? (
+                <div className="py-16 text-center text-slate-400 text-sm flex flex-col items-center justify-center gap-2">
+                  <svg className="animate-spin w-6 h-6 text-[#3B82F6]" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                  </svg>
+                  <span>Loading bookings...</span>
+                </div>
+              ) : filteredBookings.length === 0 ? (
+                /* Empty State */
+                <div className="py-16 px-4 text-center">
+                  <div className="w-16 h-16 rounded-full bg-[#E0EEFF] text-[#3B82F6] mx-auto flex items-center justify-center mb-4">
+                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-base font-bold text-slate-800">Abhi koi booking nahi</h3>
+                  <p className="text-sm text-slate-500 max-w-sm mx-auto mt-1">
+                    Naye bookings yahan apne aap nazar aayengi.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  {/* Desktop Table View (>= md) */}
+                  <div className="hidden md:block overflow-x-auto">
+                    <table className="w-full text-left text-sm">
+                      <thead className="bg-slate-50/75 text-slate-500 font-semibold text-xs uppercase tracking-wider border-b border-slate-100">
+                        <tr>
+                          <th className="px-5 py-3.5">Code</th>
+                          <th className="px-5 py-3.5">Customer</th>
+                          <th className="px-5 py-3.5">Route</th>
+                          <th className="px-5 py-3.5">Date & Time</th>
+                          <th className="px-5 py-3.5">Vehicle</th>
+                          <th className="px-5 py-3.5">Fare</th>
+                          <th className="px-5 py-3.5">Advance</th>
+                          <th className="px-5 py-3.5">Driver</th>
+                          <th className="px-5 py-3.5 text-right">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {filteredBookings.map((b) => (
+                          <tr
+                            key={b.booking_id || b.booking_code}
+                            onClick={() => setActiveBooking(b)}
+                            className="hover:bg-slate-50/80 cursor-pointer transition-colors"
+                          >
+                            <td className="px-5 py-4 font-bold text-slate-800 whitespace-nowrap">
+                              {b.booking_code}
+                            </td>
+                            <td className="px-5 py-4">
+                              <div className="font-semibold text-slate-800">{b.customer_name || 'Customer'}</div>
+                              <div className="text-xs text-slate-400">{b.customer_phone}</div>
+                            </td>
+                            <td className="px-5 py-4">
+                              <div className="font-medium text-slate-800">
+                                {b.pickup} <span className="text-blue-500 mx-1">➔</span> {b.destination}
+                              </div>
+                            </td>
+                            <td className="px-5 py-4 whitespace-nowrap text-slate-600">
+                              <div>{b.trip_date}</div>
+                              <div className="text-xs text-slate-400">{b.trip_time || 'TBD'}</div>
+                            </td>
+                            <td className="px-5 py-4 capitalize font-medium text-slate-700 whitespace-nowrap">
+                              {b.vehicle_type || 'Corolla'}
+                            </td>
+                            <td className="px-5 py-4 font-semibold text-slate-800 whitespace-nowrap">
+                              PKR {Number(b.fare_total || 0).toLocaleString()}
+                            </td>
+                            <td className="px-5 py-4 font-semibold text-emerald-600 whitespace-nowrap">
+                              PKR {Number(b.advance_paid || 0).toLocaleString()}
+                            </td>
+                            <td className="px-5 py-4">
+                              {b.driver_name ? (
+                                <div>
+                                  <div className="font-semibold text-slate-800">{b.driver_name}</div>
+                                  <div className="text-xs text-slate-400">{b.vehicle_plate || b.driver_phone}</div>
+                                </div>
+                              ) : (
+                                <span className="text-xs text-slate-400 italic">Not Assigned</span>
+                              )}
+                            </td>
+                            <td className="px-5 py-4 text-right whitespace-nowrap">
+                              <StatusBadge status={b.booking_status} dispatchStatus={b.dispatch_status} />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Mobile Stacked Cards (< md) */}
+                  <div className="block md:hidden divide-y divide-slate-100">
+                    {filteredBookings.map((b) => (
+                      <div
+                        key={b.booking_id || b.booking_code}
+                        onClick={() => setActiveBooking(b)}
+                        className="p-4 active:bg-slate-50 transition-colors cursor-pointer space-y-2.5"
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-slate-800 text-sm">{b.booking_code}</span>
+                          <StatusBadge status={b.booking_status} dispatchStatus={b.dispatch_status} />
+                        </div>
+                        <div className="text-sm font-semibold text-slate-800">
+                          {b.pickup} <span className="text-blue-500 mx-1">➔</span> {b.destination}
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-xs text-slate-600 pt-1">
+                          <div>
+                            <span className="text-slate-400 block text-[11px]">Customer</span>
+                            <span className="font-medium text-slate-800">{b.customer_name}</span> ({b.customer_phone})
+                          </div>
+                          <div>
+                            <span className="text-slate-400 block text-[11px]">Schedule</span>
+                            <span className="font-medium text-slate-800">{b.trip_date}</span> {b.trip_time}
+                          </div>
+                          <div>
+                            <span className="text-slate-400 block text-[11px]">Vehicle & Driver</span>
+                            <span className="font-medium text-slate-800 capitalize">{b.vehicle_type}</span> • {b.driver_name || 'Unassigned'}
+                          </div>
+                          <div>
+                            <span className="text-slate-400 block text-[11px]">Fare (Advance)</span>
+                            <span className="font-bold text-slate-800">PKR {Number(b.fare_total || 0).toLocaleString()}</span>
+                            <span className="text-emerald-600 ml-1">({Number(b.advance_paid || 0).toLocaleString()})</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </main>
+
+          {/* Details Modal */}
+          <BookingDetailModal
+            booking={activeBooking}
+            onClose={() => setActiveBooking(null)}
+          />
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<DashboardApp />);
   </script>
 </body>
 </html>
