@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>KPK TOURS - Autonomous Fleet Dispatch Desk</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/config.js"></script>
+  <style>
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: #020617;
+      color: #f8fafc;
+    }
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-slate-950 text-slate-100 antialiased selection:bg-emerald-500 selection:text-white">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+    const config = window.APP_CONFIG || {};
+
+    // Initialize Supabase Client if real credentials provided
+    let supabase = null;
+    try {
+      if (config.SUPABASE_URL && !config.SUPABASE_URL.includes('xyzcompany')) {
+        supabase = window.supabase.createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY);
+      }
+    } catch (e) {
+      console.warn("Supabase client init skipped:", e.message);
+    }
+
+    function StatusBadge({ status, dispatchStatus }) {
+      const activeStatus = dispatchStatus || status;
+      switch (activeStatus) {
+        case 'DRIVER_ACCEPTED':
+        case 'CONFIRMED':
+          return (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+              {activeStatus === 'CONFIRMED' ? 'Confirmed' : 'Driver Accepted'}
+            </span>
+          );
+        case 'PENDING_DRIVER':
+        case 'PENDING':
+          return (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/15 text-amber-300 border border-amber-500/30 animate-pulse">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+              Pending Driver
+            </span>
+          );
+        case 'DRIVER_REJECTED':
+        case 'REJECTED':
+          return (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-500/15 text-rose-400 border border-rose-500/30">
+              <span className="w-1.5 h-1.5 rounded-full bg-rose-400"></span>
+              Rejected
+            </span>
+          );
+        case 'DRIVER_TIMEOUT':
+        case 'TIMEOUT':
+          return (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-purple-500/15 text-purple-300 border border-purple-500/30">
+              <span className="w-1.5 h-1.5 rounded-full bg-purple-400"></span>
+              Timeout
+            </span>
+          );
+        case 'PENDING_PAYMENT':
+          return (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-sky-500/15 text-sky-400 border border-sky-500/30">
+              <span className="w-1.5 h-1.5 rounded-full bg-sky-400"></span>
+              Awaiting 25% Advance
+            </span>
+          );
+        default:
+          return (
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-slate-800 text-slate-300 border border-slate-700">
+              {activeStatus || 'Draft'}
+            </span>
+          );
+      }
+    }
+
+    function App() {
+      const [bookings, setBookings] = useState([]);
+      const [gatewayStatus, setGatewayStatus] = useState(null);
+      const [loading, setLoading] = useState(true);
+      const [activeModalBooking, setActiveModalBooking] = useState(null);
+      const [reassignModalBooking, setReassignModalBooking] = useState(null);
+      const [cancelModalBooking, setCancelModalBooking] = useState(null);
+      const [targetDriverPhone, setTargetDriverPhone] = useState('923421353348');
+      const [actionLoading, setActionLoading] = useState(false);
+      const [feedbackMsg, setFeedbackMsg] = useState(null);
+
+      const fetchBookings = async () => {
+        try {
+          if (supabase) {
+            // Direct Supabase Query
+            const { data, error } = await supabase.from('v_booking_dashboard').select('*').order('created_at', { ascending: false });
+            if (!error && data) setBookings(data);
+          } else {
+            // Fetch via n8n WF-08 Webhook
+            const res = await fetch(`${config.N8N_BASE_URL}/bookings`).catch(() => null);
+            if (res && res.ok) {
+              const bData = await res.json();
+              setBookings(bData.bookings || []);
+            }
+          }
+
+          // Fetch thin transport gateway health
+          const gwRes = await fetch(config.GATEWAY_STATUS_URL || '/status').catch(() => null);
+          if (gwRes && gwRes.ok) {
+            const gwData = await gwRes.json();
+            setGatewayStatus(gwData);
+          }
+        } catch (err) {
+          console.error("Dashboard fetch error:", err);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      useEffect(() => {
+        fetchBookings();
+        const interval = setInterval(fetchBookings, 5000);
+
+        // Supabase Realtime Subscription if available
+        let subscription = null;
+        if (supabase) {
+          subscription = supabase.channel('bookings-realtime')
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'bookings' }, () => fetchBookings())
+            .on('postgres_changes', { event: '*', schema: 'public', table: 'dispatch_requests' }, () => fetchBookings())
+            .subscribe();
+        }
+
+        return () => {
+          clearInterval(interval);
+          if (subscription && supabase) supabase.removeChannel(subscription);
+        };
+      }, []);
+
+      const handleManualReassign = async () => {
+        if (!reassignModalBooking) return;
+        setActionLoading(true);
+        try {
+          const res = await fetch(`${config.N8N_BASE_URL}/reassign`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              booking_id: reassignModalBooking.booking_id,
+              driver_phone: targetDriverPhone
+            })
+          });
+          if (res.ok) {
+            setFeedbackMsg({ type: 'success', text: `Reassignment triggered for ${reassignModalBooking.booking_code}!` });
+            setReassignModalBooking(null);
+            fetchBookings();
+          } else {
+            setFeedbackMsg({ type: 'error', text: 'Failed to reassign through n8n' });
+          }
+        } catch (err) {
+          setFeedbackMsg({ type: 'error', text: err.message });
+        } finally {
+          setActionLoading(false);
+          setTimeout(() => setFeedbackMsg(null), 5000);
+        }
+      };
+
+      const counts = {
+        total: bookings.length,
+        pending: bookings.filter(b => b.dispatch_status === 'PENDING' || b.booking_status === 'PENDING_DRIVER').length,
+        accepted: bookings.filter(b => b.dispatch_status === 'ACCEPTED' || b.booking_status === 'CONFIRMED').length,
+        rejected: bookings.filter(b => b.dispatch_status === 'REJECTED' || b.booking_status === 'DRIVER_REJECTED').length,
+        timeout: bookings.filter(b => b.dispatch_status === 'TIMEOUT' || b.booking_status === 'DRIVER_TIMEOUT').length
+      };
+
+      return (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Header */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-8 border-b border-slate-800">
+            <div>
+              <div className="flex items-center gap-3">
+                <span className="text-3xl">🚗</span>
+                <h1 className="text-2xl font-bold tracking-tight text-white">
+                  KPK TOURS <span className="text-emerald-400 font-mono text-sm uppercase px-2 py-0.5 rounded bg-emerald-500/10 border border-emerald-500/20">Fleet Dispatch Desk</span>
+                </h1>
+              </div>
+              <p className="text-sm text-slate-400 mt-1">
+                Zero-Codebase Serverless Architecture • Supabase Postgres • n8n Engine • Baileys Transport
+              </p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="px-3.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 flex items-center gap-2 text-xs">
+                <span className={`w-2 h-2 rounded-full ${gatewayStatus?.state === 'connected' ? 'bg-emerald-400 animate-ping' : 'bg-amber-400'}`}></span>
+                <span className="text-slate-400 font-medium">Gateway:</span>
+                <span className="text-slate-200 font-mono font-semibold">{gatewayStatus?.connected_phone || 'Connecting...'}</span>
+              </div>
+              <button 
+                onClick={fetchBookings}
+                className="px-3 py-1.5 text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg transition border border-slate-700">
+                ↻ Refresh
+              </button>
+            </div>
+          </div>
+
+          {feedbackMsg && (
+            <div className={`mt-4 p-3 rounded-lg text-sm font-medium border flex items-center justify-between ${feedbackMsg.type === 'success' ? 'bg-emerald-950/60 text-emerald-200 border-emerald-800' : 'bg-rose-950/60 text-rose-200 border-rose-800'}`}>
+              <span>{feedbackMsg.text}</span>
+              <button onClick={() => setFeedbackMsg(null)} className="text-xs opacity-75 hover:opacity-100">✕</button>
+            </div>
+          )}
+
+          {/* Metric KPI Cards */}
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 my-8">
+            <div className="p-4 rounded-xl bg-slate-900/80 border border-slate-800">
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Bookings</p>
+              <p className="text-2xl font-bold font-mono text-white mt-1">{counts.total}</p>
+            </div>
+            <div className="p-4 rounded-xl bg-amber-950/20 border border-amber-900/40">
+              <p className="text-xs font-semibold text-amber-400 uppercase tracking-wider flex items-center justify-between">
+                Pending Driver
+                <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+              </p>
+              <p className="text-2xl font-bold font-mono text-amber-300 mt-1">{counts.pending}</p>
+            </div>
+            <div className="p-4 rounded-xl bg-emerald-950/20 border border-emerald-900/40">
+              <p className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">Driver Accepted</p>
+              <p className="text-2xl font-bold font-mono text-emerald-300 mt-1">{counts.accepted}</p>
+            </div>
+            <div className="p-4 rounded-xl bg-rose-950/20 border border-rose-900/40">
+              <p className="text-xs font-semibold text-rose-400 uppercase tracking-wider">Rejected</p>
+              <p className="text-2xl font-bold font-mono text-rose-300 mt-1">{counts.rejected}</p>
+            </div>
+            <div className="p-4 rounded-xl bg-purple-950/20 border border-purple-900/40">
+              <p className="text-xs font-semibold text-purple-400 uppercase tracking-wider">Timeouts</p>
+              <p className="text-2xl font-bold font-mono text-purple-300 mt-1">{counts.timeout}</p>
+            </div>
+          </div>
+
+          {/* Bookings Table */}
+          <div className="rounded-xl border border-slate-800 bg-slate-900/60 overflow-hidden shadow-2xl">
+            <div className="p-4 border-b border-slate-800 flex justify-between items-center bg-slate-900/90">
+              <h2 className="text-base font-semibold text-white flex items-center gap-2">
+                <span>📋</span> Live Dispatch & Driver Acceptance Queue
+              </h2>
+              <span className="text-xs text-slate-400 font-mono">Source of Truth: Supabase Postgres</span>
+            </div>
+
+            {loading ? (
+              <div className="p-12 text-center text-slate-400">Loading bookings from Supabase...</div>
+            ) : bookings.length === 0 ? (
+              <div className="p-12 text-center text-slate-400">
+                <p className="text-lg font-medium text-slate-300">No active bookings yet.</p>
+                <p className="text-sm mt-1">Bookings created via WhatsApp will stream here in real-time.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead className="bg-slate-950/60 text-slate-400 text-xs uppercase font-mono border-b border-slate-800">
+                    <tr>
+                      <th className="py-3 px-4">Booking Code</th>
+                      <th className="py-3 px-4">Customer</th>
+                      <th className="py-3 px-4">Route & Schedule</th>
+                      <th className="py-3 px-4">Vehicle</th>
+                      <th className="py-3 px-4">Driver Assigned</th>
+                      <th className="py-3 px-4">Payment</th>
+                      <th className="py-3 px-4">Status</th>
+                      <th className="py-3 px-4">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60 text-slate-200">
+                    {bookings.map((b) => (
+                      <tr key={b.booking_id} className="hover:bg-slate-800/40 transition">
+                        <td className="py-3 px-4 font-mono font-bold text-emerald-400">
+                          {b.booking_code}
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="font-semibold text-white">{b.customer_name}</div>
+                          <div className="text-xs text-slate-400 font-mono">{b.customer_phone}</div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="font-medium text-slate-200">{b.pickup} → {b.destination}</div>
+                          <div className="text-xs text-slate-400">{b.trip_date} at {b.trip_time}</div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="font-medium text-white uppercase text-xs">{b.vehicle_type}</div>
+                          <div className="text-xs text-slate-400 font-mono">{b.vehicle_plate || 'Auto-Allocated'}</div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="font-semibold text-slate-100">{b.driver_name || 'Unassigned'}</div>
+                          <div className="text-xs text-slate-400 font-mono">{b.driver_phone || '-'}</div>
+                          {b.attempt_count > 1 && (
+                            <span className="text-[10px] text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded font-mono">
+                              Attempt #{b.attempt_count}
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="text-xs font-semibold text-emerald-400 font-mono">PKR {Number(b.advance_paid).toLocaleString()} Paid</div>
+                          <div className="text-[11px] text-slate-400 font-mono">Due: PKR {Number(b.balance_due).toLocaleString()}</div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <StatusBadge status={b.booking_status} dispatchStatus={b.dispatch_status} />
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => setReassignModalBooking(b)}
+                              className="px-2.5 py-1 text-xs font-semibold bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 rounded transition"
+                              title="Manual Driver Reassign">
+                              Reassign
+                            </button>
+                            {b.receipt_image_url && (
+                              <a
+                                href={b.receipt_image_url}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="px-2 py-1 text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-300 rounded border border-slate-700">
+                                Receipt
+                              </a>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* Reassign Driver Modal */}
+          {reassignModalBooking && (
+            <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
+              <div className="bg-slate-900 border border-slate-700 rounded-2xl max-w-md w-full p-6 shadow-2xl">
+                <div className="flex justify-between items-center pb-4 border-b border-slate-800">
+                  <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                    <span>🔄</span> Reassign Trip to Driver
+                  </h3>
+                  <button onClick={() => setReassignModalBooking(null)} className="text-slate-400 hover:text-white text-xl">✕</button>
+                </div>
+
+                <div className="my-4 space-y-4 text-sm">
+                  <div className="p-3 bg-slate-950/80 rounded-lg border border-slate-800 text-xs text-slate-300">
+                    <div><strong className="text-white">Booking:</strong> {reassignModalBooking.booking_code}</div>
+                    <div><strong className="text-white">Route:</strong> {reassignModalBooking.pickup} → {reassignModalBooking.destination}</div>
+                    <div><strong className="text-white">Current Driver:</strong> {reassignModalBooking.driver_name || 'None'}</div>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-300 uppercase mb-2">Driver WhatsApp Target</label>
+                    <input
+                      type="text"
+                      value={targetDriverPhone}
+                      onChange={(e) => setTargetDriverPhone(e.target.value)}
+                      className="w-full bg-slate-950 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 font-mono focus:outline-none focus:border-emerald-500"
+                    />
+                    <p className="text-[11px] text-slate-400 mt-1">Default target: +923421353348 (normalized)</p>
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-slate-800 flex justify-end gap-3">
+                  <button
+                    onClick={() => setReassignModalBooking(null)}
+                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold rounded-lg">
+                    Cancel
+                  </button>
+                  <button
+                    disabled={actionLoading}
+                    onClick={handleManualReassign}
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-semibold rounded-lg">
+                    {actionLoading ? 'Dispatching...' : 'Dispatch Trip via n8n'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+  </script>
+</body>
+</html>
