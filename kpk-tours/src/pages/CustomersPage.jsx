@@ -19,7 +19,7 @@ export default function CustomersPage({ customers, conversations, messages, onRe
     const q = search.trim().toLowerCase();
     return (customers || []).filter((c) => {
       if (!q) return true;
-      return [c.name, c.phone_or_jid].filter(Boolean).some((v) => String(v).toLowerCase().includes(q));
+      return [c.name, c.contact_number, c.phone_or_jid].filter(Boolean).some((v) => String(v).toLowerCase().includes(q));
     });
   }, [customers, search]);
 
@@ -80,7 +80,7 @@ export default function CustomersPage({ customers, conversations, messages, onRe
                       </span>
                     </div>
                     <div className="text-xs text-[#64748B] mt-0.5">
-                      {formatPhoneDisplay(c.phone_or_jid)} · {c.total_trips || 0} completed trips · Joined{' '}
+                      {formatPhoneDisplay(c.contact_number || c.phone_or_jid)} · {c.total_trips || 0} completed trips · Joined{' '}
                       {new Date(c.created_at).toLocaleDateString()}
                     </div>
                   </div>
