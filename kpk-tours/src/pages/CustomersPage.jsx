@@ -117,7 +117,7 @@ export default function CustomersPage({ customers, conversations, messages, onRe
                         <div
                           key={m.id}
                           className={`p-2.5 rounded-lg text-xs max-w-xl ${
-                            m.direction === 'outbound'
+                            m.direction === 'out' || m.direction === 'outbound'
                               ? 'ml-auto bg-[#E0EEFF] text-[#1E293B]'
                               : 'bg-white border border-[#E2E8F0] text-[#1E293B]'
                           }`}
