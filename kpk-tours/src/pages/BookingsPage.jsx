@@ -43,8 +43,10 @@ export default function BookingsPage({ bookings, onSelectBooking }) {
         b.booking_code,
         b.customer_name,
         b.customer_phone,
+        b.customer_contact_number,
         b.pickup,
         b.destination,
+        b.luggage,
         b.driver_name,
         b.vehicle_type,
       ]
@@ -157,20 +159,29 @@ export default function BookingsPage({ bookings, onSelectBooking }) {
                       </td>
                       <td className="py-3 px-4">
                         <div className="font-medium text-[#1E293B]">{b.customer_name || 'Customer'}</div>
-                        <div className="text-xs text-[#64748B]">{formatPhoneDisplay(b.customer_phone)}</div>
+                        <div className="text-xs text-[#64748B]">
+                          {formatPhoneDisplay(b.customer_contact_number || b.customer_phone)}
+                        </div>
                       </td>
                       <td className="py-3 px-4">
                         <div className="text-[#1E293B] font-medium">
                           {b.pickup} → {b.destination}
                         </div>
-                        <div className="text-xs text-[#64748B]">{b.return_trip ? 'Return' : 'One-way'}</div>
+                        <div className="text-xs text-[#64748B]">
+                          {b.return_trip ? 'Return' : 'One-way'}
+                          {b.luggage ? ` · ${b.luggage}` : ''}
+                        </div>
                       </td>
                       <td className="py-3 px-4 whitespace-nowrap">
-                        <div className="text-[#1E293B]">{b.trip_date}</div>
+                        <div className="text-[#1E293B]">
+                          {b.trip_date}
+                          {b.return_trip && b.end_date && b.end_date !== b.trip_date ? ` → ${b.end_date}` : ''}
+                        </div>
                         <div className="text-xs text-[#64748B]">{String(b.trip_time || '').slice(0, 5)}</div>
                       </td>
-                      <td className="py-3 px-4 uppercase text-xs font-semibold text-[#1E293B]">
-                        {b.vehicle_type}
+                      <td className="py-3 px-4 text-xs text-[#1E293B]">
+                        <div className="uppercase font-semibold">{b.vehicle_type}</div>
+                        <div className="text-[#64748B]">{b.passengers} pax</div>
                       </td>
                       <td className="py-3 px-4 whitespace-nowrap">
                         <div className="font-medium text-[#1E293B]">{formatPKR(b.fare_total)}</div>
@@ -218,12 +229,16 @@ export default function BookingsPage({ bookings, onSelectBooking }) {
                   {b.pickup} → {b.destination}
                 </div>
                 <div className="text-xs text-[#64748B] flex items-center justify-between">
-                  <span>{b.customer_name || formatPhoneDisplay(b.customer_phone)}</span>
-                  <span className="uppercase font-medium text-[#1E293B]">{b.vehicle_type}</span>
+                  <span>{b.customer_name || formatPhoneDisplay(b.customer_contact_number || b.customer_phone)}</span>
+                  <span className="uppercase font-medium text-[#1E293B]">
+                    {b.vehicle_type} · {b.passengers}p{b.luggage ? ` · ${b.luggage}` : ''}
+                  </span>
                 </div>
                 <div className="text-xs text-[#64748B] flex items-center justify-between pt-2 border-t border-[#E2E8F0]">
                   <span>
-                    {b.trip_date} · {String(b.trip_time || '').slice(0, 5)}
+                    {b.trip_date}
+                    {b.return_trip && b.end_date && b.end_date !== b.trip_date ? ` → ${b.end_date}` : ''} ·{' '}
+                    {String(b.trip_time || '').slice(0, 5)}
                   </span>
                   <span className="font-semibold text-[#1E293B]">{formatPKR(b.fare_total)}</span>
                 </div>
