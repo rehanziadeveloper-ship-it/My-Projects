@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { Component, useCallback, useEffect, useState } from 'react';
 import { supabase } from './lib/supabase';
 import { callDashboardAction } from './lib/api';
 import LoginView from './components/LoginView';
+import ResetPasswordView from './components/ResetPasswordView';
 import Layout from './components/Layout';
 import BookingSlideOver from './components/BookingSlideOver';
 import BookingsPage from './pages/BookingsPage';
@@ -15,9 +16,44 @@ import AnalyticsPage from './pages/AnalyticsPage';
 import SettingsPage from './pages/SettingsPage';
 import ActivityLogPage from './pages/ActivityLogPage';
 
-export default function App() {
+class DashboardErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="min-h-screen bg-[#F4F8FD] flex items-center justify-center p-4">
+          <div className="max-w-md w-full bg-white rounded-2xl border border-[#E2E8F0] p-6 space-y-3">
+            <h2 className="text-base font-bold text-[#1E293B]">Dashboard Display Error</h2>
+            <p className="text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-lg p-3">
+              {this.state.error.message || 'An unexpected UI error occurred.'}
+            </p>
+            <button
+              type="button"
+              onClick={() => window.location.assign('/')}
+              className="w-full py-2 rounded-lg bg-[#3B82F6] text-white text-xs font-semibold cursor-pointer"
+            >
+              Reload Dashboard
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+function DashboardApp() {
   const [authReady, setAuthReady] = useState(false);
   const [session, setSession] = useState(null);
+  const [recoveryMode, setRecoveryMode] = useState(
+    () => window.location.hash.includes('type=recovery') || window.location.search.includes('type=recovery')
+  );
   const [activePage, setActivePage] = useState('bookings');
   const [selectedBookingId, setSelectedBookingId] = useState(null);
   const [whatsappState, setWhatsappState] = useState('checking');
@@ -54,7 +90,10 @@ export default function App() {
     });
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setRecoveryMode(true);
+      }
       setSession(nextSession);
       setAuthReady(true);
     });
@@ -149,6 +188,18 @@ export default function App() {
     return <LoginView />;
   }
 
+  if (recoveryMode) {
+    return (
+      <ResetPasswordView
+        email={session.user.email}
+        onDone={() => {
+          setRecoveryMode(false);
+          notify('success', 'Password updated successfully.');
+        }}
+      />
+    );
+  }
+
   const selectedBooking = data.bookings.find((b) => b.id === selectedBookingId) || null;
   const pendingPaymentsCount = data.payments.filter((p) => p.status === 'pending_confirmation').length;
   const takeoverCount = data.conversations.filter((c) => c.state === 'TAKEOVER').length;
@@ -237,5 +288,13 @@ export default function App() {
         notify={notify}
       />
     </Layout>
+  );
+}
+
+export default function App() {
+  return (
+    <DashboardErrorBoundary>
+      <DashboardApp />
+    </DashboardErrorBoundary>
   );
 }
