@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { CarFront, Lock, Mail, Sparkles } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
@@ -9,6 +9,20 @@ export default function LoginView() {
   const [magicLoading, setMagicLoading] = useState(false);
   const [error, setError] = useState('');
   const [info, setInfo] = useState('');
+
+  useEffect(() => {
+    const queryParams = new URLSearchParams(window.location.search);
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    const authError =
+      hashParams.get('error_description') ||
+      queryParams.get('error_description') ||
+      hashParams.get('error') ||
+      queryParams.get('error');
+    if (authError) {
+      setError(decodeURIComponent(authError.replace(/\+/g, ' ')));
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
 
   async function handleSignIn(e) {
     e.preventDefault();
@@ -60,7 +74,7 @@ export default function LoginView() {
     setMagicLoading(true);
     try {
       const { error: err } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: window.location.origin,
+        redirectTo: `${window.location.origin}/?type=recovery`,
       });
       if (err) throw err;
       setInfo('Password setup/reset instructions sent to your email.');
