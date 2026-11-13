@@ -167,6 +167,11 @@ export default function RoutesFaresPage({ routes, fareRules, onRefresh, notify }
                       <span className="font-bold text-sm text-[#1E293B]">
                         {r.origin} → {r.destination}
                       </span>
+                      {r.notes && r.notes.includes('[PLACEHOLDER]') && (
+                        <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-amber-50 text-amber-700 border border-amber-300">
+                          PLACEHOLDER
+                        </span>
+                      )}
                       <span
                         className={`px-2 py-0.5 text-[11px] font-semibold rounded-full border ${
                           r.active
@@ -211,8 +216,7 @@ export default function RoutesFaresPage({ routes, fareRules, onRefresh, notify }
               </div>
 
               <div className="p-4">
-                {rules.length === 0 ? (
-                  <p className="text-xs text-[#64748B]">No vehicle fares configured for this route yet.</p>
+                {rules.length === 0 ? (\n                  <p className=\"text-xs text-[#64748B]\">No vehicle fares configured for this route yet.</p>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                     {rules.map((rule) => (
