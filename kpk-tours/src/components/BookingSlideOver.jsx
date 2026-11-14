@@ -1,7 +1,22 @@
-import { useEffect, useState } from 'react';
-import { AlertTriangle, Calendar, Clock, MapPin, Phone, User, X } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { AlertTriangle, Calendar, Clock, ExternalLink, MapPin, Phone, Star, User, X } from 'lucide-react';
 import { callDashboardAction, formatPKR, formatPhoneDisplay, getStatusBadge } from '../lib/api';
 import { BookingActionsSection, BookingPaymentSection } from './BookingSlideOverSections';
+
+function formatMinutesAgo(dateStr) {
+  if (!dateStr) return null;
+  const diffMs = Date.now() - new Date(dateStr).getTime();
+  if (diffMs < 0) return 'Just now';
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return 'Just now';
+  if (mins === 1) return '1 minute ago';
+  if (mins < 60) return `${mins} minutes ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours === 1) return '1 hour ago';
+  if (hours < 24) return `${hours} hours ago`;
+  const days = Math.floor(hours / 24);
+  return `${days} days ago`;
+}
 
 export default function BookingSlideOver({
   booking,
@@ -43,10 +58,25 @@ export default function BookingSlideOver({
     }
   }, [booking]);
 
+  const bookingEvents = useMemo(() => {
+    if (!booking) return [];
+    return (events || []).filter((e) => e.booking_id === booking.id);
+  }, [events, booking]);
+
+  const lastDriverUpdate = useMemo(() => {
+    if (!bookingEvents.length) return null;
+    const driverEvts = bookingEvents.filter(
+      (e) =>
+        e.actor === 'driver' ||
+        ['DRIVER_EN_ROUTE', 'DRIVER_PICKUP_CONFIRMED', 'DRIVER_ARRIVED_DESTINATION', 'TRIP_COMPLETED', 'DRIVER_LOCATION_SHARED', 'DRIVER_LOCATION_RECEIVED'].includes(e.event_type)
+    );
+    if (!driverEvts.length) return null;
+    return driverEvts[0];
+  }, [bookingEvents]);
+
   if (!booking) return null;
 
   const badge = getStatusBadge(booking.status);
-  const bookingEvents = (events || []).filter((e) => e.booking_id === booking.id);
   const customerConvo = (conversations || []).find((c) => c.customer_id === booking.customer_id);
   const isTakeover = customerConvo?.state === 'TAKEOVER';
   const activeDrivers = (drivers || []).filter((d) => d.active);
@@ -77,6 +107,11 @@ export default function BookingSlideOver({
               <span className={`px-2.5 py-0.5 text-xs font-semibold rounded-full border ${badge.cls}`}>
                 {badge.label}
               </span>
+              {booking.customer_language && (
+                <span className="px-2 py-0.5 text-xs font-bold uppercase rounded-full bg-slate-100 text-slate-700 border border-slate-300">
+                  {booking.customer_language}
+                </span>
+              )}
             </div>
             <p className="text-xs text-[#64748B] mt-0.5">
               Created {new Date(booking.created_at).toLocaleString()}
@@ -124,15 +159,15 @@ export default function BookingSlideOver({
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-xs text-[#64748B]">
                 <MapPin className="w-3.5 h-3.5 text-[#3B82F6]" />
-                <span>Route</span>
+                <span>Route & Passengers</span>
               </div>
               <div className="text-sm font-semibold text-[#1E293B]">
                 {booking.pickup} → {booking.destination}
               </div>
               <div className="text-xs text-[#64748B]">
                 {booking.return_trip ? 'Return Trip' : 'One-Way'} · {booking.passengers} passengers · Saaman:{' '}
-                <span className="font-medium text-[#1E293B]">{booking.luggage || 'N/A'}</span> ·{' '}
-                <span className="uppercase font-medium text-[#1E293B]">{booking.vehicle_type}</span>
+                <span className="font-semibold text-[#1E293B]">{booking.luggage || 'N/A'}</span> ·{' '}
+                <span className="uppercase font-semibold text-[#1E293B]">{booking.vehicle_type}</span>
               </div>
             </div>
 
@@ -144,7 +179,7 @@ export default function BookingSlideOver({
               <div className="text-sm font-semibold text-[#1E293B]">
                 {booking.trip_date}
                 {booking.return_trip && booking.end_date && booking.end_date !== booking.trip_date
-                  ? ` → Wapsi: ${booking.end_date}`
+                  ? ` → Return: ${booking.end_date}`
                   : ''}
               </div>
               <div className="text-xs text-[#64748B] flex items-center gap-1">
@@ -153,7 +188,10 @@ export default function BookingSlideOver({
             </div>
 
             <div className="pt-2 border-t border-[#E2E8F0]">
-              <div className="text-xs text-[#64748B]">Total Fare</div>
+              <div className="text-xs text-[#64748B] flex items-center gap-1.5">
+                Total Locked Fare
+                <span className="text-[10px] text-emerald-700 bg-emerald-50 px-1 rounded font-mono">locked</span>
+              </div>
               <div className="text-base font-bold text-[#1E293B]">{formatPKR(booking.fare_total)}</div>
             </div>
             <div className="pt-2 border-t border-[#E2E8F0]">
@@ -176,6 +214,12 @@ export default function BookingSlideOver({
                 <Phone className="w-3.5 h-3.5" />
                 {formatPhoneDisplay(booking.customer_contact_number || booking.customer_phone)}
               </div>
+              {booking.customer_rating && (
+                <div className="mt-2 pt-2 border-t border-[#E2E8F0] flex items-center gap-1 text-xs text-amber-600 font-semibold">
+                  <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
+                  Customer Rating: {booking.customer_rating} / 5
+                </div>
+              )}
             </div>
 
             <div className="p-4 rounded-xl border border-[#E2E8F0]">
@@ -189,6 +233,15 @@ export default function BookingSlideOver({
               {booking.vehicle_model && (
                 <div className="text-xs text-[#64748B] mt-1">
                   {booking.vehicle_model} ({booking.vehicle_plate})
+                </div>
+              )}
+              {lastDriverUpdate && (
+                <div className="mt-2 pt-2 border-t border-[#E2E8F0] text-[11px] text-[#64748B]">
+                  Last driver update:{' '}
+                  <span className="font-semibold text-[#1E293B]">
+                    {formatMinutesAgo(lastDriverUpdate.created_at)}
+                  </span>{' '}
+                  ({lastDriverUpdate.event_type.replace(/_/g, ' ')})
                 </div>
               )}
             </div>
@@ -225,27 +278,77 @@ export default function BookingSlideOver({
             />
           )}
 
-          {/* Event Timeline */}
+          {/* Trip Status & Audit Timeline */}
           <div>
-            <div className="text-xs font-semibold text-[#64748B] uppercase mb-3">Booking Audit Timeline</div>
+            <div className="text-xs font-semibold text-[#64748B] uppercase mb-3 flex items-center justify-between">
+              <span>Trip Status & Audit Timeline</span>
+              <span className="text-[11px] font-normal lowercase">{bookingEvents.length} events logged</span>
+            </div>
             {bookingEvents.length === 0 ? (
               <p className="text-xs text-[#64748B]">No events logged yet.</p>
             ) : (
               <div className="space-y-2.5">
-                {bookingEvents.map((ev) => (
-                  <div
-                    key={ev.id}
-                    className="p-3 rounded-lg border border-[#E2E8F0] bg-white text-xs flex items-start justify-between gap-3"
-                  >
-                    <div>
-                      <div className="font-semibold text-[#1E293B]">{ev.event_type}</div>
-                      <div className="text-[#64748B] mt-0.5">Actor: {ev.actor || 'system'}</div>
+                {bookingEvents.map((ev) => {
+                  const details = ev.details || {};
+                  const isMapLink = details.map_url || (typeof details.lat === 'number' && typeof details.lng === 'number');
+                  const mapUrl = details.map_url || (isMapLink ? `https://www.google.com/maps?q=${details.lat},${details.lng}` : null);
+                  const isOperatorSkipped = ev.event_type === 'OPERATOR_ALERT_SKIPPED';
+
+                  return (
+                    <div
+                      key={ev.id}
+                      className={`p-3 rounded-lg border text-xs flex flex-col gap-1.5 ${
+                        isOperatorSkipped
+                          ? 'border-amber-200 bg-amber-50/50'
+                          : 'border-[#E2E8F0] bg-white'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <div className="font-semibold text-[#1E293B] flex items-center gap-1.5">
+                            {ev.event_type}
+                            {isOperatorSkipped && (
+                              <span className="px-1.5 py-0.2 text-[10px] font-bold text-amber-800 bg-amber-100 rounded">
+                                DEMO SKIPPED
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[#64748B] mt-0.5">
+                            Actor: <span className="font-medium text-[#1E293B]">{ev.actor || 'system'}</span>
+                            {booking.driver_name && (ev.actor === 'driver' || ev.event_type.startsWith('DRIVER_')) && (
+                              <span> · Driver: {booking.driver_name}</span>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-[11px] text-[#64748B] whitespace-nowrap">
+                          {new Date(ev.created_at).toLocaleString()}
+                        </div>
+                      </div>
+
+                      {/* Map link for shared locations */}
+                      {mapUrl && (
+                        <div className="pt-1">
+                          <a
+                            href={mapUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#3B82F6] hover:underline bg-blue-50 px-2 py-1 rounded border border-blue-200"
+                          >
+                            <MapPin className="w-3 h-3 text-[#3B82F6]" />
+                            View Shared Location on Google Maps <ExternalLink className="w-3 h-3" />
+                          </a>
+                        </div>
+                      )}
+
+                      {/* Details snippet */}
+                      {details && Object.keys(details).length > 0 && !mapUrl && (
+                        <div className="text-[11px] text-[#64748B] font-mono bg-slate-50 p-1.5 rounded border border-slate-200 truncate">
+                          {JSON.stringify(details)}
+                        </div>
+                      )}
                     </div>
-                    <div className="text-[11px] text-[#64748B] whitespace-nowrap">
-                      {new Date(ev.created_at).toLocaleString()}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
