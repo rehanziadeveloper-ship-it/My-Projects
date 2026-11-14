@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { KeyRound, Save, Globe } from 'lucide-react';
+import { KeyRound, Save, Globe, Check, AlertCircle } from 'lucide-react';
 import { callDashboardAction } from '../lib/api';
 import { supabase } from '../lib/supabase';
 
@@ -40,7 +40,6 @@ export default function SettingsPage({ settings, botMessages, onRefresh, notify 
 
   async function saveSetting(key) {
     const val = settingValues[key] ?? '';
-    // Numeric validation for delay/timing settings
     if (
       key.includes('minutes') ||
       key.includes('hours') ||
@@ -83,6 +82,25 @@ export default function SettingsPage({ settings, botMessages, onRefresh, notify 
     }
   }
 
+  async function clearReviewMarker(key, currentDesc) {
+    const cleanedDesc = (currentDesc || '').replace(/\s*\[NEEDS NATIVE REVIEW\]\s*/g, '').trim();
+    setSavingKey(`c:${key}`);
+    try {
+      await callDashboardAction('update_bot_messages', {
+        key,
+        lang: selectedLang,
+        text: msgValues[key] ?? '',
+        description: cleanedDesc
+      });
+      notify('success', `Review marker cleared for "${key}" (${selectedLang}).`);
+      await onRefresh();
+    } catch (err) {
+      notify('error', err.message);
+    } finally {
+      setSavingKey('');
+    }
+  }
+
   async function handleChangePassword(e) {
     e.preventDefault();
     if (newPassword.length < 6) {
@@ -107,7 +125,6 @@ export default function SettingsPage({ settings, botMessages, onRefresh, notify 
     }
   }
 
-  // Deduplicate bot message keys across languages for editing
   const uniqueMessageKeys = Array.from(new Set((botMessages || []).map((m) => m.key)));
 
   return (
@@ -195,7 +212,7 @@ export default function SettingsPage({ settings, botMessages, onRefresh, notify 
           <div>
             <h2 className="text-sm font-bold text-[#1E293B] flex items-center gap-2">
               <Globe className="w-4 h-4 text-[#3B82F6]" />
-              WhatsApp Bot Message Templates
+              WhatsApp Bot Message Templates & FAQs
             </h2>
             <p className="text-xs text-[#64748B] mt-0.5">
               Select a language to edit or translate templates. Missing messages automatically fall back to Roman Urdu.
@@ -222,12 +239,23 @@ export default function SettingsPage({ settings, botMessages, onRefresh, notify 
             const row = (botMessages || []).find((m) => m.key === k && (m.lang || 'roman_ur') === selectedLang);
             const desc = row?.description || (botMessages || []).find((m) => m.key === k)?.description;
             const isNativeReview = desc && desc.includes('NEEDS NATIVE REVIEW');
+            const isFaq = k.startsWith('faq_');
+            const hasConfirmedText = Boolean((msgValues[k] ?? '').trim());
 
             return (
               <div key={k} className="p-4 rounded-xl bg-[#F4F8FD] border border-[#E2E8F0] space-y-2">
                 <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="text-xs font-bold text-[#1E293B]">{k}</span>
+                    {isFaq && (
+                      <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full border ${
+                        hasConfirmedText
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                          : 'bg-rose-50 text-rose-700 border-rose-300'
+                      }`}>
+                        {hasConfirmedText ? 'CLIENT CONFIRMED FAQ' : 'NOT CONFIRMED BY CLIENT'}
+                      </span>
+                    )}
                     {isNativeReview && (
                       <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-amber-50 text-amber-700 border border-amber-300">
                         NEEDS NATIVE REVIEW
@@ -237,21 +265,38 @@ export default function SettingsPage({ settings, botMessages, onRefresh, notify 
                       {selectedLang}
                     </span>
                   </div>
-                  <button
-                    type="button"
-                    disabled={savingKey === `m:${k}`}
-                    onClick={() => saveMessage(k, desc)}
-                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#3B82F6] hover:bg-blue-600 text-white text-xs font-semibold cursor-pointer disabled:opacity-50"
-                  >
-                    <Save className="w-3.5 h-3.5" /> Save
-                  </button>
+                  <div className="flex items-center gap-1.5">
+                    {isNativeReview && (
+                      <button
+                        type="button"
+                        disabled={savingKey === `c:${k}`}
+                        onClick={() => clearReviewMarker(k, desc)}
+                        title="Clear NEEDS NATIVE REVIEW marker once verified"
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs font-semibold cursor-pointer disabled:opacity-50"
+                      >
+                        <Check className="w-3.5 h-3.5" /> Clear Marker
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      disabled={savingKey === `m:${k}`}
+                      onClick={() => saveMessage(k, desc)}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-[#3B82F6] hover:bg-blue-600 text-white text-xs font-semibold cursor-pointer disabled:opacity-50"
+                    >
+                      <Save className="w-3.5 h-3.5" /> Save
+                    </button>
+                  </div>
                 </div>
                 <div className="text-[11px] text-[#64748B]">{desc}</div>
                 <textarea
                   rows={3}
                   value={msgValues[k] ?? ''}
                   onChange={(e) => setMsgValues({ ...msgValues, [k]: e.target.value })}
-                  placeholder={`Enter ${selectedLang} translation (or leave empty to fall back to Roman Urdu)...`}
+                  placeholder={
+                    isFaq
+                      ? `Leave empty for unconfirmed policy reply ("Yeh operator se confirm karna hoga..."), or enter confirmed answer for ${selectedLang}...`
+                      : `Enter ${selectedLang} translation (or leave empty to fall back to Roman Urdu)...`
+                  }
                   className="w-full px-3 py-2 text-xs border border-[#E2E8F0] rounded-lg bg-white"
                 />
               </div>
