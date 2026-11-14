@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { KeyRound, Save, Globe, Check, AlertCircle } from 'lucide-react';
+import { KeyRound, Save, Globe, Check, AlertCircle, Volume2, VolumeX, Mic } from 'lucide-react';
 import { callDashboardAction } from '../lib/api';
 import { supabase } from '../lib/supabase';
 
@@ -93,6 +93,44 @@ export default function SettingsPage({ settings, botMessages, onRefresh, notify 
         description: cleanedDesc
       });
       notify('success', `Review marker cleared for "${key}" (${selectedLang}).`);
+      await onRefresh();
+    } catch (err) {
+      notify('error', err.message);
+    } finally {
+      setSavingKey('');
+    }
+  }
+
+  async function toggleVoiceLang(langCode) {
+    const raw = settingValues['voice_reply_languages'] ?? '';
+    const currentList = raw ? raw.split(',').map((s) => s.trim()).filter(Boolean) : [];
+    let updated;
+    if (currentList.includes(langCode)) {
+      updated = currentList.filter((c) => c !== langCode);
+    } else {
+      updated = [...currentList, langCode];
+    }
+    const val = updated.join(',');
+    setSettingValues({ ...settingValues, voice_reply_languages: val });
+    setSavingKey('s:voice_reply_languages');
+    try {
+      await callDashboardAction('update_settings', { key: 'voice_reply_languages', value: val });
+      notify('success', `Voice replies updated: [${val || 'none'}]`);
+      await onRefresh();
+    } catch (err) {
+      notify('error', err.message);
+    } finally {
+      setSavingKey('');
+    }
+  }
+
+  async function toggleVoiceMaster(enabled) {
+    const val = enabled ? 'true' : 'false';
+    setSettingValues({ ...settingValues, voice_reply_enabled: val });
+    setSavingKey('s:voice_reply_enabled');
+    try {
+      await callDashboardAction('update_settings', { key: 'voice_reply_enabled', value: val });
+      notify('success', `Voice replies ${enabled ? 'enabled' : 'disabled'}.`);
       await onRefresh();
     } catch (err) {
       notify('error', err.message);
@@ -207,6 +245,84 @@ export default function SettingsPage({ settings, botMessages, onRefresh, notify 
         </div>
       </div>
 
+      {/* Voice Replies Configuration Card */}
+      <div className="bg-white p-5 rounded-xl border border-[#E2E8F0] space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <h2 className="text-sm font-bold text-[#1E293B] flex items-center gap-2">
+              <Mic className="w-4 h-4 text-[#3B82F6]" />
+              Voice Reply Settings (WhatsApp Audio Notes)
+            </h2>
+            <p className="text-xs text-[#64748B] mt-0.5">
+              Control outbound voice notes for customers who send voice messages. Switch voice on or off per language.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-semibold text-[#64748B]">Master Switch:</span>
+            <button
+              type="button"
+              onClick={() => toggleVoiceMaster(settingValues['voice_reply_enabled'] !== 'true')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
+                settingValues['voice_reply_enabled'] === 'true'
+                  ? 'bg-emerald-500 text-white hover:bg-emerald-600'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              {settingValues['voice_reply_enabled'] === 'true' ? (
+                <>
+                  <Volume2 className="w-3.5 h-3.5" /> Voice Enabled
+                </>
+              ) : (
+                <>
+                  <VolumeX className="w-3.5 h-3.5" /> Voice Disabled
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+
+        <div className="pt-2 border-t border-[#E2E8F0]">
+          <div className="text-xs font-bold text-[#1E293B] mb-2">Permitted Voice Reply Languages:</div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+            {SUPPORTED_LANGS.map((lang) => {
+              const activeLangs = (settingValues['voice_reply_languages'] || '')
+                .split(',')
+                .map((s) => s.trim())
+                .filter(Boolean);
+              const isActive = activeLangs.includes(lang.code);
+
+              return (
+                <label
+                  key={lang.code}
+                  className={`p-3 rounded-lg border flex items-center justify-between cursor-pointer transition ${
+                    isActive
+                      ? 'bg-blue-50/60 border-[#3B82F6] text-[#1E293B]'
+                      : 'bg-[#F8FAFC] border-[#E2E8F0] text-[#64748B]'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={isActive}
+                      onChange={() => toggleVoiceLang(lang.code)}
+                      className="rounded border-[#CBD5E1] text-[#3B82F6] focus:ring-[#3B82F6]"
+                    />
+                    <span className="text-xs font-semibold">{lang.label}</span>
+                  </div>
+                  <span
+                    className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                      isActive ? 'bg-blue-100 text-blue-700' : 'bg-gray-200 text-gray-600'
+                    }`}
+                  >
+                    {isActive ? 'ACTIVE' : 'OFF'}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
       <div className="bg-white p-5 rounded-xl border border-[#E2E8F0] space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
@@ -264,6 +380,18 @@ export default function SettingsPage({ settings, botMessages, onRefresh, notify 
                     <span className="text-[10px] uppercase font-semibold text-[#64748B] bg-white px-1.5 py-0.5 rounded border border-[#E2E8F0]">
                       {selectedLang}
                     </span>
+                    {row?.audio_path ? (
+                      <span
+                        title={`Storage: ${row.audio_path}`}
+                        className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-blue-50 text-blue-700 border border-blue-300 flex items-center gap-1"
+                      >
+                        <Volume2 className="w-3 h-3" /> Voice Clip Stored
+                      </span>
+                    ) : (
+                      <span className="px-2 py-0.5 text-[10px] font-medium rounded-full bg-gray-100 text-gray-500 border border-gray-200">
+                        No Audio Clip
+                      </span>
+                    )}
                   </div>
                   <div className="flex items-center gap-1.5">
                     {isNativeReview && (
