@@ -1,0 +1,128 @@
+[
+  {
+    "id": "kpk-tours-os",
+    "title": "KPK Tours — Autonomous Reservation & Fleet Dispatch",
+    "slug": "kpk-tours",
+    "category": "Full-Stack OS Portals",
+    "image": "/images/solutions/kpk-tours.png",
+    "liveUrl": "https://kpk-tours.vercel.app",
+    "githubUrl": "https://github.com/rehanziadeveloper-ship-it/My-Projects",
+    "description": "Automates 24/7 inbound passenger reservations, route fare calculation, and driver dispatch across Khyber Pakhtunkhwa with zero manual staff overhead.",
+    "metrics": [
+      { "label": "Response Time", "value": "< 1 Ring" },
+      { "label": "Booking Capture", "value": "100% Inbound" }
+    ],
+    "techStack": ["Voice AI", "Supabase", "Automated Dispatch", "WhatsApp"],
+    "badge": "Production Live",
+    "featured": true,
+    "createdAt": "2026-11-15T10:00:00.000Z"
+  },
+  {
+    "id": "raqba-brokerage-os",
+    "title": "Raqba — Real Estate Brokerage & Showing Scheduler",
+    "slug": "raqba",
+    "category": "Full-Stack OS Portals",
+    "image": "/images/solutions/raqba.png",
+    "liveUrl": "https://raqba.vercel.app",
+    "githubUrl": "https://github.com/rehanziadeveloper-ship-it/My-Projects/tree/main/raqba",
+    "description": "Qualifies property buyers in real-time, filters serious investors from casual browsers, and schedules in-person showings directly on broker calendars.",
+    "metrics": [
+      { "label": "Lead Qualification", "value": "Instant Screening" },
+      { "label": "Calendar Sync", "value": "Direct Lock" }
+    ],
+    "techStack": ["Next.js", "AI Concierge", "Multi-lingual", "Google Calendar"],
+    "badge": "116/116 Verified",
+    "featured": true,
+    "createdAt": "2026-11-04T12:00:00.000Z"
+  },
+  {
+    "id": "post-call-intelligence",
+    "title": "Post-Call Intelligence & Rapid Triage System",
+    "slug": "post-call-intelligence",
+    "category": "n8n Orchestration",
+    "image": "/images/solutions/post-call-intelligence.png",
+    "liveUrl": "https://call-intelligence-ai.netlify.app",
+    "githubUrl": "https://github.com/rehanziadeveloper-ship-it/My-Projects",
+    "description": "Analyzes every customer phone call, highlights high-priority client complaints, and dispatches urgent alerts to business owners in under 15 seconds.",
+    "metrics": [
+      { "label": "Alert Speed", "value": "< 15 Seconds" },
+      { "label": "Call Triage", "value": "100% Automated" }
+    ],
+    "techStack": ["Voice Telemetry", "Sentiment Analysis", "Instant Alerts"],
+    "badge": "Live System",
+    "featured": true,
+    "createdAt": "2026-10-30T14:00:00.000Z"
+  },
+  {
+    "id": "smile-dental-clinic",
+    "title": "Smile Dental Clinic — Practice Scheduling Engine",
+    "slug": "smile-dental",
+    "category": "Full-Stack OS Portals",
+    "image": "/images/solutions/smile-dental.png",
+    "liveUrl": "https://smile-dental-clinic-rehan-zia.vercel.app",
+    "githubUrl": "https://github.com/rehanziadeveloper-ship-it/My-Projects",
+    "description": "Coordinates patient chair bookings, treatment reminder sequences, and live operatory calendars to eliminate costly appointment no-shows.",
+    "metrics": [
+      { "label": "No-Show Reduction", "value": "Automated Reminders" },
+      { "label": "Patient Intake", "value": "24/7 Self-Service" }
+    ],
+    "techStack": ["Realtime OS", "Patient Portal", "Calendar Grid"],
+    "badge": "Live on Vercel",
+    "featured": true,
+    "createdAt": "2026-11-05T12:00:00.000Z"
+  },
+  {
+    "id": "heritage-bistro-ai",
+    "title": "Heritage Bistro — Voice AI Table Reservation Host",
+    "slug": "heritage-bistro",
+    "category": "Voice AI Agents",
+    "image": "/images/solutions/heritage-bistro.png",
+    "liveUrl": "https://heritage-bistro-ai.netlify.app",
+    "githubUrl": "https://github.com/rehanziadeveloper-ship-it/My-Projects",
+    "description": "Answers restaurant reservation phone calls on the first ring, checks seating capacity in real-time, and confirms guest bookings without front-desk staff.",
+    "metrics": [
+      { "label": "Call Answering", "value": "1st Ring 24/7" },
+      { "label": "Table Booking", "value": "Zero Wait" }
+    ],
+    "techStack": ["Voice AI", "Reservation Engine", "Live Capacity"],
+    "badge": "Live Demo",
+    "featured": true,
+    "createdAt": "2026-10-28T11:00:00.000Z"
+  },
+  {
+    "id": "apex-realty-ai",
+    "title": "Apex Realty — Inbound Buyer Screening Voice Agent",
+    "slug": "apex-realty",
+    "category": "Voice AI Agents",
+    "image": "/images/solutions/apex-realty.png",
+    "liveUrl": "https://apex-realty-ai.netlify.app",
+    "githubUrl": "https://github.com/rehanziadeveloper-ship-it/My-Projects",
+    "description": "Conducts natural phone screenings with home buyers, confirms budget and timeline criteria, and routes pre-qualified buyers straight to top agents.",
+    "metrics": [
+      { "label": "Lead Screening", "value": "4-Point Check" },
+      { "label": "Agent Routing", "value": "Instant Handoff" }
+    ],
+    "techStack": ["Conversational Voice", "Buyer Triage", "CRM Sync"],
+    "badge": "Live Demo",
+    "featured": true,
+    "createdAt": "2026-10-29T15:00:00.000Z"
+  },
+  {
+    "id": "autonomous-client-acquisition",
+    "title": "Autonomous B2B Lead Acquisition & Booking Circuit",
+    "slug": "lead-hunter",
+    "category": "n8n Orchestration",
+    "image": "/images/solutions/lead-hunter.png",
+    "liveUrl": "https://docs.google.com/spreadsheets/d/1jFK_4ePGkpfKg_6KHM94fU8GPKKNfLL0rdOrdgoNMVA",
+    "githubUrl": "https://github.com/rehanziadeveloper-ship-it/My-Projects",
+    "description": "Captures high-intent local business leads, enriches decision-maker contact details, and books discovery calls into calendar pipelines on autopilot.",
+    "metrics": [
+      { "label": "Pipeline Leadflow", "value": "24/7 Automated" },
+      { "label": "Meeting Booking", "value": "Direct Calendar" }
+    ],
+    "techStack": ["Lead Enriched", "Calendar Webhook", "WhatsApp Alert"],
+    "badge": "Active Circuit",
+    "featured": false,
+    "createdAt": "2026-11-17T20:00:00.000Z"
+  }
+]
