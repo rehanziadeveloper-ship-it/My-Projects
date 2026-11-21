@@ -51,7 +51,7 @@ export default function LeadIntakeAndCal() {
             Ready to Automate Your Inbound Leads?
           </h2>
           <p className="mt-3 text-base text-slate-600">
-            Send a quick message below or book a 15-minute intro directly on Muhammad Rehan&apos;s calendar.
+            Send a quick message below or book a 15-minute intro directly on our live calendar.
           </p>
         </div>
 
@@ -65,7 +65,7 @@ export default function LeadIntakeAndCal() {
                 </div>
                 <h3 className="text-xl font-bold text-slate-900">Message Received!</h3>
                 <p className="text-xs text-slate-600 mt-2 max-w-md mx-auto leading-relaxed">
-                  Thank you! Muhammad Rehan has received your message and will reach out to your email or WhatsApp within 2 hours.
+                  Thank you! ZeroLoss AI has received your message and will reach out to your email or WhatsApp within 2 hours.
                 </p>
                 <div className="mt-6">
                   <button
@@ -170,7 +170,7 @@ export default function LeadIntakeAndCal() {
                 <span>Prefer to Speak Directly?</span>
               </div>
               <p className="text-xs text-slate-600 leading-relaxed">
-                Book a quick 15-minute technical intro call directly on Muhammad Rehan&apos;s live calendar.
+                Book a quick 15-minute technical intro call directly with ZeroLoss AI engineering on Cal.com.
               </p>
 
               <div className="mt-5 space-y-3">

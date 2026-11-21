@@ -15,9 +15,9 @@ const SCENARIOS = [
     title: "Agency Strategy Fit Call",
     callerDesc: "Marketing Agency Owner looking to automate client intake",
     dialogue: [
-      { speaker: "agent", text: "Thanks for calling Muhammad Rehan! I'm the agency automation concierge. Are you looking to deploy 24/7 Voice AI for your agency's clients, or automate internal pipelines?", delayMs: 1200 },
+      { speaker: "agent", text: "Thanks for calling ZeroLoss AI! I'm the agency automation concierge. Are you looking to eliminate missed calls for your agency's clients, or automate internal pipelines?", delayMs: 1200 },
       { speaker: "caller", text: "We have 15 local business clients and they keep missing calls from our Google Ads campaigns. We need a 24/7 front desk.", delayMs: 2500 },
-      { speaker: "agent", text: "Understood. Our systems answer in under 1 ring, qualify the lead, and book straight into your client's calendar. Would you like to schedule a 15-minute technical demo with our founder, Muhammad Rehan?", delayMs: 2800 },
+      { speaker: "agent", text: "Understood. ZeroLoss AI answers in under 1 ring, qualifies the lead, and books straight into your client's calendar. Would you like to schedule a 15-minute technical demo with our engineering team?", delayMs: 2800 },
       { speaker: "caller", text: "Yes, tomorrow at 3 PM PKT / 10 AM GMT works great.", delayMs: 2200 },
       { speaker: "agent", text: "Locked in! I've reserved tomorrow at 3 PM. You'll receive a Cal.com calendar invite and WhatsApp confirmation in under 15 seconds.", delayMs: 2400 },
       { speaker: "system", text: "⚡ [Webhook Triggered] Cal.com event created. P0 High Urgency Dossier dispatched to WhatsApp (+92 347 1098310).", delayMs: 1000 }

@@ -15,7 +15,7 @@ export default function Hero() {
           <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white border border-slate-200/90 shadow-2xs mb-6 text-xs font-medium text-slate-700">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
             <span className="text-indigo-600 font-semibold tracking-wide uppercase text-[11px]">
-              AI VOICE &amp; AUTOMATION PARTNER
+              ZEROLOSS AI INFRASTRUCTURE
             </span>
             <span className="text-slate-300">|</span>
             <span>Built Specifically For Marketing &amp; Growth Agencies</span>

@@ -1,11 +1,12 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
   <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#4F46E5" />
-      <stop offset="100%" stop-color="#090D16" />
+    <linearGradient id="zlbg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#020617" />
+      <stop offset="100%" stop-color="#1E1B4B" />
     </linearGradient>
   </defs>
-  <rect width="64" height="64" rx="16" fill="url(#bg)" />
-  <path d="M20 14h13c6.6 0 11 3.8 11 9.5 0 4.2-2.4 7.2-6.2 8.5L46 48H36.5l-6.8-14H27v14H20V14zm7 6v8h5.5c3 0 5-1.6 5-4s-2-4-5-4H27z" fill="#FFFFFF" />
-  <circle cx="50" cy="50" r="7" fill="#10B981" stroke="#090D16" stroke-width="2.5" />
+  <rect width="64" height="64" rx="16" fill="url(#zlbg)" stroke="#312E81" stroke-width="1.5" />
+  <text x="14" y="44" font-family="system-ui, -apple-system, sans-serif" font-size="34" font-weight="900" fill="#FFFFFF" letter-spacing="-2">0</text>
+  <text x="33" y="44" font-family="system-ui, -apple-system, sans-serif" font-size="34" font-weight="900" fill="#34D399" letter-spacing="-2">L</text>
+  <circle cx="51" cy="51" r="5.5" fill="#10B981" stroke="#020617" stroke-width="2" />
 </svg>

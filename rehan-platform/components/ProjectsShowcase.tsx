@@ -219,7 +219,7 @@ export default function ProjectsShowcase({ initialProjects }: { initialProjects:
             </div>
             <div>
               <div className="text-sm font-semibold text-slate-900">
-                Connected to Muhammad Rehan&apos;s Deployment Pipeline
+                Connected to ZeroLoss AI Deployment Pipeline
               </div>
               <div className="text-xs text-slate-500 mt-0.5">
                 Whenever a new system is built, it automatically publishes to this live showcase via the n8n webhook API.

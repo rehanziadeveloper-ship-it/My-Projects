@@ -27,23 +27,21 @@ export default function Navbar() {
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between">
-          {/* Brand: Clean Personal Brand "Muhammad Rehan" */}
-          <Link href="/" className="flex items-center gap-3 group">
-            <div className="w-10 h-10 rounded-full border-2 border-slate-200/90 overflow-hidden shadow-xs shrink-0 group-hover:scale-105 transition-transform bg-slate-100">
-              <img
-                src="/images/rehan.jpg"
-                alt="Muhammad Rehan"
-                className="w-full h-full object-cover object-top"
-                onError={(e) => {
-                  // Fallback if image fails to load
-                  (e.target as HTMLElement).style.display = "none";
-                }}
-              />
+          {/* Brand: ZeroLoss AI */}
+          <Link href="/" className="flex items-center gap-2.5 group">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 flex items-center justify-center text-white font-bold text-base shadow-xs border border-slate-800 shrink-0 group-hover:scale-105 transition-transform">
+              <span className="tracking-tighter">0<span className="text-emerald-400">L</span></span>
             </div>
-            <div>
-              <span className="font-bold text-slate-950 tracking-tight text-lg font-sans">
-                Muhammad Rehan
-              </span>
+            <div className="flex flex-col">
+              <div className="flex items-center gap-1.5">
+                <span className="font-extrabold text-slate-950 tracking-tight text-lg font-sans">
+                  ZeroLoss<span className="text-indigo-600">.ai</span>
+                </span>
+                <span className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse mr-1"></span>
+                  24/7 Live
+                </span>
+              </div>
             </div>
           </Link>
 
@@ -158,7 +156,7 @@ export default function Navbar() {
             onClick={() => setMobileMenuOpen(false)}
             className="block px-3 py-2 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-100"
           >
-            About Muhammad Rehan
+            About Founder (Muhammad Rehan)
           </a>
           <div className="pt-2 border-t border-slate-100 flex flex-col gap-2">
             <Link

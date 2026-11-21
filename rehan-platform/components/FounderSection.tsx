@@ -54,7 +54,7 @@ export default function FounderSection() {
                 Muhammad Rehan
               </h3>
               <p className="text-xs font-medium text-indigo-600">
-                Founder &amp; Voice AI Specialist
+                Founder &amp; Lead AI Architect, ZeroLoss AI
               </p>
               
               {/* Clean, Global Location Indicator */}

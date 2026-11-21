@@ -2,10 +2,10 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Muhammad Rehan — Agency Automation & Voice AI Infrastructure",
-  description: "Senior Technical Partner for Agencies. We architect and deploy 24/7 autonomous Voice AI agents, complex n8n backend pipelines, and custom client OS portals with guaranteed speed-to-lead.",
-  keywords: ["Muhammad Rehan", "AI Agency Partner", "Voice AI", "Agency Automation", "n8n Automation", "Agency Infrastructure", "Supabase", "Next.js 15"],
-  authors: [{ name: "Muhammad Rehan", url: "https://www.linkedin.com/in/rehan-zia-voiceai/" }],
+  title: "ZeroLoss AI — Autonomous Voice & Agency Automation Infrastructure",
+  description: "ZeroLoss AI eliminates missed calls and lost leads. 24/7 autonomous Voice AI receptionists, n8n backend pipelines, and custom client OS portals for high-growth agencies.",
+  keywords: ["ZeroLoss AI", "ZeroLoss", "Muhammad Rehan", "Voice AI", "Agency Automation", "n8n Automation", "Agency Infrastructure", "Supabase", "Next.js 16"],
+  authors: [{ name: "ZeroLoss AI", url: "https://zeroloss-ai.vercel.app" }, { name: "Muhammad Rehan", url: "https://www.linkedin.com/in/rehan-zia-voiceai/" }],
   icons: {
     icon: [
       { url: "/icon.svg", type: "image/svg+xml" },
@@ -14,8 +14,8 @@ export const metadata: Metadata = {
     apple: "/apple-icon.png"
   },
   openGraph: {
-    title: "Muhammad Rehan — Agency Automation & Voice AI Infrastructure",
-    description: "Plug-and-play fractional technical partner for marketing & lead-gen agencies. 24/7 Voice AI front desks, sub-15s lead triage, and custom client OS portals.",
+    title: "ZeroLoss AI — Autonomous Voice & Agency Automation Infrastructure",
+    description: "Zero missed calls. Zero lost revenue. Autonomous 24/7 Voice AI front desks, sub-15s lead triage, and custom client OS portals.",
     type: "website",
   }
 };

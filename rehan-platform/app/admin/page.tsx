@@ -265,7 +265,7 @@ export default function AdminPage() {
             Admin Panel Access
           </h1>
           <p className="text-xs text-slate-600 mt-2 mb-6">
-            Restricted control center for Muhammad Rehan. Enter your security code to manage live solutions.
+            Restricted operations center for ZeroLoss AI. Enter your security code to manage live solutions.
           </p>
 
           <form onSubmit={handlePasscodeUnlock} className="space-y-4">
@@ -328,10 +328,10 @@ export default function AdminPage() {
 
           {/* Center Identity */}
           <div className="hidden sm:flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-full overflow-hidden border border-slate-200">
-              <img src="/images/rehan.jpg" alt="Muhammad Rehan" className="w-full h-full object-cover object-top" />
+            <div className="w-7 h-7 rounded-lg bg-slate-950 flex items-center justify-center text-white font-bold text-xs">
+              0<span className="text-emerald-400">L</span>
             </div>
-            <span className="text-xs font-bold text-slate-900">Muhammad Rehan</span>
+            <span className="text-xs font-bold text-slate-900">ZeroLoss.ai</span>
             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
               Admin Session Active
@@ -749,9 +749,9 @@ export default function AdminPage() {
                   />
                 </div>
                 <div className="text-xs text-slate-600">
-                  <div className="font-bold text-slate-950">Muhammad Rehan</div>
+                  <div className="font-bold text-slate-950">Muhammad Rehan (Founder &amp; Architect)</div>
                   <div className="text-[11px] text-slate-500 mt-0.5">
-                    Official portrait active across Navbar, Founder Section, and Footer.
+                    Official portrait active across Founder Section and Bio.
                   </div>
                   <div className="text-[10px] text-emerald-600 font-medium mt-1">
                     Available Worldwide • Remote (UTC+5)

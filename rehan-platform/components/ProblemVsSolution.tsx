@@ -79,7 +79,7 @@ export default function ProblemVsSolution() {
             <div className="flex items-center gap-2 mb-6">
               <span className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></span>
               <span className="text-xs font-mono font-bold uppercase tracking-wider text-emerald-800">
-                WITH MUHAMMAD REHAN&apos;S INFRASTRUCTURE
+                WITH ZEROLOSS AI INFRASTRUCTURE
               </span>
             </div>
 
