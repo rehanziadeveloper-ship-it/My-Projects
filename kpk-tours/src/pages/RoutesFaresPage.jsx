@@ -216,7 +216,8 @@ export default function RoutesFaresPage({ routes, fareRules, onRefresh, notify }
               </div>
 
               <div className="p-4">
-                {rules.length === 0 ? (\n                  <p className=\"text-xs text-[#64748B]\">No vehicle fares configured for this route yet.</p>
+                {rules.length === 0 ? (
+                  <p className="text-xs text-[#64748B]">No vehicle fares configured for this route yet.</p>
                 ) : (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                     {rules.map((rule) => (

@@ -71,7 +71,7 @@ export default function BookingSlideOver({
         ['DRIVER_EN_ROUTE', 'DRIVER_PICKUP_CONFIRMED', 'DRIVER_ARRIVED_DESTINATION', 'TRIP_COMPLETED', 'DRIVER_LOCATION_SHARED', 'DRIVER_LOCATION_RECEIVED'].includes(e.event_type)
     );
     if (!driverEvts.length) return null;
-    return driverEvts[0];
+    return driverEvts[0]; // Events are ordered by created_at DESC
   }, [bookingEvents]);
 
   if (!booking) return null;
