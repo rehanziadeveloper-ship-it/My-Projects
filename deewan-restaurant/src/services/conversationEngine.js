@@ -1119,15 +1119,139 @@ export function handleMenuQuestions(lowerText) {
     };
   }
 
-  // 9. Specific Price Query (e.g. "biryani kitne ki hai", "kheer ki price kya hai", "roti price")
-  if (
-    t.includes('price') ||
-    t.includes('kitnay') ||
-    t.includes('kitne') ||
-    t.includes('rate') ||
-    t.includes('cost') ||
-    t.includes('kitna')
-  ) {
+  // 9. Specific Price & Rate Query (e.g. "Shinwari Karahi kitny ki hai?", "biryani price", "roti rate")
+  const isPriceQuery = /\b(price|rate|cost|kitny|kitne|kitna|kitnay|kitni|paise|pese|rupay|rupaye|bhao|hisab|charges|how much)\b/i.test(t) ||
+    /(?:kitny|kitne|kitna|kitnay|kitni)\s+k[aie]\s+(?:hai|hain)/i.test(t);
+
+  if (isPriceQuery) {
+    // 9a. Check for generic category price queries first
+    if (t.includes('shinwari')) {
+      return {
+        reply:
+          `💰 *SHINWARI KARAHI PRICING:*\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+          `🍗 *Chicken Shinwari Karahi:*\n` +
+          `   ├─ 🥣 *Half*: Rs. 950\n` +
+          `   └─ 🍲 *Full*: Rs. 1,799\n\n` +
+          `🥩 *Mutton Shinwari Karahi:*\n` +
+          `   ├─ 🥣 *Half*: Rs. 1,799\n` +
+          `   └─ 🍲 *Full*: Rs. 3,399\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+          `Yeh bilkul fresh tamatar aur namak mein banti hai. Kaunsi Karahi order karna chahenge? 😊`,
+        buttons: [
+          { label: '🍗 Half Chicken Shinwari (Rs. 950)', payload: 'half chicken shinwari karahi' },
+          { label: '🍗 Full Chicken Shinwari (Rs. 1,799)', payload: 'full chicken shinwari karahi' },
+          { label: '🥩 Half Mutton Shinwari (Rs. 1,799)', payload: 'half mutton shinwari karahi' },
+          { label: '🥩 Full Mutton Shinwari (Rs. 3,399)', payload: 'full mutton shinwari karahi' }
+        ]
+      };
+    }
+
+    if (t.includes('butt')) {
+      return {
+        reply:
+          `💰 *BUTT KARAHI PRICING:*\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+          `🍗 *Chicken Butt Karahi:*\n` +
+          `   ├─ 🥣 *Half*: Rs. 1,020\n` +
+          `   └─ 🍲 *Full*: Rs. 1,850\n\n` +
+          `🥩 *Mutton Butt Karahi:*\n` +
+          `   ├─ 🥣 *Half*: Rs. 1,820\n` +
+          `   └─ 🍲 *Full*: Rs. 3,450\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+          `Makhan aur desi ghee mein tayyar ki jati hai. Kaunsi Karahi order karein? 😊`,
+        buttons: [
+          { label: '🍗 Half Chicken Butt (Rs. 1,020)', payload: 'half chicken butt karahi' },
+          { label: '🍗 Full Chicken Butt (Rs. 1,850)', payload: 'full chicken butt karahi' },
+          { label: '🥩 Half Mutton Butt (Rs. 1,820)', payload: 'half mutton butt karahi' },
+          { label: '🥩 Full Mutton Butt (Rs. 3,450)', payload: 'full mutton butt karahi' }
+        ]
+      };
+    }
+
+    if (t.includes('handi')) {
+      return {
+        reply:
+          `💰 *CHICKEN HANDI PRICING:*\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+          `🍲 *Chicken White Handi:*\n` +
+          `   ├─ 🥣 *Half*: Rs. 970\n` +
+          `   └─ 🍲 *Full*: Rs. 1,890\n\n` +
+          `🍲 *Chicken Makhni Handi:*\n` +
+          `   ├─ 🥣 *Half*: Rs. 990\n` +
+          `   └─ 🍲 *Full*: Rs. 1,850\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+          `Kaunsi Handi order karna chahenge? 😊`,
+        buttons: [
+          { label: '🥣 Half White Handi (Rs. 970)', payload: 'half chicken white handi' },
+          { label: '🍲 Full White Handi (Rs. 1,890)', payload: 'full chicken white handi' },
+          { label: '🥣 Half Makhni Handi (Rs. 990)', payload: 'half chicken makhni handi' },
+          { label: '🍲 Full Makhni Handi (Rs. 1,850)', payload: 'full chicken makhni handi' }
+        ]
+      };
+    }
+
+    if (t.includes('biryani') || (t.includes('rice') && !t.includes('fried'))) {
+      return {
+        reply:
+          `💰 *BIRYANI & PULAO PRICING:*\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+          `▫️ *Chicken Biryani* ── Rs. 900\n` +
+          `▫️ *Kabuli Pulao* ── Rs. 880\n` +
+          `▫️ *Simple Biryani* ── Rs. 500\n` +
+          `▫️ *Simple Pulao* ── Rs. 450\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+          `Aap kya order karna chahenge? 😊`,
+        buttons: [
+          { label: '🍗 Chicken Biryani (Rs. 900)', payload: 'chicken biryani' },
+          { label: '🍛 Kabuli Pulao (Rs. 880)', payload: 'kabuli pulao' },
+          { label: '🍚 Simple Biryani (Rs. 500)', payload: 'simple biryani' },
+          { label: '🍚 Simple Pulao (Rs. 450)', payload: 'simple pulao' }
+        ]
+      };
+    }
+
+    if (t.includes('roti') || t.includes('naan') || t.includes('nan')) {
+      return {
+        reply:
+          `💰 *ROTI & NAAN PRICING:*\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+          `▫️ *Roti (Fine Wheat)* ── Rs. 30\n` +
+          `▫️ *Peshawari Naan* ── Rs. 40\n` +
+          `▫️ *Roghni Naan* ── Rs. 80\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+          `Kaunsi aur kitni roti / naan chahiye? (maslan: "8 rotis" ya "4 roghni naan") 😊`,
+        buttons: [
+          { label: '🫓 Roti (Rs. 30)', payload: 'roti' },
+          { label: '🥖 Peshawari Naan (Rs. 40)', payload: 'peshawari naan' },
+          { label: '🧈 Roghni Naan (Rs. 80)', payload: 'roghni naan' }
+        ]
+      };
+    }
+
+    if (t.includes('drink') || t.includes('coke') || t.includes('cold drink') || t.includes('pepsi') || t.includes('sprite')) {
+      return {
+        reply:
+          `💰 *COLD DRINK PRICING:*\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+          `▫️ *Tin Pack (Can)* ── Rs. 140\n` +
+          `▫️ *1 Litre Bottle* ── Rs. 190\n` +
+          `▫️ *1.5 Litre Bottle* ── Rs. 250\n` +
+          `▫️ *Diet Tin* ── Rs. 150\n` +
+          `▫️ *Mineral Water (Small)* ── Rs. 60\n` +
+          `▫️ *Mineral Water (Large)* ── Rs. 120\n` +
+          `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+          `Kaunsa drink add karna chahenge? 😊`,
+        buttons: [
+          { label: '🥫 Tin Pack (Rs. 140)', payload: 'tin pack' },
+          { label: '🍾 1.5 Litre (Rs. 250)', payload: '1.5 litre' },
+          { label: '🍾 1 Litre (Rs. 190)', payload: '1 litre' },
+          { label: '💧 Water Large (Rs. 120)', payload: 'mineral water large' }
+        ]
+      };
+    }
+
+    // 9b. Check matching specific menu item
     for (const item of DEEWAN_MENU) {
       const match = item.aliases.find((a) => t.includes(a));
       if (match) {
@@ -1150,7 +1274,7 @@ export function handleMenuQuestions(lowerText) {
         } else {
           return {
             reply:
-              `💰 *${item.name}* ki qeemat *Rs. ${item.price.toLocaleString()}* hai.\n\n` +
+              `💰 *${item.name}* ki qeemat *Rs. ${item.price.toLocaleString()}* per ${item.unit || 'Portion'} hai.\n\n` +
               `Kya aap isay order karna chahenge? 😊`,
             buttons: [
               { label: `➕ Order ${item.name}`, payload: item.name.toLowerCase() },
@@ -1158,6 +1282,30 @@ export function handleMenuQuestions(lowerText) {
             ]
           };
         }
+      }
+    }
+  }
+
+  // 10. Availability Query (e.g. "kya biryani available hai?", "mutton karahi mil jayegi?")
+  if (
+    /\b(available|dastyab|mil\s*jayeg[ai]|milta\s*hai|milti\s*hai|hai\s*kya|hai\s*bhi|milay\s*ga|milay\s*gi)\b/i.test(t)
+  ) {
+    for (const item of DEEWAN_MENU) {
+      const match = item.aliases.find((a) => t.includes(a));
+      if (match) {
+        const priceStr = item.hasSizes
+          ? `Half Rs. ${item.sizes.half?.price?.toLocaleString()} | Full Rs. ${item.sizes.full?.price?.toLocaleString()}`
+          : `Rs. ${item.price?.toLocaleString()}`;
+        return {
+          reply:
+            `✅ Ji haan! *${item.name}* Deewan-E-Khaas mein bilkul taza aur garam garam available hai!\n\n` +
+            `💰 *Qeemat:* ${priceStr}\n\n` +
+            `Kya aap isay order karna chahenge? 😊`,
+          buttons: [
+            { label: `➕ Haan, ${item.name} order karein`, payload: item.name.toLowerCase() },
+            { label: '📜 Poora Menu', payload: 'menu' }
+          ]
+        };
       }
     }
   }
@@ -1581,6 +1729,27 @@ export function processUserChat(text, sessionState = {}) {
     };
   }
 
+  // 0b. CHECK WAITER CALL INTENT IN CHAT (e.g. "waiter ko bula do", "waiter bulao", "call waiter")
+  if (
+    /\b(waiter|bulao|bula\s*do|waiter\s*ko\s*bula|waiter\s*chahiye|call\s*waiter)\b/i.test(lower) &&
+    !/waiter\s*screen/i.test(lower)
+  ) {
+    return {
+      isWaiterCallRequest: true,
+      sessionState: state
+    };
+  }
+
+  // 0c. CHECK ACTIVE ORDER STATUS QUERY IN CHAT
+  if (
+    /\b(mera order|order status|order kahan|kahan pohancha|ready ho gaya|kitni dair|kitna time|kab tak|order confirm hua|order ka kya hua|khana kab ayega)\b/i.test(lower)
+  ) {
+    return {
+      isOrderStatusQuery: true,
+      sessionState: state
+    };
+  }
+
   const qty = extractQuantity(lower);
 
   // 1. Initial Greeting: "hi", "salam", "hello", "hey"
@@ -1663,19 +1832,27 @@ export function processUserChat(text, sessionState = {}) {
       if (!state.table_no) {
         state.step = 'COLLECT_TABLE';
         return {
-          reply: 'Welcome! 😊 Please enter your table number to get started (e.g., Table 1, Table 2, Table 5, or Table 12).',
+          reply: 'Shukriya! Barah-e-karam apna Table number batayein (maslan: Table 1, Table 2, ya Table 5): 🪑',
+          buttons: [
+            { label: '🪑 Table 1', payload: '1' },
+            { label: '🪑 Table 2', payload: '2' },
+            { label: '🪑 Table 3', payload: '3' },
+            { label: '🪑 Table 5', payload: '5' },
+            { label: '🪑 Table 8', payload: '8' },
+            { label: '🪑 Table 10', payload: '10' }
+          ],
           sessionState: state
         };
       } else if (!state.customer_name) {
         state.step = 'COLLECT_NAME';
         return {
-          reply: `Table #${state.table_no} has been noted! Thank you. May I know your name?`,
+          reply: `Table #${state.table_no} note ho gaya! Barah-e-karam apna naam batayein:`,
           sessionState: state
         };
       } else if (!state.customer_phone) {
         state.step = 'COLLECT_PHONE';
         return {
-          reply: `Thank you, ${state.customer_name}! Please share your mobile number so we can keep you updated about your order. (e.g., 03001234567) 📱`,
+          reply: `Shukriya ${state.customer_name} sahib! Apna mobile number share karein taake order updates mil sakein (maslan: 03001234567): 📱`,
           sessionState: state
         };
       } else {
@@ -1716,7 +1893,7 @@ export function processUserChat(text, sessionState = {}) {
       if (!state.customer_name) {
         state.step = 'COLLECT_NAME';
         return {
-          reply: `Table #${state.table_no} note ho gaya hai! May I know your name?`,
+          reply: `Table #${state.table_no} note ho gaya! Barah-e-karam apna naam batayein:`,
           sessionState: state
         };
       } else {
@@ -1730,18 +1907,18 @@ export function processUserChat(text, sessionState = {}) {
   }
 
   // 5. Details Step 1: COLLECT_TABLE (Supports ALL tables in the restaurant)
-  if (state.step === 'COLLECT_TABLE' || (!state.table_no && /^(table\s*\d+|\d+)$/i.test(t))) {
+  if (state.step === 'COLLECT_TABLE' || (!state.table_no && state.step !== 'BROWSING' && state.step !== 'START' && /^(table\s*\d+|\d+)$/i.test(t))) {
     const tableMatch = lower.match(/\b([1-9]\d?)\b/);
     if (tableMatch) {
       state.table_no = tableMatch[1];
       state.step = 'COLLECT_NAME';
       return {
-        reply: `Table #${state.table_no} has been noted! Thank you. May I know your name?`,
+        reply: `Table #${state.table_no} note ho gaya! Barah-e-karam apna naam batayein:`,
         sessionState: state
       };
     } else {
       return {
-        reply: 'Welcome! 😊 Please enter your table number to get started (e.g., Table 1, Table 2, Table 5, or Table 12).',
+        reply: 'Barah-e-karam apna Table number batayein (maslan: Table 1, Table 2, ya Table 5): 🪑',
         buttons: [
           { label: '🪑 Table 1', payload: '1' },
           { label: '🪑 Table 2', payload: '2' },
@@ -1761,7 +1938,7 @@ export function processUserChat(text, sessionState = {}) {
     state.customer_name = cleanName || 'Valued Guest';
     state.step = 'COLLECT_PHONE';
     return {
-      reply: `Thank you, ${state.customer_name}! Please share your mobile number so we can keep you updated about your order. (e.g., 03001234567) 📱`,
+      reply: `Shukriya ${state.customer_name} sahib! Apna mobile number share karein taake order updates mil sakein (maslan: 03001234567): 📱`,
       sessionState: state
     };
   }
@@ -1784,7 +1961,7 @@ export function processUserChat(text, sessionState = {}) {
       }
     } else {
       return {
-        reply: `Thank you, ${state.customer_name}! Please share your mobile number so we can keep you updated about your order. (e.g., 03001234567) 📱`,
+        reply: `Shukriya ${state.customer_name} sahib! Barah-e-karam sahi Pakistani mobile number (11 digits, maslan 03001234567) darj karein: 📱`,
         sessionState: state
       };
     }

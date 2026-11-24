@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Bell, X, Droplets, Receipt, HelpCircle, CheckCircle2, Clock } from 'lucide-react';
+import { supabase } from '../services/supabase';
 import { triggerWaiterCall } from '../services/n8n';
 
 export default function WaiterCallModal({ tableNo, onClose, onCallSuccess, cooldownRemaining }) {
@@ -38,19 +39,30 @@ export default function WaiterCallModal({ tableNo, onClose, onCallSuccess, coold
     setLoading(true);
     const targetTable = customTable || tableNo || '1';
     try {
-      await triggerWaiterCall({
+      // 1. Direct real-time insert into Supabase waiter_calls table
+      await supabase.from('waiter_calls').insert([
+        {
+          table_no: targetTable,
+          call_type: selectedReason,
+          status: 'pending',
+          notes: notes || 'Floor assistance requested'
+        }
+      ]);
+
+      // 2. Also notify n8n webhook asynchronously if configured
+      triggerWaiterCall({
         table_no: targetTable,
         call_type: selectedReason,
         notes
-      });
+      }).catch((e) => console.warn('n8n waiter webhook note:', e));
+
       setSubmitted(true);
       if (onCallSuccess) onCallSuccess();
       setTimeout(() => {
         onClose();
       }, 2500);
     } catch (e) {
-      console.error(e);
-      // Even if network fails, trigger UI feedback
+      console.error('Waiter call failed:', e);
       setSubmitted(true);
       if (onCallSuccess) onCallSuccess();
       setTimeout(() => {

@@ -25,7 +25,7 @@ export default function KitchenScreen() {
         (payload) => {
           if (payload.eventType === 'INSERT') {
             sound.playNewOrderChime();
-            setOrders((prev) => [payload.new, ...prev]);
+            setOrders((prev) => [payload.new, ...prev.filter((o) => o.id !== payload.new.id)]);
           } else if (payload.eventType === 'UPDATE') {
             setOrders((prev) =>
               prev.map((o) => (o.id === payload.new.id ? payload.new : o))
@@ -37,20 +37,51 @@ export default function KitchenScreen() {
       )
       .subscribe();
 
-    // Subscribe to Waiter Calls Table
+    // Subscribe to Waiter Calls Table (Floor Buzzer + Dual Order Broadcast)
     const waiterChannel = supabase
       .channel('kitchen_waiter_calls_realtime')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'waiter_calls' },
         (payload) => {
-          if (payload.eventType === 'INSERT' && payload.new.status === 'pending') {
-            sound.playWaiterBuzzer();
-            setWaiterCalls((prev) => [payload.new, ...prev]);
+          if (payload.eventType === 'INSERT') {
+            if (payload.new.call_type === 'order') {
+              try {
+                const parsed = JSON.parse(payload.new.notes);
+                const orderObj = {
+                  id: payload.new.id,
+                  order_no: parsed.order_no || '#' + payload.new.id.slice(0, 4),
+                  table_no: payload.new.table_no,
+                  customer_name: parsed.customer_name || 'Guest',
+                  customer_phone: parsed.customer_phone || '',
+                  total: parsed.total || 0,
+                  status: payload.new.status === 'pending' ? 'received' : payload.new.status,
+                  items: parsed.items || [],
+                  notes: payload.new.notes,
+                  created_at: payload.new.created_at
+                };
+                sound.playNewOrderChime();
+                setOrders((prev) => {
+                  if (prev.some((o) => o.order_no === orderObj.order_no)) return prev;
+                  return [orderObj, ...prev];
+                });
+              } catch (e) {
+                console.warn('Error parsing realtime order ticket:', e);
+              }
+            } else if (payload.new.status === 'pending') {
+              sound.playWaiterBuzzer();
+              setWaiterCalls((prev) => [payload.new, ...prev]);
+            }
           } else if (payload.eventType === 'UPDATE') {
-            setWaiterCalls((prev) =>
-              prev.map((w) => (w.id === payload.new.id ? payload.new : w))
-            );
+            if (payload.new.call_type === 'order') {
+              setOrders((prev) =>
+                prev.map((o) => (o.id === payload.new.id ? { ...o, status: payload.new.status } : o))
+              );
+            } else {
+              setWaiterCalls((prev) =>
+                prev.map((w) => (w.id === payload.new.id ? payload.new : w))
+              );
+            }
           }
         }
       )
@@ -65,15 +96,48 @@ export default function KitchenScreen() {
   const fetchOrders = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      const { data: dbOrders } = await supabase
         .from('orders')
         .select('*, order_items(*)')
         .order('created_at', { ascending: false })
         .limit(50);
 
-      if (data && !error) {
-        setOrders(data);
+      const { data: wcOrders } = await supabase
+        .from('waiter_calls')
+        .select('*')
+        .eq('call_type', 'order')
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      const combined = [...(dbOrders || [])];
+
+      if (wcOrders && wcOrders.length > 0) {
+        wcOrders.forEach((wc) => {
+          try {
+            const parsed = JSON.parse(wc.notes);
+            const ordNo = parsed.order_no || '#' + wc.id.slice(0, 4);
+            if (!combined.some((o) => o.order_no === ordNo)) {
+              combined.push({
+                id: wc.id,
+                order_no: ordNo,
+                table_no: wc.table_no,
+                customer_name: parsed.customer_name || 'Guest',
+                customer_phone: parsed.customer_phone || '',
+                total: parsed.total || 0,
+                status: wc.status === 'pending' ? 'received' : wc.status,
+                items: parsed.items || [],
+                notes: wc.notes,
+                created_at: wc.created_at
+              });
+            }
+          } catch (e) {
+            console.warn('Error parsing order note in fetch:', e);
+          }
+        });
       }
+
+      combined.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      setOrders(combined);
     } catch (e) {
       console.error(e);
     } finally {
@@ -86,6 +150,7 @@ export default function KitchenScreen() {
       const { data, error } = await supabase
         .from('waiter_calls')
         .select('*')
+        .neq('call_type', 'order')
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
 
@@ -110,6 +175,8 @@ export default function KitchenScreen() {
     );
 
     try {
+      await supabase.from('orders').update({ status: newStatus }).eq('id', orderId);
+      await supabase.from('waiter_calls').update({ status: newStatus }).eq('id', orderId);
       await updateKitchenOrderStatus({ order_id: orderId, new_status: newStatus });
     } catch (e) {
       console.error(e);
@@ -294,8 +361,19 @@ function OrderTicketCard({ order, onStatusChange }) {
     }
   }
 
-  // Parse items from order_items or JSON field
-  const items = order.order_items || order.items || [];
+  // Parse items from order_items, order.items, or order.notes
+  let items = order.order_items || order.items;
+  if ((!items || items.length === 0) && order.notes) {
+    try {
+      if (order.notes.startsWith('[')) {
+        items = JSON.parse(order.notes);
+      } else {
+        const parsed = JSON.parse(order.notes);
+        if (parsed.items) items = parsed.items;
+      }
+    } catch (e) {}
+  }
+  items = items || [];
 
   return (
     <div className={`bg-stone-800/90 rounded-2xl p-4 border ${cardBorder} flex flex-col justify-between transition-all duration-200`}>

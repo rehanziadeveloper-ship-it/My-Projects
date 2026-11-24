@@ -17,7 +17,7 @@ export default function WaiterScreen() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'waiter_calls' },
         (payload) => {
-          if (payload.eventType === 'INSERT' && payload.new.status === 'pending') {
+          if (payload.eventType === 'INSERT' && payload.new.status === 'pending' && payload.new.call_type !== 'order') {
             sound.playWaiterBuzzer();
             if ('vibrate' in navigator) navigator.vibrate([300, 100, 300]);
             setCalls((prev) => [payload.new, ...prev]);
@@ -45,6 +45,7 @@ export default function WaiterScreen() {
       const { data, error } = await supabase
         .from('waiter_calls')
         .select('*')
+        .neq('call_type', 'order')
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
 

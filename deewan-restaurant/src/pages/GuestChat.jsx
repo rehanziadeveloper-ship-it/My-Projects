@@ -257,7 +257,7 @@ export default function GuestChat() {
       setTableNo(tbl);
       setSessionState((prev) => ({ ...prev, table_no: tbl, step: 'BROWSING' }));
     } else {
-      setSessionState((prev) => ({ ...prev, step: 'COLLECT_TABLE' }));
+      setSessionState((prev) => ({ ...prev, step: 'BROWSING' }));
     }
 
     const savedKey = tbl ? `deewan_chat_table_${tbl}` : 'deewan_chat_table_guest';
@@ -287,35 +287,18 @@ export default function GuestChat() {
       }
     }
 
-    // Default Initial Screen: Clean Welcome Greeting + Menu & Category suggestions
+    // Default Initial Screen: Clean Welcome Greeting + Menu & Category suggestions in Roman Urdu
     const initialButtons = MAIN_MENU_BUTTONS;
 
-    const initialMessages = tbl
-      ? [
-          {
-            id: 'msg_welcome',
-            sender: 'bot',
-            text: 'Welcome to Deewan-E-Khaas (Namak Mandi)! 🍖🔥\nAap kya order karna chahenge? 😊',
-            buttons: initialButtons,
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          }
-        ]
-      : [
-          {
-            id: 'msg_welcome',
-            sender: 'bot',
-            text: 'Welcome! 😊 Please enter your table number to get started (e.g., Table 1, Table 2, Table 5, or Table 12).',
-            buttons: [
-              { label: '🪑 Table 1', payload: '1' },
-              { label: '🪑 Table 2', payload: '2' },
-              { label: '🪑 Table 3', payload: '3' },
-              { label: '🪑 Table 5', payload: '5' },
-              { label: '🪑 Table 8', payload: '8' },
-              { label: '🪑 Table 10', payload: '10' }
-            ],
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-          }
-        ];
+    const initialMessages = [
+      {
+        id: 'msg_welcome',
+        sender: 'bot',
+        text: 'Welcome to Deewan-E-Khaas (Namak Mandi)! 🍖🔥\nAap kya order karna chahenge? 😊',
+        buttons: initialButtons,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      }
+    ];
 
     setMessages(initialMessages);
   }, []);
@@ -425,6 +408,22 @@ export default function GuestChat() {
 
               if (dbOrders && dbOrders.length > 0) {
                 activeOrder = dbOrders[0];
+              } else {
+                const { data: wcOrders } = await supabase
+                  .from('waiter_calls')
+                  .select('*')
+                  .eq('table_no', currentTable)
+                  .eq('call_type', 'order')
+                  .order('created_at', { ascending: false })
+                  .limit(1);
+                if (wcOrders && wcOrders.length > 0) {
+                  try {
+                    const parsed = JSON.parse(wcOrders[0].notes);
+                    activeOrder = { ...parsed, id: wcOrders[0].id, waiter_call_id: wcOrders[0].id, status: wcOrders[0].status === 'pending' ? 'received' : wcOrders[0].status };
+                  } catch (e) {
+                    activeOrder = wcOrders[0];
+                  }
+                }
               }
             } catch (err) {
               console.warn('Error fetching order for cancellation:', err);
@@ -461,10 +460,17 @@ export default function GuestChat() {
 
           if (activeOrder.status === 'received' || activeOrder.status === 'pending') {
             try {
+              if (activeOrder.id && !activeOrder.waiter_call_id) {
+                await supabase
+                  .from('orders')
+                  .update({ status: 'cancelled' })
+                  .eq('id', activeOrder.id);
+              }
               await supabase
-                .from('orders')
-                .update({ status: 'cancelled' })
-                .eq('id', activeOrder.id);
+                .from('waiter_calls')
+                .update({ status: 'resolved', notes: JSON.stringify({ ...activeOrder, status: 'cancelled' }) })
+                .eq('table_no', currentTable)
+                .eq('call_type', 'order');
             } catch (err) {
               console.warn('Failed to update status in Supabase:', err);
             }
@@ -504,6 +510,128 @@ export default function GuestChat() {
             setLoading(false);
             return;
           }
+        }
+
+        // ========================================================
+        // 2. WAITER CALL VIA CHAT
+        // ========================================================
+        if (result.isWaiterCallRequest) {
+          const currentTable = result.sessionState?.table_no || currentState.table_no || tableNo || '1';
+          try {
+            await supabase.from('waiter_calls').insert([
+              {
+                table_no: currentTable,
+                call_type: 'general',
+                status: 'pending',
+                notes: 'Guest requested waiter via chat'
+              }
+            ]);
+          } catch (err) {
+            console.warn('Waiter call insert note:', err);
+          }
+          const botMsg = {
+            id: 'msg_' + Date.now() + '_bot',
+            sender: 'bot',
+            text: `🛎️ **Waiter ko Table #${currentTable} par bula liya gaya hai!**\n\nFloor staff foran aapki table par pohanch raha hai. Aap apna order jari rakh sakte hain. 😊`,
+            buttons: [
+              ...MAIN_MENU_BUTTONS,
+              { label: '📜 Poora Menu', payload: 'menu' }
+            ],
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          };
+          setMessages((prev) => [...prev, botMsg]);
+          setLoading(false);
+          return;
+        }
+
+        // ========================================================
+        // 3. ORDER STATUS QUERY VIA CHAT
+        // ========================================================
+        if (result.isOrderStatusQuery) {
+          let activeOrder = currentState.activeOrder;
+          const currentTable = result.sessionState?.table_no || currentState.table_no || tableNo;
+
+          if (!activeOrder && currentTable) {
+            try {
+              const { data: dbOrders } = await supabase
+                .from('orders')
+                .select('*')
+                .eq('table_no', currentTable)
+                .order('created_at', { ascending: false })
+                .limit(1);
+
+              if (dbOrders && dbOrders.length > 0) {
+                activeOrder = dbOrders[0];
+              } else {
+                const { data: wcOrders } = await supabase
+                  .from('waiter_calls')
+                  .select('*')
+                  .eq('table_no', currentTable)
+                  .eq('call_type', 'order')
+                  .order('created_at', { ascending: false })
+                  .limit(1);
+
+                if (wcOrders && wcOrders.length > 0) {
+                  try {
+                    const parsed = JSON.parse(wcOrders[0].notes);
+                    activeOrder = { ...parsed, status: wcOrders[0].status === 'pending' ? 'received' : wcOrders[0].status };
+                  } catch (e) {
+                    activeOrder = wcOrders[0];
+                  }
+                }
+              }
+            } catch (err) {
+              console.warn('Order status fetch note:', err);
+            }
+          }
+
+          const displayOrderNum = (num) => (num ? (String(num).startsWith('#') ? num : '#' + num) : '');
+
+          if (!activeOrder) {
+            const botMsg = {
+              id: 'msg_' + Date.now() + '_bot',
+              sender: 'bot',
+              text: 'Aapka koi active order nahi mila! Agar aap khana mangwana chahein toh menu se dishes select karein. 😊',
+              buttons: MAIN_MENU_BUTTONS,
+              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            };
+            setMessages((prev) => [...prev, botMsg]);
+            setLoading(false);
+            return;
+          }
+
+          let statusMsg = '';
+          const st = activeOrder.status || 'received';
+          if (st === 'received' || st === 'pending') {
+            statusMsg = `📋 *Order ${displayOrderNum(activeOrder.order_no)} STATUS: RECEIVED*\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+              `Aapka order kitchen mein receive ho chuka hai aur line mein hai. Approx 15-20 minute lagengay. Garam garam tayyar kiya ja raha hai! ⏱️`;
+          } else if (st === 'preparing') {
+            statusMsg = `🔥 *Order ${displayOrderNum(activeOrder.order_no)} STATUS: PREPARING*\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+              `Aapka khana kitchen mein chef tayyar kar rahe hain! Bohat jald fresh aur garam serve kiya jayega. 👨‍🍳🔥`;
+          } else if (st === 'ready') {
+            statusMsg = `🍽️ *Order ${displayOrderNum(activeOrder.order_no)} STATUS: READY*\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+              `Mubarak! Aapka order bilkul ready ho chuka hai aur waiter aapki table par la raha hai! 🛎️`;
+          } else if (st === 'served' || st === 'completed') {
+            statusMsg = `✅ *Order ${displayOrderNum(activeOrder.order_no)} STATUS: SERVED*\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+              `Aapka order serve ho chuka hai. Khana enjoy karein! Agar mazeed kuch chahiye toh zaroor batayein. 😊`;
+          } else if (st === 'cancelled') {
+            statusMsg = `🚫 *Order ${displayOrderNum(activeOrder.order_no)} STATUS: CANCELLED*\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
+              `Aapka order cancel ho chuka hai. Naya order dene ke liye menu se select karein.`;
+          }
+
+          const botMsg = {
+            id: 'msg_' + Date.now() + '_bot',
+            sender: 'bot',
+            text: statusMsg,
+            buttons: [
+              { label: '🛎️ Waiter Bulao', payload: 'waiter' },
+              { label: '📜 Poora Menu', payload: 'menu' }
+            ],
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          };
+          setMessages((prev) => [...prev, botMsg]);
+          setLoading(false);
+          return;
         }
 
         // If the result contains menu images (like user saying "menu"), add them as pure image bubbles
@@ -551,14 +679,39 @@ export default function GuestChat() {
             activeOrder: { ...result.order, status: 'received' }
           }));
 
-          // Sync order to Supabase & save activeOrder in session
+          // 1. Realtime broadcast to Kitchen & Admin via waiter_calls table (public insert & realtime enabled)
+          try {
+            await supabase
+              .from('waiter_calls')
+              .insert([
+                {
+                  table_no: String(result.order.table_no || '1'),
+                  call_type: 'order',
+                  status: 'pending',
+                  notes: JSON.stringify({
+                    order_no: result.order.order_no,
+                    table_no: String(result.order.table_no || '1'),
+                    customer_name: result.order.customer_name,
+                    customer_phone: result.order.customer_phone,
+                    total: result.order.total,
+                    items: result.order.items,
+                    status: 'received',
+                    created_at: new Date().toISOString()
+                  })
+                }
+              ]);
+          } catch (wcErr) {
+            console.warn('Realtime order broadcast note:', wcErr);
+          }
+
+          // 2. Also attempt direct insertion into orders table
           try {
             const { data: insertedOrder, error: insErr } = await supabase
               .from('orders')
               .insert([
                 {
                   order_no: result.order.order_no,
-                  table_no: result.order.table_no,
+                  table_no: String(result.order.table_no || '1'),
                   customer_name: result.order.customer_name,
                   customer_phone: result.order.customer_phone,
                   total: result.order.total,
@@ -598,7 +751,7 @@ export default function GuestChat() {
 
       setTableNo(urlTable);
       setSessionState({
-        step: urlTable ? 'BROWSING' : 'COLLECT_TABLE',
+        step: 'BROWSING',
         cart: [],
         table_no: urlTable,
         customer_name: '',
@@ -608,32 +761,15 @@ export default function GuestChat() {
 
       const initialButtons = MAIN_MENU_BUTTONS;
 
-      const initialMessages = urlTable
-        ? [
-            {
-              id: 'msg_welcome',
-              sender: 'bot',
-              text: 'Welcome to Deewan-E-Khaas (Namak Mandi)! 🍖🔥\nAap kya order karna chahenge? 😊',
-              buttons: initialButtons,
-              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-            }
-          ]
-        : [
-            {
-              id: 'msg_welcome',
-              sender: 'bot',
-              text: 'Welcome! 😊 Please enter your table number to get started (e.g., Table 1, Table 2, Table 5, or Table 12).',
-              buttons: [
-                { label: '🪑 Table 1', payload: '1' },
-                { label: '🪑 Table 2', payload: '2' },
-                { label: '🪑 Table 3', payload: '3' },
-                { label: '🪑 Table 5', payload: '5' },
-                { label: '🪑 Table 8', payload: '8' },
-                { label: '🪑 Table 10', payload: '10' }
-              ],
-              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-            }
-          ];
+      const initialMessages = [
+        {
+          id: 'msg_welcome',
+          sender: 'bot',
+          text: 'Welcome to Deewan-E-Khaas (Namak Mandi)! 🍖🔥\nAap kya order karna chahenge? 😊',
+          buttons: initialButtons,
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }
+      ];
       setMessages(initialMessages);
     }
   };

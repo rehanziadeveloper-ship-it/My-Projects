@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Settings, Utensils, QrCode, FileText, ToggleLeft, ToggleRight, Search, Printer, DollarSign, Image as ImageIcon } from 'lucide-react';
+import { Settings, Utensils, QrCode, FileText, ToggleLeft, ToggleRight, Search, Printer, DollarSign, Image as ImageIcon, Bell, CheckCircle, Clock, Volume2 } from 'lucide-react';
 import { supabase } from '../services/supabase';
+import { sound } from '../utils/audio';
 
 export default function AdminPanel() {
   const [activeTab, setActiveTab] = useState('menu'); // 'menu', 'qr', 'orders'
@@ -10,11 +11,80 @@ export default function AdminPanel() {
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [loading, setLoading] = useState(false);
   const [orders, setOrders] = useState([]);
+  const [newOrderAlert, setNewOrderAlert] = useState(null);
   const [selectedTableForQr, setSelectedTableForQr] = useState(1);
 
   useEffect(() => {
     fetchMenuItems();
     fetchOrders();
+
+    // 1. Subscribe to Supabase Realtime for orders table
+    const ordersChannel = supabase
+      .channel('admin_orders_realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'orders' },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            sound.playNewOrderChime();
+            setNewOrderAlert(payload.new);
+            setOrders((prev) => [payload.new, ...prev.filter((o) => o.id !== payload.new.id)]);
+            setTimeout(() => setNewOrderAlert(null), 8000);
+          } else if (payload.eventType === 'UPDATE') {
+            setOrders((prev) =>
+              prev.map((o) => (o.id === payload.new.id ? payload.new : o))
+            );
+          } else if (payload.eventType === 'DELETE') {
+            setOrders((prev) => prev.filter((o) => o.id !== payload.old.id));
+          }
+        }
+      )
+      .subscribe();
+
+    // 2. Subscribe to Supabase Realtime for waiter_calls table (captures dual-broadcast orders)
+    const waiterCallsChannel = supabase
+      .channel('admin_waiter_calls_realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'waiter_calls' },
+        (payload) => {
+          if (payload.eventType === 'INSERT' && payload.new.call_type === 'order') {
+            try {
+              const parsed = JSON.parse(payload.new.notes);
+              const orderObj = {
+                id: payload.new.id,
+                order_no: parsed.order_no || '#' + payload.new.id.slice(0, 4),
+                table_no: payload.new.table_no,
+                customer_name: parsed.customer_name || 'Guest',
+                customer_phone: parsed.customer_phone || '',
+                total: parsed.total || 0,
+                status: payload.new.status === 'pending' ? 'received' : payload.new.status,
+                notes: JSON.stringify(parsed.items || []),
+                created_at: payload.new.created_at
+              };
+              sound.playNewOrderChime();
+              setNewOrderAlert(orderObj);
+              setOrders((prev) => {
+                if (prev.some((o) => o.order_no === orderObj.order_no)) return prev;
+                return [orderObj, ...prev];
+              });
+              setTimeout(() => setNewOrderAlert(null), 8000);
+            } catch (e) {
+              console.warn('Error parsing realtime order from waiter_calls:', e);
+            }
+          } else if (payload.eventType === 'UPDATE' && payload.new.call_type === 'order') {
+            setOrders((prev) =>
+              prev.map((o) => (o.id === payload.new.id ? { ...o, status: payload.new.status } : o))
+            );
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(ordersChannel);
+      supabase.removeChannel(waiterCallsChannel);
+    };
   }, []);
 
   const fetchMenuItems = async () => {
@@ -37,17 +107,64 @@ export default function AdminPanel() {
 
   const fetchOrders = async () => {
     try {
-      const { data, error } = await supabase
+      // 1. Fetch direct orders
+      const { data: dbOrders } = await supabase
         .from('orders')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(30);
 
-      if (data && !error) {
-        setOrders(data);
+      // 2. Fetch waiter_calls orders (broadcasted orders)
+      const { data: wcOrders } = await supabase
+        .from('waiter_calls')
+        .select('*')
+        .eq('call_type', 'order')
+        .order('created_at', { ascending: false })
+        .limit(30);
+
+      const combined = [...(dbOrders || [])];
+
+      if (wcOrders && wcOrders.length > 0) {
+        wcOrders.forEach((wc) => {
+          try {
+            const parsed = JSON.parse(wc.notes);
+            const ordNo = parsed.order_no || '#' + wc.id.slice(0, 4);
+            if (!combined.some((o) => o.order_no === ordNo)) {
+              combined.push({
+                id: wc.id,
+                order_no: ordNo,
+                table_no: wc.table_no,
+                customer_name: parsed.customer_name || 'Guest',
+                customer_phone: parsed.customer_phone || '',
+                total: parsed.total || 0,
+                status: wc.status === 'pending' ? 'received' : wc.status,
+                notes: JSON.stringify(parsed.items || []),
+                created_at: wc.created_at
+              });
+            }
+          } catch (e) {
+            console.warn('Error parsing order note:', e);
+          }
+        });
       }
+
+      combined.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+      setOrders(combined);
     } catch (e) {
       console.error(e);
+    }
+  };
+
+  const handleUpdateOrderStatus = async (orderId, newStatus) => {
+    setOrders((prev) =>
+      prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o))
+    );
+
+    try {
+      await supabase.from('orders').update({ status: newStatus }).eq('id', orderId);
+      await supabase.from('waiter_calls').update({ status: newStatus }).eq('id', orderId);
+    } catch (err) {
+      console.warn('Status update note:', err);
     }
   };
 
@@ -133,6 +250,29 @@ export default function AdminPanel() {
 
       {/* Main Content Area */}
       <main className="max-w-7xl mx-auto p-4 sm:p-6">
+        {/* Realtime New Order Alert Banner */}
+        {newOrderAlert && (
+          <div className="mb-6 p-4 rounded-2xl bg-orange-600 text-white shadow-xl flex items-center justify-between animate-bounce">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-white/20 rounded-xl">
+                <Bell className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h3 className="font-extrabold text-sm sm:text-base">🔔 New Order Received: {newOrderAlert.order_no}</h3>
+                <p className="text-xs text-orange-100">
+                  Table #{newOrderAlert.table_no} • {newOrderAlert.customer_name} • PKR {Number(newOrderAlert.total).toLocaleString()}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => { setActiveTab('orders'); setNewOrderAlert(null); }}
+              className="px-3.5 py-1.5 bg-white text-orange-800 font-bold text-xs rounded-xl shadow hover:bg-orange-50 active:scale-95 transition"
+            >
+              View Orders
+            </button>
+          </div>
+        )}
+
         {/* 1. Menu Items Management */}
         {activeTab === 'menu' && (
           <div className="bg-white rounded-3xl shadow-sm border border-stone-200 overflow-hidden">
@@ -277,41 +417,110 @@ export default function AdminPanel() {
         {/* 3. Recent Orders Audit */}
         {activeTab === 'orders' && (
           <div className="bg-white rounded-3xl shadow-sm border border-stone-200 p-6">
-            <h2 className="text-lg font-bold text-stone-900 mb-4">Recent Dine-In Orders</h2>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-stone-50 text-stone-600 font-bold uppercase tracking-wider border-b border-stone-200">
-                  <tr>
-                    <th className="py-3 px-4">Order #</th>
-                    <th className="py-3 px-4">Table</th>
-                    <th className="py-3 px-4">Customer</th>
-                    <th className="py-3 px-4">Phone</th>
-                    <th className="py-3 px-4">Total</th>
-                    <th className="py-3 px-4">Status</th>
-                    <th className="py-3 px-4">Time</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-stone-200">
-                  {orders.map((o) => (
-                    <tr key={o.id} className="hover:bg-stone-50/80">
-                      <td className="py-3 px-4 font-mono font-bold text-stone-900">{o.order_no}</td>
-                      <td className="py-3 px-4 font-bold text-orange-600">Table {o.table_no}</td>
-                      <td className="py-3 px-4">{o.customer_name}</td>
-                      <td className="py-3 px-4 font-mono">{o.customer_phone}</td>
-                      <td className="py-3 px-4 font-mono font-bold">PKR {Number(o.total).toLocaleString()}</td>
-                      <td className="py-3 px-4">
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-stone-200 text-stone-800">
-                          {o.status}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-stone-400">
-                        {new Date(o.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-bold text-stone-900">Live Dine-In Orders ({orders.length})</h2>
+                <p className="text-xs text-stone-500">Realtime order stream with customer details, item quantities, and status synchronizer.</p>
+              </div>
+              <button
+                onClick={fetchOrders}
+                className="px-3 py-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold text-xs flex items-center gap-1.5 transition"
+              >
+                Refresh Orders
+              </button>
             </div>
+
+            {orders.length === 0 ? (
+              <div className="text-center py-12 text-stone-400">
+                <FileText className="w-12 h-12 mx-auto mb-2 text-stone-300" />
+                <p className="font-semibold text-sm">No orders yet</p>
+                <p className="text-xs">New dine-in orders placed through the chatbot will appear here in real time.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-stone-50 text-stone-600 font-bold uppercase tracking-wider border-b border-stone-200">
+                    <tr>
+                      <th className="py-3 px-4">Order #</th>
+                      <th className="py-3 px-4">Table</th>
+                      <th className="py-3 px-4">Customer</th>
+                      <th className="py-3 px-4">Items Ordered</th>
+                      <th className="py-3 px-4">Total</th>
+                      <th className="py-3 px-4">Status & Sync</th>
+                      <th className="py-3 px-4">Time</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stone-200">
+                    {orders.map((o) => {
+                      let itemsDisplay = [];
+                      try {
+                        if (o.notes && o.notes.startsWith('[')) {
+                          const parsed = JSON.parse(o.notes);
+                          itemsDisplay = parsed.map((it) => `${it.quantity}x ${it.name}`);
+                        }
+                      } catch (e) {}
+
+                      const statusColors = {
+                        received: 'bg-amber-100 text-amber-800 border-amber-300',
+                        preparing: 'bg-blue-100 text-blue-800 border-blue-300',
+                        ready: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+                        served: 'bg-purple-100 text-purple-800 border-purple-300',
+                        cancelled: 'bg-red-100 text-red-800 border-red-300'
+                      };
+
+                      return (
+                        <tr key={o.id || o.order_no} className="hover:bg-stone-50/80 transition">
+                          <td className="py-3.5 px-4 font-mono font-bold text-stone-900">{o.order_no}</td>
+                          <td className="py-3.5 px-4">
+                            <span className="font-extrabold text-orange-600 bg-orange-50 px-2 py-1 rounded-lg border border-orange-200">
+                              Table {o.table_no}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <div className="font-bold text-stone-900">{o.customer_name}</div>
+                            <div className="font-mono text-[11px] text-stone-500">{o.customer_phone}</div>
+                          </td>
+                          <td className="py-3.5 px-4 max-w-xs">
+                            {itemsDisplay.length > 0 ? (
+                              <div className="space-y-0.5">
+                                {itemsDisplay.map((itemStr, idx) => (
+                                  <div key={idx} className="text-stone-700 truncate font-medium">
+                                    • {itemStr}
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-stone-400 italic">{o.notes || 'Dine-in items'}</span>
+                            )}
+                          </td>
+                          <td className="py-3.5 px-4 font-mono font-extrabold text-stone-900 whitespace-nowrap">
+                            PKR {Number(o.total).toLocaleString()}
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <select
+                              value={o.status || 'received'}
+                              onChange={(e) => handleUpdateOrderStatus(o.id, e.target.value)}
+                              className={`px-2.5 py-1 rounded-lg font-bold text-[11px] border cursor-pointer focus:outline-none ${
+                                statusColors[o.status] || 'bg-stone-100 text-stone-800 border-stone-300'
+                              }`}
+                            >
+                              <option value="received">New Order (Received)</option>
+                              <option value="preparing">Preparing (Cooking)</option>
+                              <option value="ready">Ready (For Waiter)</option>
+                              <option value="served">Served (Completed)</option>
+                              <option value="cancelled">Cancelled</option>
+                            </select>
+                          </td>
+                          <td className="py-3.5 px-4 text-stone-400 whitespace-nowrap font-mono text-[11px]">
+                            {o.created_at ? new Date(o.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Just now'}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
       </main>
