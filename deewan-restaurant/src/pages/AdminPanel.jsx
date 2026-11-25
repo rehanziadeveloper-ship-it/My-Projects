@@ -247,6 +247,20 @@ export default function AdminPanel() {
   // A. RESTAURANT PROFILE ACTIONS
   // ==============================================================================
 
+  // Quick Instant Status Toggle
+  const handleQuickStatusToggle = async () => {
+    const nextStatus = !profile.is_open;
+    setProfile((prev) => ({ ...prev, is_open: nextStatus }));
+    try {
+      const saved = await updateRestaurantProfile({ ...profile, is_open: nextStatus });
+      setProfile(saved);
+      setProfileSuccessMsg(`Restaurant status updated to ${nextStatus ? 'OPEN' : 'CLOSED'} and synced!`);
+      setTimeout(() => setProfileSuccessMsg(''), 4000);
+    } catch (err) {
+      console.warn('Status toggle error:', err);
+    }
+  };
+
   const handleSaveProfile = async (e) => {
     e.preventDefault();
     setProfileSaving(true);
@@ -647,7 +661,7 @@ export default function AdminPanel() {
               {/* Open / Closed Toggle */}
               <button
                 type="button"
-                onClick={() => setProfile((prev) => ({ ...prev, is_open: !prev.is_open }))}
+                onClick={handleQuickStatusToggle}
                 className={`flex items-center gap-2 px-4 py-2 rounded-2xl font-bold text-xs shadow-sm transition active:scale-95 ${
                   profile.is_open
                     ? 'bg-emerald-600 text-white hover:bg-emerald-700'

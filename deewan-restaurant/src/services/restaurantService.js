@@ -392,7 +392,9 @@ export async function saveMenuItem(itemData) {
     const nextNumber = updatedList.length > 0
       ? Math.max(...updatedList.map((i) => i.item_number || 0)) + 1
       : 1;
-    const newId = 'm1000000-0000-0000-0000-' + String(Date.now()).slice(-12).padStart(12, '0');
+    const newId = (typeof crypto !== 'undefined' && crypto.randomUUID) 
+      ? crypto.randomUUID() 
+      : ('b1000000-0000-0000-0000-' + String(Date.now()).slice(-12).padStart(12, '0'));
 
     savedItem = {
       id: newId,
