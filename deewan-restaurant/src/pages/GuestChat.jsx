@@ -12,19 +12,19 @@ const MENU_IMAGES = [
   '/assets/menu_page_2.jpg'
 ];
 
-function FormattedChatText({ text }) {
+function FormattedChatText({ text, isUser = false }) {
   if (!text) return null;
 
   const lines = text.split('\n');
 
   return (
-    <div className="space-y-1 text-sm text-stone-900 leading-relaxed">
+    <div className={`space-y-1 text-sm leading-relaxed ${isUser ? 'text-white font-medium' : 'text-stone-900'}`}>
       {lines.map((line, idx) => {
         const trimmed = line.trim();
 
         // 1. Horizontal Dividers
         if (/^[━─=-]{4,}$/.test(trimmed)) {
-          return <div key={idx} className="border-t border-stone-200/90 my-2" />;
+          return <div key={idx} className={`border-t my-2 ${isUser ? 'border-white/30' : 'border-stone-200/90'}`} />;
         }
 
         // 2. Multi-size branch line (e.g. "├─ 🥣 Half: Rs. 950" or "└─ 🍲 Full: Rs. 1,799")
@@ -71,7 +71,7 @@ function FormattedChatText({ text }) {
         // 5. Normal text line with *bold* formatting support
         return (
           <div key={idx} className="leading-snug">
-            {renderWithBold(line)}
+            {renderWithBold(line, isUser)}
           </div>
         );
       })}
@@ -79,17 +79,17 @@ function FormattedChatText({ text }) {
   );
 }
 
-function renderWithBold(text) {
+function renderWithBold(text, isUser = false) {
   const parts = text.split(/(\*[^*]+\*)/g);
   return parts.map((part, i) => {
     if (part.startsWith('*') && part.endsWith('*')) {
       return (
-        <strong key={i} className="font-bold text-stone-900">
+        <strong key={i} className={`font-bold ${isUser ? 'text-white' : 'text-stone-900'}`}>
           {part.slice(1, -1)}
         </strong>
       );
     }
-    return part;
+    return <span key={i} className={isUser ? 'text-white' : ''}>{part}</span>;
   });
 }
 
@@ -938,7 +938,7 @@ export default function GuestChat() {
 
                   {/* Text only if present */}
                   {msg.text && (
-                    <FormattedChatText text={msg.text} />
+                    <FormattedChatText text={msg.text} isUser={isUser} />
                   )}
 
                   {/* Inline Interactive Item Card with Quantity Selector */}
