@@ -2978,7 +2978,7 @@ export default function AdminPanel() {
       {/* MODAL 4: ORDER DETAILS & RECEIPT / KOT PRINT MODAL (PHASE 2) */}
       {/* ==================================================================== */}
       {orderModalOpen && selectedOrder && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 backdrop-blur-xs overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-black/60 overflow-y-auto p-4 backdrop-blur-xs flex justify-center items-start">
           <div className="bg-white dark:bg-stone-900 rounded-3xl p-6 w-full max-w-lg shadow-2xl border border-stone-200 dark:border-stone-800 my-8 text-xs">
             {/* Modal Header */}
             <div className="flex items-center justify-between pb-4 border-b border-stone-200 dark:border-stone-800 mb-4">
@@ -3140,7 +3140,7 @@ export default function AdminPanel() {
       {/* MODAL 5: BULK PRINT ALL PLACARDS (PHASE 2) */}
       {/* ==================================================================== */}
       {bulkPrintModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 backdrop-blur-xs overflow-y-auto">
+        <div className="fixed inset-0 z-50 bg-black/60 overflow-y-auto p-4 sm:p-6 backdrop-blur-xs flex justify-center items-start">
           <div className="bg-white dark:bg-stone-900 rounded-3xl p-6 w-full max-w-4xl shadow-2xl border border-stone-200 dark:border-stone-800 my-8">
             <div className="flex items-center justify-between pb-4 border-b border-stone-200 dark:border-stone-800 mb-6 print:hidden">
               <div>
