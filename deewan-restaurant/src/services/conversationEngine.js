@@ -1650,10 +1650,15 @@ function createConfirmedOrder(state) {
     customer_name: state.customer_name || 'Valued Guest',
     customer_phone: state.customer_phone || '',
     total: total,
-    items: state.cart,
+    items: [...(state.cart || [])],
     status: 'received',
     created_at: new Date().toISOString()
   };
+
+  // Clear cart once order is completed so floating checkout bar disappears
+  state.cart = [];
+  state.pendingItem = null;
+  state.lastAddedItemId = null;
 
   const finalReply =
     `🎉 Mubarak ${state.customer_name || 'Valued Guest'} sahib! Aapka order confirm ho chuka hai!\n\n` +

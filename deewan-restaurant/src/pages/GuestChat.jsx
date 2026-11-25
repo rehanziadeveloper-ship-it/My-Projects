@@ -938,8 +938,8 @@ export default function GuestChat() {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Floating Cart Indicator */}
-        {sessionState && sessionState.cart && sessionState.cart.length > 0 && (
+        {/* Floating Cart Indicator (hidden once order is completed) */}
+        {sessionState && sessionState.cart && sessionState.cart.length > 0 && sessionState.step !== 'ORDER_COMPLETED' && (
           <div className="mx-2.5 sm:mx-4 mb-2 p-2.5 sm:p-3 bg-stone-900 text-white rounded-xl sm:rounded-2xl shadow-lg flex items-center justify-between text-xs shrink-0 animate-in fade-in slide-in-from-bottom-2 duration-150">
             <div
               className="flex items-center gap-2 min-w-0 cursor-pointer hover:opacity-90 active:scale-95 transition"
