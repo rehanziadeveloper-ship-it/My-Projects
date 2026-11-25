@@ -21,11 +21,23 @@ export const DEFAULT_RESTAURANT = {
   logo_url: ''
 };
 
+export const DEFAULT_SETTINGS = {
+  currency: 'PKR',
+  currency_symbol: 'Rs.',
+  tax_rate: 0,
+  service_charge: 0,
+  sound_enabled: true,
+  auto_refresh_seconds: 15,
+  default_prep_time_minutes: 20
+};
+
 // Local storage keys for resilient persistence
 const STORAGE_KEYS = {
   PROFILE: 'deewan_live_restaurant_profile',
   CATEGORIES: 'deewan_live_categories',
-  ITEMS: 'deewan_live_menu_items'
+  ITEMS: 'deewan_live_menu_items',
+  TABLES: 'deewan_live_tables',
+  SETTINGS: 'deewan_live_settings'
 };
 
 // Helper: Format sequential ID with leading zero (e.g. 1 -> '01', 9 -> '09', 12 -> '12', 106 -> '106')
@@ -489,4 +501,271 @@ export async function toggleItemAvailability(itemId, currentVal) {
 
   broadcastChange('MENU_ITEMS_UPDATED', updatedList);
   return { success: true, is_available: newVal, items: updatedList };
+}
+
+// ==============================================================================
+// 4. RESTAURANT TABLES MODULE (PHASE 2)
+// ==============================================================================
+
+export async function getRestaurantTables() {
+  let tables = [];
+
+  // 1. Try local cache
+  const cached = localStorage.getItem(STORAGE_KEYS.TABLES);
+  if (cached) {
+    try {
+      tables = JSON.parse(cached);
+    } catch (e) {
+      console.warn('Error parsing cached tables', e);
+    }
+  }
+
+  // 2. Query Supabase
+  try {
+    const { data, error } = await supabase
+      .from('restaurant_tables')
+      .select('*')
+      .order('table_number', { ascending: true });
+
+    if (!error && data && data.length > 0) {
+      // Merge with capacity and sequential display IDs
+      const mapped = data.map((t) => ({
+        ...t,
+        capacity: t.capacity || 4,
+        display_id: formatSeqId(t.table_number),
+        qr_code_url: t.qr_code_url || `/chat?table=${t.table_number}`
+      }));
+      mapped.sort((a, b) => a.table_number - b.table_number);
+      tables = mapped;
+      localStorage.setItem(STORAGE_KEYS.TABLES, JSON.stringify(tables));
+    }
+  } catch (err) {
+    console.warn('Supabase tables load notice:', err);
+  }
+
+  // Fallback seed of 10 tables if still empty
+  if (!tables || tables.length === 0) {
+    tables = Array.from({ length: 10 }, (_, i) => {
+      const num = i + 1;
+      return {
+        id: `tbl-${num}`,
+        restaurant_id: RESTAURANT_ID,
+        table_number: num,
+        display_id: formatSeqId(num),
+        capacity: num <= 4 ? 4 : num <= 8 ? 6 : 8,
+        qr_code_url: `/chat?table=${num}`,
+        is_active: true,
+        created_at: new Date().toISOString()
+      };
+    });
+    localStorage.setItem(STORAGE_KEYS.TABLES, JSON.stringify(tables));
+  }
+
+  return tables;
+}
+
+export async function saveRestaurantTable(tableData) {
+  const currentTables = await getRestaurantTables();
+  let updatedList = [...currentTables];
+  let savedTable = null;
+
+  if (tableData.id && currentTables.some((t) => t.id === tableData.id)) {
+    // Edit existing table
+    updatedList = updatedList.map((t) => {
+      if (t.id === tableData.id) {
+        savedTable = {
+          ...t,
+          table_number: parseInt(tableData.table_number, 10),
+          display_id: formatSeqId(tableData.table_number),
+          capacity: parseInt(tableData.capacity || 4, 10),
+          is_active: tableData.is_active !== undefined ? tableData.is_active : t.is_active,
+          qr_code_url: `/chat?table=${tableData.table_number}`
+        };
+        return savedTable;
+      }
+      return t;
+    });
+  } else {
+    // Add new table
+    const tableNum = parseInt(tableData.table_number, 10) || (currentTables.length + 1);
+    const newId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `tbl-${Date.now()}`;
+    savedTable = {
+      id: newId,
+      restaurant_id: RESTAURANT_ID,
+      table_number: tableNum,
+      display_id: formatSeqId(tableNum),
+      capacity: parseInt(tableData.capacity || 4, 10),
+      is_active: tableData.is_active !== undefined ? tableData.is_active : true,
+      qr_code_url: `/chat?table=${tableNum}`,
+      created_at: new Date().toISOString()
+    };
+    updatedList.push(savedTable);
+  }
+
+  updatedList.sort((a, b) => a.table_number - b.table_number);
+  localStorage.setItem(STORAGE_KEYS.TABLES, JSON.stringify(updatedList));
+
+  // Sync to Supabase
+  try {
+    const payload = {
+      id: savedTable.id,
+      restaurant_id: RESTAURANT_ID,
+      table_number: savedTable.table_number,
+      qr_code_url: savedTable.qr_code_url,
+      is_active: savedTable.is_active
+    };
+    await supabase.from('restaurant_tables').upsert(payload);
+  } catch (err) {
+    console.warn('Supabase table upsert notice:', err);
+  }
+
+  broadcastChange('TABLES_UPDATED', updatedList);
+  return { success: true, table: savedTable, tables: updatedList };
+}
+
+export async function deleteRestaurantTable(tableId) {
+  const currentTables = await getRestaurantTables();
+  const updatedList = currentTables.filter((t) => t.id !== tableId);
+
+  localStorage.setItem(STORAGE_KEYS.TABLES, JSON.stringify(updatedList));
+
+  try {
+    await supabase.from('restaurant_tables').delete().eq('id', tableId);
+  } catch (err) {
+    console.warn('Supabase table delete notice:', err);
+  }
+
+  broadcastChange('TABLES_UPDATED', updatedList);
+  return { success: true, tables: updatedList };
+}
+
+export async function toggleTableActive(tableId, currentVal) {
+  const newVal = !currentVal;
+  const currentTables = await getRestaurantTables();
+  const updatedList = currentTables.map((t) =>
+    t.id === tableId ? { ...t, is_active: newVal } : t
+  );
+
+  localStorage.setItem(STORAGE_KEYS.TABLES, JSON.stringify(updatedList));
+
+  try {
+    await supabase
+      .from('restaurant_tables')
+      .update({ is_active: newVal })
+      .eq('id', tableId);
+  } catch (err) {
+    console.warn('Supabase table active toggle notice:', err);
+  }
+
+  broadcastChange('TABLES_UPDATED', updatedList);
+  return { success: true, is_active: newVal, tables: updatedList };
+}
+
+// ==============================================================================
+// 5. RESTAURANT SETTINGS MODULE (PHASE 2)
+// ==============================================================================
+
+export function getRestaurantSettings() {
+  let settings = { ...DEFAULT_SETTINGS };
+  if (typeof window !== 'undefined') {
+    const cached = localStorage.getItem(STORAGE_KEYS.SETTINGS);
+    if (cached) {
+      try {
+        settings = { ...settings, ...JSON.parse(cached) };
+      } catch (e) {
+        console.warn('Error parsing cached settings', e);
+      }
+    }
+  }
+  return settings;
+}
+
+export function saveRestaurantSettings(newSettings) {
+  const updated = { ...DEFAULT_SETTINGS, ...newSettings };
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(updated));
+  }
+  broadcastChange('SETTINGS_UPDATED', updated);
+  return { success: true, settings: updated };
+}
+
+// ==============================================================================
+// 6. ANALYTICS HELPER (PHASE 2)
+// ==============================================================================
+
+export function calculateRestaurantAnalytics(orders = [], menuItems = [], tables = []) {
+  const totalOrders = orders.length;
+  const grossSales = orders.reduce((sum, o) => sum + (Number(o.total) || 0), 0);
+  const avgOrderValue = totalOrders > 0 ? Math.round(grossSales / totalOrders) : 0;
+
+  // Today's orders
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayOrders = orders.filter((o) => (o.created_at || '').startsWith(todayStr));
+  const todaySales = todayOrders.reduce((sum, o) => sum + (Number(o.total) || 0), 0);
+
+  // Status breakdown
+  const statusCounts = {
+    received: 0,
+    preparing: 0,
+    ready: 0,
+    served: 0,
+    cancelled: 0
+  };
+  orders.forEach((o) => {
+    const st = (o.status || 'received').toLowerCase();
+    if (statusCounts[st] !== undefined) {
+      statusCounts[st]++;
+    }
+  });
+
+  // Top selling dishes
+  const itemFreq = {};
+  orders.forEach((o) => {
+    let items = [];
+    try {
+      items = typeof o.notes === 'string' ? JSON.parse(o.notes) : o.notes || [];
+    } catch (e) {
+      items = [];
+    }
+    if (Array.isArray(items)) {
+      items.forEach((itm) => {
+        const name = itm.name || 'Dish';
+        const qty = Number(itm.quantity) || 1;
+        const sub = Number(itm.subtotal) || (Number(itm.price) || 0) * qty;
+        if (!itemFreq[name]) {
+          itemFreq[name] = { name, count: 0, revenue: 0 };
+        }
+        itemFreq[name].count += qty;
+        itemFreq[name].revenue += sub;
+      });
+    }
+  });
+
+  const topDishes = Object.values(itemFreq)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5);
+
+  // Table occupancy: occupied if any order in 'received' or 'preparing' for that table
+  const occupiedTableNumbers = new Set(
+    orders
+      .filter((o) => ['received', 'preparing'].includes((o.status || '').toLowerCase()))
+      .map((o) => parseInt(o.table_no, 10))
+  );
+
+  const totalTablesCount = tables.length || 10;
+  const activeOccupiedCount = occupiedTableNumbers.size;
+  const occupancyRate = totalTablesCount > 0 ? Math.round((activeOccupiedCount / totalTablesCount) * 100) : 0;
+
+  return {
+    totalOrders,
+    grossSales,
+    avgOrderValue,
+    todayOrdersCount: todayOrders.length,
+    todaySales,
+    statusCounts,
+    topDishes,
+    occupiedTableNumbers: Array.from(occupiedTableNumbers),
+    totalTablesCount,
+    occupancyRate
+  };
 }

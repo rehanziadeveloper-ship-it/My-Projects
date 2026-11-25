@@ -56,7 +56,14 @@ import {
   saveMenuItem,
   deleteMenuItem,
   toggleItemAvailability,
-  formatSeqId
+  formatSeqId,
+  getRestaurantTables,
+  saveRestaurantTable,
+  deleteRestaurantTable,
+  toggleTableActive,
+  getRestaurantSettings,
+  saveRestaurantSettings,
+  calculateRestaurantAnalytics
 } from '../services/restaurantService';
 
 export default function AdminPanel() {
@@ -125,12 +132,41 @@ export default function AdminPanel() {
   });
   const [itemError, setItemError] = useState('');
 
-  // 4. Orders, Waiter Calls & QR State
+  // 4. Restaurant Tables State (Phase 2)
+  const [tables, setTables] = useState([]);
+  const [tableModalOpen, setTableModalOpen] = useState(false);
+  const [editingTable, setEditingTable] = useState(null);
+  const [tableFormData, setTableFormData] = useState({
+    table_number: '',
+    capacity: 4,
+    is_active: true
+  });
+  const [tableError, setTableError] = useState('');
+  const [selectedTableForQr, setSelectedTableForQr] = useState(1);
+  const [bulkPrintModalOpen, setBulkPrintModalOpen] = useState(false);
+
+  // 5. Orders & Live Waiter Calls State
   const [orders, setOrders] = useState([]);
   const [waiterCalls, setWaiterCalls] = useState([]);
   const [orderFilter, setOrderFilter] = useState('ALL');
+  const [orderSearchQuery, setOrderSearchQuery] = useState('');
   const [newOrderAlert, setNewOrderAlert] = useState(null);
-  const [selectedTableForQr, setSelectedTableForQr] = useState(1);
+  const [selectedOrder, setSelectedOrder] = useState(null); // For detailed view / receipt
+  const [orderModalOpen, setOrderModalOpen] = useState(false);
+  const [receiptType, setReceiptType] = useState('bill'); // 'bill' | 'kot'
+
+  // 6. System Settings State (Phase 2)
+  const [settings, setSettings] = useState({
+    currency: 'PKR',
+    currency_symbol: 'Rs.',
+    tax_rate: 0,
+    service_charge: 0,
+    sound_enabled: true,
+    auto_refresh_seconds: 15,
+    default_prep_time_minutes: 20
+  });
+  const [settingsSaving, setSettingsSaving] = useState(false);
+  const [settingsSuccessMsg, setSettingsSuccessMsg] = useState('');
 
   // Initialize data & real-time subscriptions
   useEffect(() => {
@@ -222,14 +258,20 @@ export default function AdminPanel() {
   const loadAllData = async () => {
     setLoading(true);
     try {
-      const [profData, catsData, itemsData] = await Promise.all([
+      const [profData, catsData, itemsData, tablesData] = await Promise.all([
         getRestaurantProfile(),
         getCategories(),
-        getMenuItems()
+        getMenuItems(),
+        getRestaurantTables()
       ]);
       setProfile(profData);
       setCategories(catsData);
       setMenuItems(itemsData);
+      setTables(tablesData);
+      setSettings(getRestaurantSettings());
+      if (tablesData && tablesData.length > 0 && !tablesData.some((t) => t.table_number === selectedTableForQr)) {
+        setSelectedTableForQr(tablesData[0].table_number);
+      }
       await Promise.all([fetchOrders(), fetchWaiterCalls()]);
     } catch (e) {
       console.error('Error loading admin data:', e);
@@ -583,6 +625,128 @@ export default function AdminPanel() {
     }
   };
 
+  // ==============================================================================
+  // D. TABLE & QR MANAGEMENT ACTIONS (PHASE 2)
+  // ==============================================================================
+
+  const handleOpenTableModal = (table = null) => {
+    setTableError('');
+    if (table) {
+      setEditingTable(table);
+      setTableFormData({
+        table_number: table.table_number,
+        capacity: table.capacity || 4,
+        is_active: table.is_active !== undefined ? table.is_active : true
+      });
+    } else {
+      setEditingTable(null);
+      const maxNum = tables.reduce((max, t) => Math.max(max, parseInt(t.table_number, 10) || 0), 0);
+      setTableFormData({
+        table_number: maxNum + 1,
+        capacity: 4,
+        is_active: true
+      });
+    }
+    setTableModalOpen(true);
+  };
+
+  const handleSaveTable = async (e) => {
+    e.preventDefault();
+    const num = parseInt(tableFormData.table_number, 10);
+    if (isNaN(num) || num <= 0) {
+      setTableError('Please enter a valid table number (e.g. 1, 2, 11)');
+      return;
+    }
+
+    if (!editingTable && tables.some((t) => t.table_number === num)) {
+      setTableError(`Table #${formatSeqId(num)} already exists.`);
+      return;
+    }
+
+    try {
+      const payload = {
+        ...(editingTable ? { id: editingTable.id } : {}),
+        table_number: num,
+        capacity: parseInt(tableFormData.capacity, 10) || 4,
+        is_active: tableFormData.is_active
+      };
+      const res = await saveRestaurantTable(payload);
+      if (res.success) {
+        setTables(res.tables);
+        setTableModalOpen(false);
+      }
+    } catch (err) {
+      setTableError(err.message || 'Failed to save table');
+    }
+  };
+
+  const handleDeleteTable = async (tableId) => {
+    const table = tables.find((t) => t.id === tableId);
+    if (!table) return;
+
+    const hasActiveOrder = orders.some(
+      (o) => parseInt(o.table_no, 10) === table.table_number && ['received', 'preparing'].includes(o.status)
+    );
+    if (hasActiveOrder) {
+      alert(`Cannot delete Table #${formatSeqId(table.table_number)} because it has active dine-in orders in progress.`);
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to delete Table #${formatSeqId(table.table_number)}?`)) return;
+
+    const res = await deleteRestaurantTable(tableId);
+    if (res.success) {
+      setTables(res.tables);
+      if (selectedTableForQr === table.table_number && res.tables.length > 0) {
+        setSelectedTableForQr(res.tables[0].table_number);
+      }
+    }
+  };
+
+  const handleToggleTableActive = async (table) => {
+    const res = await toggleTableActive(table.id, table.is_active);
+    if (res.success) {
+      setTables(res.tables);
+    }
+  };
+
+  // ==============================================================================
+  // E. ORDER DETAILS & RECEIPT / KOT PRINTING (PHASE 2)
+  // ==============================================================================
+
+  const handleOpenOrderDetails = (order) => {
+    setSelectedOrder(order);
+    setOrderModalOpen(true);
+  };
+
+  const handlePrintSlip = (type = 'bill') => {
+    setReceiptType(type);
+    setTimeout(() => {
+      window.print();
+    }, 150);
+  };
+
+  // ==============================================================================
+  // F. SETTINGS ACTIONS (PHASE 2)
+  // ==============================================================================
+
+  const handleSaveSettings = (e) => {
+    e.preventDefault();
+    setSettingsSaving(true);
+    setSettingsSuccessMsg('');
+    const res = saveRestaurantSettings(settings);
+    if (res.success) {
+      setSettings(res.settings);
+      setSettingsSuccessMsg('System settings saved and applied across all terminals!');
+      setTimeout(() => setSettingsSuccessMsg(''), 4000);
+    }
+    setSettingsSaving(false);
+  };
+
+  const handleTestChime = () => {
+    sound.playNewOrderChime();
+  };
+
   // Filtered menu items
   const filteredItems = menuItems.filter((i) => {
     const matchesSearch =
@@ -598,10 +762,19 @@ export default function AdminPanel() {
     return matchesSearch && matchesCat;
   });
 
-  // Filtered Orders
+  // Filtered Orders with Search & Status Filter
   const filteredOrders = orders.filter((o) => {
-    if (orderFilter === 'ALL') return true;
-    return (o.status || 'received').toLowerCase() === orderFilter.toLowerCase();
+    const matchesFilter =
+      orderFilter === 'ALL' || (o.status || 'received').toLowerCase() === orderFilter.toLowerCase();
+
+    const matchesSearch =
+      !orderSearchQuery ||
+      (o.order_no && o.order_no.toLowerCase().includes(orderSearchQuery.toLowerCase())) ||
+      (o.customer_name && o.customer_name.toLowerCase().includes(orderSearchQuery.toLowerCase())) ||
+      (o.customer_phone && o.customer_phone.includes(orderSearchQuery)) ||
+      String(o.table_no).includes(orderSearchQuery);
+
+    return matchesFilter && matchesSearch;
   });
 
   const handlePrintQr = () => {
@@ -616,12 +789,10 @@ export default function AdminPanel() {
     return c ? c.name : 'General';
   };
 
-  // Compute live KPI metrics
-  const totalGrossRevenue = orders.reduce((sum, o) => {
-    if (o.status === 'cancelled') return sum;
-    return sum + (Number(o.total) || 0);
-  }, 0);
+  // Compute live KPI metrics & analytics
+  const analyticsData = calculateRestaurantAnalytics(orders, menuItems, tables);
 
+  const totalGrossRevenue = analyticsData.grossSales;
   const activeOrdersCount = orders.filter(
     (o) => o.status === 'received' || o.status === 'preparing' || o.status === 'ready'
   ).length;
@@ -630,13 +801,7 @@ export default function AdminPanel() {
     (w) => w.status === 'pending'
   ).length;
 
-  const occupiedTables = Array.from(
-    new Set(
-      orders
-        .filter((o) => o.status === 'received' || o.status === 'preparing')
-        .map((o) => o.table_no)
-    )
-  ).filter(Boolean);
+  const occupiedTables = analyticsData.occupiedTableNumbers;
 
   // Sidebar navigation configuration matching actual restaurant system
   const navItems = [
@@ -645,7 +810,7 @@ export default function AdminPanel() {
     { id: 'menu', label: 'Menu Management', icon: UtensilsCrossed, badge: menuItems.length },
     { id: 'categories', label: 'Categories', icon: Layers, badge: categories.length },
     { id: 'profile', label: 'Restaurant Profile', icon: Store, badge: profile.is_open ? 'Open' : 'Closed' },
-    { id: 'qr', label: 'Table & QR Management', icon: QrCode, badge: '10' },
+    { id: 'qr', label: 'Table & QR Management', icon: QrCode, badge: tables.length || '10' },
     { id: 'kitchen', label: 'Kitchen KDS', icon: ChefHat, badge: orders.filter((o) => o.status === 'received' || o.status === 'preparing').length },
     { id: 'waiter', label: 'Waiter Calls', icon: Bell, badge: pendingWaiterCallsCount > 0 ? pendingWaiterCallsCount : null },
     { id: 'analytics', label: 'Analytics', icon: BarChart3, badge: null },
@@ -1230,25 +1395,47 @@ export default function AdminPanel() {
                     Live Dine-In Orders ({filteredOrders.length})
                   </h3>
                   <p className="text-xs text-stone-500 dark:text-stone-400">
-                    Real-time order feed with customer details and kitchen status advancement
+                    Real-time order feed, digital KOT printing, and lifecycle status management
                   </p>
                 </div>
 
-                {/* Status Filter Tabs */}
-                <div className="flex flex-wrap items-center gap-1.5 bg-stone-100 dark:bg-stone-800 p-1 rounded-xl text-xs font-semibold">
-                  {['ALL', 'received', 'preparing', 'ready', 'served', 'cancelled'].map((st) => (
-                    <button
-                      key={st}
-                      onClick={() => setOrderFilter(st)}
-                      className={`px-3 py-1 rounded-lg capitalize transition ${
-                        orderFilter === st
-                          ? 'bg-white dark:bg-stone-700 text-stone-900 dark:text-white font-bold shadow-xs'
-                          : 'text-stone-500 hover:text-stone-900 dark:hover:text-stone-200'
-                      }`}
-                    >
-                      {st}
-                    </button>
-                  ))}
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Search Bar */}
+                  <div className="relative min-w-[200px]">
+                    <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
+                    <input
+                      type="text"
+                      value={orderSearchQuery}
+                      onChange={(e) => setOrderSearchQuery(e.target.value)}
+                      placeholder="Search order #, customer, table..."
+                      className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    />
+                    {orderSearchQuery && (
+                      <button
+                        onClick={() => setOrderSearchQuery('')}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Status Filter Tabs */}
+                  <div className="flex flex-wrap items-center gap-1 bg-stone-100 dark:bg-stone-800 p-1 rounded-xl text-xs font-semibold">
+                    {['ALL', 'received', 'preparing', 'ready', 'served', 'cancelled'].map((st) => (
+                      <button
+                        key={st}
+                        onClick={() => setOrderFilter(st)}
+                        className={`px-2.5 py-1 rounded-lg capitalize transition text-[11px] ${
+                          orderFilter === st
+                            ? 'bg-white dark:bg-stone-700 text-stone-900 dark:text-white font-bold shadow-xs'
+                            : 'text-stone-500 hover:text-stone-900 dark:hover:text-stone-200'
+                        }`}
+                      >
+                        {st}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -1270,6 +1457,7 @@ export default function AdminPanel() {
                         <th className="py-3 px-4">Total</th>
                         <th className="py-3 px-4">Status & Sync</th>
                         <th className="py-3 px-4">Time</th>
+                        <th className="py-3 px-4 text-right">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
@@ -1282,12 +1470,18 @@ export default function AdminPanel() {
                         }
 
                         return (
-                          <tr key={ord.id} className="hover:bg-stone-50/80 dark:hover:bg-stone-800/40 transition">
+                          <tr
+                            key={ord.id}
+                            className="hover:bg-stone-50/80 dark:hover:bg-stone-800/40 transition group cursor-pointer"
+                            onClick={() => handleOpenOrderDetails(ord)}
+                          >
                             <td className="py-3.5 px-4 font-mono font-bold text-emerald-600 dark:text-emerald-400 text-xs sm:text-sm">
                               {ord.order_no}
                             </td>
                             <td className="py-3.5 px-4 font-bold text-stone-900 dark:text-white">
-                              Table #{formatSeqId(ord.table_no)}
+                              <span className="px-2 py-0.5 rounded-lg bg-stone-100 dark:bg-stone-800 text-stone-800 dark:text-stone-200 font-mono font-bold">
+                                Table #{formatSeqId(ord.table_no)}
+                              </span>
                             </td>
                             <td className="py-3.5 px-4">
                               <div className="font-bold text-stone-900 dark:text-white">{ord.customer_name || 'Guest'}</div>
@@ -1295,17 +1489,22 @@ export default function AdminPanel() {
                             </td>
                             <td className="py-3.5 px-4">
                               <div className="space-y-0.5">
-                                {parsedItems.map((itm, i) => (
+                                {parsedItems.slice(0, 2).map((itm, i) => (
                                   <div key={i} className="text-stone-700 dark:text-stone-300">
                                     <span className="font-bold text-stone-900 dark:text-white">{itm.quantity}x</span> {itm.name}
                                   </div>
                                 ))}
+                                {parsedItems.length > 2 && (
+                                  <div className="text-[10px] text-stone-400 italic">
+                                    +{parsedItems.length - 2} more items...
+                                  </div>
+                                )}
                               </div>
                             </td>
                             <td className="py-3.5 px-4 font-mono font-bold text-stone-900 dark:text-white text-xs sm:text-sm">
-                              PKR {Number(ord.total).toLocaleString()}
+                              {settings.currency_symbol || 'PKR'} {Number(ord.total).toLocaleString()}
                             </td>
-                            <td className="py-3.5 px-4">
+                            <td className="py-3.5 px-4" onClick={(e) => e.stopPropagation()}>
                               <select
                                 value={ord.status || 'received'}
                                 onChange={(e) => handleUpdateOrderStatus(ord.id, e.target.value)}
@@ -1330,6 +1529,27 @@ export default function AdminPanel() {
                             </td>
                             <td className="py-3.5 px-4 text-stone-400 font-mono text-[11px]">
                               {new Date(ord.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </td>
+                            <td className="py-3.5 px-4 text-right" onClick={(e) => e.stopPropagation()}>
+                              <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  onClick={() => handleOpenOrderDetails(ord)}
+                                  className="px-2.5 py-1 bg-stone-100 dark:bg-stone-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 text-stone-700 dark:text-stone-300 hover:text-emerald-600 rounded-lg text-[11px] font-bold transition"
+                                  title="View full order details and print receipt"
+                                >
+                                  Details
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    setSelectedOrder(ord);
+                                    handlePrintSlip('kot');
+                                  }}
+                                  className="p-1 px-2 text-stone-500 hover:text-stone-900 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-lg transition"
+                                  title="Print Kitchen KOT"
+                                >
+                                  <Printer className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
                             </td>
                           </tr>
                         );
@@ -1752,81 +1972,194 @@ export default function AdminPanel() {
           )}
 
           {/* ==================================================================== */}
-          {/* TAB 6: TABLE & QR MANAGEMENT MODULE */}
+          {/* TAB 6: TABLE & QR MANAGEMENT MODULE (PHASE 2) */}
           {/* ==================================================================== */}
           {activeTab === 'qr' && (
             <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-200/80 dark:border-stone-800 shadow-xs p-5 sm:p-6 space-y-6">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-stone-100 dark:border-stone-800">
                 <div>
                   <h3 className="font-extrabold text-base text-stone-900 dark:text-white">
-                    Contactless Table QR Placards
+                    Dining Tables & QR Code Placards ({tables.length})
                   </h3>
                   <p className="text-xs text-stone-500 dark:text-stone-400">
-                    Each QR code directs customer phones to the table-specific ordering chat
+                    Manage restaurant floor tables, live occupancy status, and table-specific ordering QR codes
                   </p>
                 </div>
-                <button
-                  onClick={handlePrintQr}
-                  className="px-4 py-2 bg-stone-900 hover:bg-stone-800 dark:bg-stone-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-2 transition"
-                >
-                  <Printer className="w-4 h-4" />
-                  Print Placard
-                </button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    onClick={() => handleOpenTableModal()}
+                    className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 transition active:scale-95"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Add Dining Table</span>
+                  </button>
+                  <button
+                    onClick={() => setBulkPrintModalOpen(true)}
+                    className="px-3.5 py-2 bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 text-stone-800 dark:text-stone-200 rounded-xl text-xs font-bold transition flex items-center gap-1.5"
+                    title="Print QR tent cards for all tables in one document"
+                  >
+                    <Layers className="w-4 h-4" />
+                    <span>Print All Placards</span>
+                  </button>
+                  <button
+                    onClick={handlePrintQr}
+                    className="px-3.5 py-2 bg-stone-900 hover:bg-stone-800 dark:bg-stone-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 transition"
+                  >
+                    <Printer className="w-4 h-4" />
+                    <span>Print Table #{formatSeqId(selectedTableForQr)}</span>
+                  </button>
+                </div>
               </div>
 
-              {/* Table Selector Grid */}
+              {/* Table Floor Cards Grid */}
               <div>
-                <label className="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-2">
-                  Select Table Number:
-                </label>
-                <div className="flex flex-wrap gap-2">
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
-                    <button
-                      key={num}
-                      onClick={() => setSelectedTableForQr(num)}
-                      className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
-                        selectedTableForQr === num
-                          ? 'bg-emerald-600 text-white shadow-xs'
-                          : 'bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 hover:bg-stone-200'
-                      }`}
-                    >
-                      Table #{formatSeqId(num)}
-                    </button>
-                  ))}
+                <div className="flex items-center justify-between mb-3">
+                  <label className="text-xs font-bold text-stone-700 dark:text-stone-300">
+                    Restaurant Floor Tables:
+                  </label>
+                  <span className="text-[11px] font-semibold text-stone-500">
+                    {analyticsData.occupiedTableNumbers.length} Occupied • {tables.length - analyticsData.occupiedTableNumbers.length} Vacant
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5">
+                  {tables.map((t) => {
+                    const isOccupied = analyticsData.occupiedTableNumbers.includes(t.table_number);
+                    const isSelected = selectedTableForQr === t.table_number;
+
+                    return (
+                      <div
+                        key={t.id || t.table_number}
+                        onClick={() => setSelectedTableForQr(t.table_number)}
+                        className={`p-3.5 rounded-2xl border transition-all cursor-pointer text-xs ${
+                          isSelected
+                            ? 'bg-emerald-50/70 dark:bg-emerald-950/20 border-emerald-500 shadow-sm ring-2 ring-emerald-500/20'
+                            : 'bg-stone-50/60 dark:bg-stone-800/40 border-stone-200/80 dark:border-stone-700/80 hover:bg-white dark:hover:bg-stone-800'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between pb-2 border-b border-stone-200/60 dark:border-stone-700/60">
+                          <div className="flex items-center gap-2">
+                            <span className="font-black text-sm text-stone-900 dark:text-white">
+                              Table #{formatSeqId(t.table_number)}
+                            </span>
+                            <span className="text-[11px] text-stone-400 font-medium">
+                              👥 {t.capacity || 4} Seats
+                            </span>
+                          </div>
+
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              isOccupied
+                                ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 animate-pulse'
+                                : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                            }`}
+                          >
+                            {isOccupied ? 'Occupied' : 'Vacant'}
+                          </span>
+                        </div>
+
+                        <div className="py-2.5 flex items-center justify-between text-[11px]">
+                          <span className="text-stone-500 dark:text-stone-400 font-medium">Ordering QR:</span>
+                          <span className="font-mono text-emerald-600 dark:text-emerald-400 font-semibold truncate max-w-[120px]">
+                            /chat?table={t.table_number}
+                          </span>
+                        </div>
+
+                        <div className="pt-2 border-t border-stone-200/60 dark:border-stone-700/60 flex items-center justify-between gap-1">
+                          <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              onClick={() => handleToggleTableActive(t)}
+                              className={`p-1 rounded-lg text-[10px] font-bold ${
+                                t.is_active
+                                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300'
+                                  : 'bg-stone-200 text-stone-600 dark:bg-stone-700 dark:text-stone-400'
+                              }`}
+                              title="Toggle table active on ordering"
+                            >
+                              {t.is_active ? 'Active' : 'Disabled'}
+                            </button>
+                            <a
+                              href={`/chat?table=${t.table_number}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="p-1 px-1.5 text-stone-500 hover:text-emerald-600 hover:bg-stone-200 dark:hover:bg-stone-700 rounded-lg transition"
+                              title="Test live table ordering"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" />
+                            </a>
+                          </div>
+
+                          <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              onClick={() => handleOpenTableModal(t)}
+                              className="p-1 text-stone-400 hover:text-stone-900 dark:hover:text-stone-200 rounded-lg transition"
+                              title="Edit table details"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteTable(t.id)}
+                              className="p-1 text-stone-400 hover:text-red-600 rounded-lg transition"
+                              title="Delete table"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 
               {/* Printable Table Tent Placard Preview */}
-              <div className="max-w-sm mx-auto p-8 rounded-3xl bg-white text-stone-900 border-2 border-stone-200 shadow-lg text-center my-6 print:border-none print:shadow-none">
-                {profile.logo_url ? (
-                  <img
-                    src={profile.logo_url}
-                    alt="Logo"
-                    className="w-16 h-16 mx-auto mb-2 rounded-2xl object-cover border border-emerald-500 shadow-xs"
-                  />
-                ) : (
-                  <div className="w-16 h-16 mx-auto mb-2 rounded-2xl bg-emerald-600 flex items-center justify-center text-white text-2xl shadow-xs">
-                    🍖
+              <div className="pt-6 border-t border-stone-100 dark:border-stone-800">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="font-bold text-xs text-stone-700 dark:text-stone-300 uppercase tracking-wider">
+                    Placard Preview: Table #{formatSeqId(selectedTableForQr)}
+                  </h4>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={handlePrintQr}
+                      className="px-3 py-1 bg-stone-900 hover:bg-stone-800 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5"
+                    >
+                      <Printer className="w-3.5 h-3.5" />
+                      Print This Placard
+                    </button>
                   </div>
-                )}
-                <h3 className="text-base font-black tracking-tight text-stone-900 uppercase">
-                  {profile.name}
-                </h3>
-                <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest mb-5">
-                  Dine-In • AI Chat Ordering
-                </p>
-
-                <div className="bg-stone-50 p-4 rounded-2xl border border-stone-200 inline-block mb-4 shadow-inner">
-                  <QRCodeSVG value={qrUrl} size={180} level="H" includeMargin={true} />
                 </div>
 
-                <div className="mt-2">
-                  <span className="inline-block px-5 py-1.5 rounded-full bg-stone-900 text-white font-black text-base font-mono">
-                    TABLE #{formatSeqId(selectedTableForQr)}
-                  </span>
-                  <p className="text-xs text-stone-600 mt-2 font-semibold">
-                    Scan with camera to order via chat!
+                <div className="max-w-sm mx-auto p-8 rounded-3xl bg-white text-stone-900 border-2 border-stone-200 shadow-lg text-center my-2 print:border-none print:shadow-none">
+                  {profile.logo_url ? (
+                    <img
+                      src={profile.logo_url}
+                      alt="Logo"
+                      className="w-16 h-16 mx-auto mb-2 rounded-2xl object-cover border border-emerald-500 shadow-xs"
+                    />
+                  ) : (
+                    <div className="w-16 h-16 mx-auto mb-2 rounded-2xl bg-emerald-600 flex items-center justify-center text-white text-2xl shadow-xs">
+                      🍖
+                    </div>
+                  )}
+                  <h3 className="text-base font-black tracking-tight text-stone-900 uppercase">
+                    {profile.name}
+                  </h3>
+                  <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest mb-5">
+                    Dine-In • AI Chat Ordering
                   </p>
+
+                  <div className="bg-stone-50 p-4 rounded-2xl border border-stone-200 inline-block mb-4 shadow-inner">
+                    <QRCodeSVG value={qrUrl} size={180} level="H" includeMargin={true} />
+                  </div>
+
+                  <div className="mt-2">
+                    <span className="inline-block px-5 py-1.5 rounded-full bg-stone-900 text-white font-black text-base font-mono">
+                      TABLE #{formatSeqId(selectedTableForQr)}
+                    </span>
+                    <p className="text-xs text-stone-600 mt-2 font-semibold">
+                      Scan with camera to order via chat!
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1996,40 +2329,121 @@ export default function AdminPanel() {
           )}
 
           {/* ==================================================================== */}
-          {/* TAB 9: ANALYTICS MODULE */}
+          {/* TAB 9: ANALYTICS MODULE (PHASE 2) */}
           {/* ==================================================================== */}
           {activeTab === 'analytics' && (
             <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-200/80 dark:border-stone-800 shadow-xs p-5 sm:p-6 space-y-6">
               <div>
                 <h3 className="font-extrabold text-base text-stone-900 dark:text-white">
-                  Restaurant Performance Analytics
+                  Restaurant Performance & Sales Analytics
                 </h3>
                 <p className="text-xs text-stone-500 dark:text-stone-400">
-                  Real-time sales velocity, average ticket value, and menu distribution
+                  Real-time sales velocity, average ticket value, floor table occupancy, and dish popularity
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {/* 4 Main Bento KPI Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="p-4 rounded-xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200/60 dark:border-stone-700/60">
-                  <span className="text-[11px] font-bold uppercase text-stone-400">Average Order Value</span>
-                  <div className="text-xl font-black text-stone-900 dark:text-white font-mono mt-1">
-                    PKR {orders.length > 0 ? Math.round(totalGrossRevenue / orders.length).toLocaleString() : '0'}
-                  </div>
-                </div>
-
-                <div className="p-4 rounded-xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200/60 dark:border-stone-700/60">
-                  <span className="text-[11px] font-bold uppercase text-stone-400">Fulfillment Rate</span>
+                  <span className="text-[11px] font-bold uppercase text-stone-400">Gross Sales</span>
                   <div className="text-xl font-black text-emerald-600 dark:text-emerald-400 font-mono mt-1">
-                    {orders.length > 0
-                      ? Math.round((orders.filter((o) => o.status === 'served').length / orders.length) * 100)
-                      : 100}%
+                    {settings.currency_symbol || 'PKR'} {analyticsData.grossSales.toLocaleString()}
                   </div>
+                  <span className="text-[10px] text-stone-500 font-medium">Across {analyticsData.totalOrders} total orders</span>
                 </div>
 
                 <div className="p-4 rounded-xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200/60 dark:border-stone-700/60">
-                  <span className="text-[11px] font-bold uppercase text-stone-400">Active Dining Tables</span>
+                  <span className="text-[11px] font-bold uppercase text-stone-400">Today's Sales</span>
+                  <div className="text-xl font-black text-stone-900 dark:text-white font-mono mt-1">
+                    {settings.currency_symbol || 'PKR'} {analyticsData.todaySales.toLocaleString()}
+                  </div>
+                  <span className="text-[10px] text-stone-500 font-medium">{analyticsData.todayOrdersCount} orders placed today</span>
+                </div>
+
+                <div className="p-4 rounded-xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200/60 dark:border-stone-700/60">
+                  <span className="text-[11px] font-bold uppercase text-stone-400">Average Ticket (AOV)</span>
+                  <div className="text-xl font-black text-stone-900 dark:text-white font-mono mt-1">
+                    {settings.currency_symbol || 'PKR'} {analyticsData.avgOrderValue.toLocaleString()}
+                  </div>
+                  <span className="text-[10px] text-stone-500 font-medium">Average guest order spend</span>
+                </div>
+
+                <div className="p-4 rounded-xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200/60 dark:border-stone-700/60">
+                  <span className="text-[11px] font-bold uppercase text-stone-400">Table Occupancy Rate</span>
                   <div className="text-xl font-black text-blue-600 dark:text-blue-400 font-mono mt-1">
-                    {occupiedTables.length} Tables Active
+                    {analyticsData.occupancyRate}%
+                  </div>
+                  <span className="text-[10px] text-stone-500 font-medium">
+                    {analyticsData.occupiedTableNumbers.length} of {analyticsData.totalTablesCount} tables occupied
+                  </span>
+                </div>
+              </div>
+
+              {/* Two Column Section: Top Selling Dishes & Order Status Distribution */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 pt-4 border-t border-stone-100 dark:border-stone-800">
+                {/* Top Selling Dishes Leaderboard */}
+                <div>
+                  <h4 className="font-bold text-xs text-stone-700 dark:text-stone-300 mb-3 flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4 text-emerald-600" />
+                    Top Selling Dishes
+                  </h4>
+                  {analyticsData.topDishes.length === 0 ? (
+                    <div className="p-8 text-center text-stone-400 text-xs bg-stone-50 dark:bg-stone-800/40 rounded-xl">
+                      No order data available yet.
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {analyticsData.topDishes.map((dish, idx) => (
+                        <div key={idx} className="p-3 rounded-xl bg-stone-50 dark:bg-stone-800/50 border border-stone-200/50 dark:border-stone-700/50 text-xs">
+                          <div className="flex items-center justify-between mb-1.5 font-bold">
+                            <span className="text-stone-900 dark:text-white truncate">
+                              #{idx + 1} {dish.name}
+                            </span>
+                            <span className="font-mono text-emerald-600 dark:text-emerald-400 shrink-0">
+                              {settings.currency_symbol || 'PKR'} {dish.revenue.toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between text-[11px] text-stone-500">
+                            <span>{dish.count} portions sold</span>
+                            <span className="font-mono">{Math.round((dish.revenue / (analyticsData.grossSales || 1)) * 100)}% of sales</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Status Distribution */}
+                <div>
+                  <h4 className="font-bold text-xs text-stone-700 dark:text-stone-300 mb-3 flex items-center gap-2">
+                    <Layers className="w-4 h-4 text-emerald-600" />
+                    Live Order Pipeline
+                  </h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 rounded-xl bg-amber-50/70 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 text-xs">
+                      <span className="text-[10px] font-bold uppercase text-amber-700 dark:text-amber-400">Received / Queue</span>
+                      <div className="text-lg font-black text-amber-800 dark:text-amber-300 font-mono mt-1">
+                        {analyticsData.statusCounts.received}
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 text-xs">
+                      <span className="text-[10px] font-bold uppercase text-blue-700 dark:text-blue-400">Cooking (Kitchen)</span>
+                      <div className="text-lg font-black text-blue-800 dark:text-blue-300 font-mono mt-1">
+                        {analyticsData.statusCounts.preparing}
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-purple-50/70 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800 text-xs">
+                      <span className="text-[10px] font-bold uppercase text-purple-700 dark:text-purple-400">Ready for Pickup</span>
+                      <div className="text-lg font-black text-purple-800 dark:text-purple-300 font-mono mt-1">
+                        {analyticsData.statusCounts.ready}
+                      </div>
+                    </div>
+                    <div className="p-3 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-xs">
+                      <span className="text-[10px] font-bold uppercase text-emerald-700 dark:text-emerald-400">Served & Billed</span>
+                      <div className="text-lg font-black text-emerald-800 dark:text-emerald-300 font-mono mt-1">
+                        {analyticsData.statusCounts.served}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -2037,7 +2451,7 @@ export default function AdminPanel() {
               {/* Category Breakdown Bar */}
               <div className="pt-4 border-t border-stone-100 dark:border-stone-800">
                 <h4 className="font-bold text-xs text-stone-700 dark:text-stone-300 mb-3">
-                  Menu Distribution by Category
+                  Menu Catalog Distribution by Category
                 </h4>
                 <div className="space-y-2">
                   {categories.map((cat) => {
@@ -2061,35 +2475,48 @@ export default function AdminPanel() {
           )}
 
           {/* ==================================================================== */}
-          {/* TAB 10: SETTINGS MODULE */}
+          {/* TAB 10: SETTINGS MODULE (PHASE 2) */}
           {/* ==================================================================== */}
           {activeTab === 'settings' && (
             <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-200/80 dark:border-stone-800 shadow-xs p-5 sm:p-6 space-y-6">
               <div>
                 <h3 className="font-extrabold text-base text-stone-900 dark:text-white">
-                  Terminal & System Settings
+                  Terminal & Operational System Settings
                 </h3>
                 <p className="text-xs text-stone-500 dark:text-stone-400">
-                  Configure hardware alerts, currency, and Supabase integration parameters
+                  Configure hardware alerts, currency, taxes, prep timers, and Supabase integration parameters
                 </p>
               </div>
 
-              <div className="space-y-4 max-w-xl text-xs">
+              {settingsSuccessMsg && (
+                <div className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs font-semibold flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>{settingsSuccessMsg}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleSaveSettings} className="space-y-4 max-w-2xl text-xs">
+                {/* Audio Chimes */}
                 <div className="p-4 rounded-xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200/60 dark:border-stone-700/60 flex items-center justify-between">
                   <div>
                     <h5 className="font-bold text-stone-900 dark:text-white">Audio Chimes</h5>
-                    <p className="text-stone-500 text-[11px]">Play chime when customer places an order or rings waiter</p>
+                    <p className="text-stone-500 text-[11px]">Play chime when customer places an order or rings waiter buzzer</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
-                      onClick={() => sound.playNewOrderChime()}
-                      className="px-2.5 py-1 bg-stone-200 dark:bg-stone-700 hover:bg-stone-300 rounded-lg text-[11px] font-semibold"
+                      type="button"
+                      onClick={handleTestChime}
+                      className="px-2.5 py-1.5 bg-stone-200 dark:bg-stone-700 hover:bg-stone-300 rounded-lg text-[11px] font-semibold"
                     >
                       Test Chime
                     </button>
                     <button
-                      onClick={() => setSoundEnabled(!soundEnabled)}
-                      className={`px-3 py-1 rounded-lg font-bold text-white transition ${
+                      type="button"
+                      onClick={() => {
+                        setSoundEnabled(!soundEnabled);
+                        setSettings((prev) => ({ ...prev, sound_enabled: !soundEnabled }));
+                      }}
+                      className={`px-3 py-1.5 rounded-lg font-bold text-white transition ${
                         soundEnabled ? 'bg-emerald-600' : 'bg-stone-400'
                       }`}
                     >
@@ -2098,35 +2525,82 @@ export default function AdminPanel() {
                   </div>
                 </div>
 
-                <div className="p-4 rounded-xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200/60 dark:border-stone-700/60 flex items-center justify-between">
-                  <div>
-                    <h5 className="font-bold text-stone-900 dark:text-white">Terminal Identifier</h5>
-                    <p className="text-stone-500 text-[11px]">Assigned hardware terminal reference for staff</p>
+                {/* Currency & Symbol */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="p-4 rounded-xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200/60 dark:border-stone-700/60">
+                    <label className="block font-bold text-stone-900 dark:text-white mb-1">Currency Code</label>
+                    <p className="text-stone-500 text-[11px] mb-2">Display denomination</p>
+                    <input
+                      type="text"
+                      value={settings.currency || 'PKR'}
+                      onChange={(e) => setSettings((prev) => ({ ...prev, currency: e.target.value }))}
+                      className="w-full px-3 py-2 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-white font-mono font-bold"
+                    />
                   </div>
-                  <span className="font-mono font-bold text-sm text-stone-900 dark:text-white">
-                    Terminal #{profile.display_id || '01'}
-                  </span>
+
+                  <div className="p-4 rounded-xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200/60 dark:border-stone-700/60">
+                    <label className="block font-bold text-stone-900 dark:text-white mb-1">Currency Symbol</label>
+                    <p className="text-stone-500 text-[11px] mb-2">Symbol shown on receipts & menus</p>
+                    <input
+                      type="text"
+                      value={settings.currency_symbol || 'Rs.'}
+                      onChange={(e) => setSettings((prev) => ({ ...prev, currency_symbol: e.target.value }))}
+                      className="w-full px-3 py-2 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-white font-mono font-bold"
+                    />
+                  </div>
                 </div>
 
-                <div className="p-4 rounded-xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200/60 dark:border-stone-700/60 flex items-center justify-between">
-                  <div>
-                    <h5 className="font-bold text-stone-900 dark:text-white">Currency Format</h5>
-                    <p className="text-stone-500 text-[11px]">Default denomination displayed across guest and admin screens</p>
+                {/* Tax & Prep Time */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="p-4 rounded-xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200/60 dark:border-stone-700/60">
+                    <label className="block font-bold text-stone-900 dark:text-white mb-1">GST / Sales Tax (%)</label>
+                    <p className="text-stone-500 text-[11px] mb-2">Applicable tax rate on orders</p>
+                    <input
+                      type="number"
+                      min="0"
+                      max="30"
+                      value={settings.tax_rate || 0}
+                      onChange={(e) => setSettings((prev) => ({ ...prev, tax_rate: parseFloat(e.target.value) || 0 }))}
+                      className="w-full px-3 py-2 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-white font-mono font-bold"
+                    />
                   </div>
-                  <span className="font-mono font-bold text-stone-900 dark:text-white">PKR (Pakistani Rupee)</span>
+
+                  <div className="p-4 rounded-xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200/60 dark:border-stone-700/60">
+                    <label className="block font-bold text-stone-900 dark:text-white mb-1">Default Cooking Time (Mins)</label>
+                    <p className="text-stone-500 text-[11px] mb-2">KDS preparation countdown</p>
+                    <input
+                      type="number"
+                      min="5"
+                      max="60"
+                      value={settings.default_prep_time_minutes || 20}
+                      onChange={(e) => setSettings((prev) => ({ ...prev, default_prep_time_minutes: parseInt(e.target.value, 10) || 20 }))}
+                      className="w-full px-3 py-2 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-white font-mono font-bold"
+                    />
+                  </div>
                 </div>
 
+                {/* Terminal & Supabase Diagnostics */}
                 <div className="p-4 rounded-xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200/60 dark:border-stone-700/60 flex items-center justify-between">
                   <div>
                     <h5 className="font-bold text-stone-900 dark:text-white">Supabase Realtime Sync</h5>
-                    <p className="text-stone-500 text-[11px]">PostgreSQL websocket status for orders & waiter calls</p>
+                    <p className="text-stone-500 text-[11px]">PostgreSQL websocket status for live order stream</p>
                   </div>
                   <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                     Connected
                   </span>
                 </div>
-              </div>
+
+                <div className="pt-4 border-t border-stone-100 dark:border-stone-800 flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={settingsSaving}
+                    className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition active:scale-95 disabled:opacity-50"
+                  >
+                    {settingsSaving ? 'Saving...' : 'Save System Settings'}
+                  </button>
+                </div>
+              </form>
             </div>
           )}
         </div>
@@ -2403,6 +2877,332 @@ export default function AdminPanel() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* ==================================================================== */}
+      {/* MODAL 3: ADD / EDIT RESTAURANT TABLE (PHASE 2) */}
+      {/* ==================================================================== */}
+      {tableModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 backdrop-blur-xs">
+          <div className="bg-white dark:bg-stone-900 rounded-3xl p-6 w-full max-w-md shadow-2xl border border-stone-200 dark:border-stone-800">
+            <div className="flex items-center justify-between pb-4 border-b border-stone-200 dark:border-stone-800 mb-4">
+              <h3 className="font-black text-base text-stone-900 dark:text-white">
+                {editingTable ? `Edit Table #${formatSeqId(editingTable.table_number)}` : 'Add New Dining Table'}
+              </h3>
+              <button
+                onClick={() => setTableModalOpen(false)}
+                className="p-1 rounded-xl text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {tableError && (
+              <div className="mb-4 p-3 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-xs font-semibold flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 shrink-0" />
+                <span>{tableError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSaveTable} className="space-y-4 text-xs">
+              <div>
+                <label className="block font-bold text-stone-700 dark:text-stone-300 mb-1">
+                  Table Number *
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="99"
+                  value={tableFormData.table_number}
+                  onChange={(e) => setTableFormData((prev) => ({ ...prev, table_number: e.target.value }))}
+                  placeholder="e.g. 11"
+                  required
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none font-mono font-bold"
+                />
+                <p className="text-[11px] text-stone-400 mt-1">
+                  Unique physical dining table number in the restaurant
+                </p>
+              </div>
+
+              <div>
+                <label className="block font-bold text-stone-700 dark:text-stone-300 mb-1">
+                  Seating Capacity (Guests)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="30"
+                  value={tableFormData.capacity}
+                  onChange={(e) => setTableFormData((prev) => ({ ...prev, capacity: e.target.value }))}
+                  placeholder="4"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none font-mono"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <input
+                  type="checkbox"
+                  id="tableActive"
+                  checked={tableFormData.is_active}
+                  onChange={(e) => setTableFormData((prev) => ({ ...prev, is_active: e.target.checked }))}
+                  className="w-4 h-4 text-emerald-600 rounded-md focus:ring-emerald-500"
+                />
+                <label htmlFor="tableActive" className="font-semibold text-stone-700 dark:text-stone-300 cursor-pointer">
+                  Table is Active for Dine-In Ordering
+                </label>
+              </div>
+
+              <div className="pt-4 border-t border-stone-100 dark:border-stone-800 flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setTableModalOpen(false)}
+                  className="px-4 py-2 rounded-xl text-stone-600 dark:text-stone-400 font-bold hover:bg-stone-100 dark:hover:bg-stone-800 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold shadow-xs transition"
+                >
+                  {editingTable ? 'Update Table' : 'Add Table'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ==================================================================== */}
+      {/* MODAL 4: ORDER DETAILS & RECEIPT / KOT PRINT MODAL (PHASE 2) */}
+      {/* ==================================================================== */}
+      {orderModalOpen && selectedOrder && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 backdrop-blur-xs overflow-y-auto">
+          <div className="bg-white dark:bg-stone-900 rounded-3xl p-6 w-full max-w-lg shadow-2xl border border-stone-200 dark:border-stone-800 my-8 text-xs">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-stone-200 dark:border-stone-800 mb-4">
+              <div className="flex items-center gap-2.5">
+                <span className="font-mono font-black text-lg text-emerald-600 dark:text-emerald-400">
+                  {selectedOrder.order_no}
+                </span>
+                <span className="px-2.5 py-0.5 rounded-lg bg-stone-900 text-white font-bold text-xs">
+                  Table #{formatSeqId(selectedOrder.table_no)}
+                </span>
+              </div>
+              <button
+                onClick={() => setOrderModalOpen(false)}
+                className="p-1 rounded-xl text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Customer & Timestamp Bar */}
+            <div className="p-3.5 rounded-2xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200/60 dark:border-stone-700/60 grid grid-cols-2 gap-3 mb-4">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-stone-400">Guest Name</span>
+                <div className="font-bold text-stone-900 dark:text-white text-sm">
+                  {selectedOrder.customer_name || 'Guest'}
+                </div>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-stone-400">Mobile Phone</span>
+                <div className="font-mono text-stone-700 dark:text-stone-300 font-semibold">
+                  {selectedOrder.customer_phone || '—'}
+                </div>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-stone-400">Placed Time</span>
+                <div className="font-mono text-stone-500">
+                  {new Date(selectedOrder.created_at).toLocaleString()}
+                </div>
+              </div>
+              <div>
+                <span className="text-[10px] uppercase font-bold text-stone-400">Current Status</span>
+                <div className="font-bold capitalize text-emerald-600 dark:text-emerald-400">
+                  {selectedOrder.status || 'Received'}
+                </div>
+              </div>
+            </div>
+
+            {/* Items Breakdown Table */}
+            <div className="mb-4">
+              <h4 className="font-bold text-stone-700 dark:text-stone-300 mb-2">Ordered Dishes & Portions</h4>
+              <div className="rounded-2xl border border-stone-200 dark:border-stone-800 overflow-hidden">
+                <table className="w-full text-left">
+                  <thead className="bg-stone-50 dark:bg-stone-800 text-stone-400 font-bold uppercase text-[10px]">
+                    <tr>
+                      <th className="py-2 px-3">Item</th>
+                      <th className="py-2 px-3 text-center">Qty</th>
+                      <th className="py-2 px-3 text-right">Price</th>
+                      <th className="py-2 px-3 text-right">Subtotal</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
+                    {(() => {
+                      let items = [];
+                      try {
+                        items = typeof selectedOrder.notes === 'string' ? JSON.parse(selectedOrder.notes) : selectedOrder.notes || [];
+                      } catch (e) {
+                        items = [];
+                      }
+                      return items.map((itm, i) => (
+                        <tr key={i} className="hover:bg-stone-50/50 dark:hover:bg-stone-800/30">
+                          <td className="py-2.5 px-3 font-semibold text-stone-900 dark:text-white">
+                            {itm.name}
+                          </td>
+                          <td className="py-2.5 px-3 text-center font-bold text-stone-700 dark:text-stone-300 font-mono">
+                            {itm.quantity}
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-mono text-stone-500">
+                            {settings.currency_symbol || 'PKR'} {Number(itm.price || 0).toLocaleString()}
+                          </td>
+                          <td className="py-2.5 px-3 text-right font-mono font-bold text-stone-900 dark:text-white">
+                            {settings.currency_symbol || 'PKR'} {(Number(itm.subtotal) || (Number(itm.price) || 0) * (Number(itm.quantity) || 1)).toLocaleString()}
+                          </td>
+                        </tr>
+                      ));
+                    })()}
+                  </tbody>
+                  <tfoot className="bg-stone-50 dark:bg-stone-800/80 font-bold border-t border-stone-200 dark:border-stone-700">
+                    <tr>
+                      <td colSpan="3" className="py-2.5 px-3 text-right text-stone-600 dark:text-stone-300">Total Bill Amount:</td>
+                      <td className="py-2.5 px-3 text-right font-mono text-emerald-600 dark:text-emerald-400 text-sm">
+                        {settings.currency_symbol || 'PKR'} {Number(selectedOrder.total).toLocaleString()}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+
+            {/* Quick Status Advancement */}
+            <div className="p-3 rounded-2xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200/60 dark:border-stone-700/60 mb-4">
+              <span className="block font-bold text-stone-700 dark:text-stone-300 mb-2">Update Order Status:</span>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {['received', 'preparing', 'ready', 'served'].map((st) => (
+                  <button
+                    key={st}
+                    onClick={() => {
+                      handleUpdateOrderStatus(selectedOrder.id, st);
+                      setSelectedOrder((prev) => ({ ...prev, status: st }));
+                    }}
+                    className={`py-2 px-2 rounded-xl capitalize font-bold text-xs transition ${
+                      selectedOrder.status === st
+                        ? 'bg-emerald-600 text-white shadow-xs'
+                        : 'bg-white dark:bg-stone-800 text-stone-700 dark:text-stone-300 hover:bg-stone-100'
+                    }`}
+                  >
+                    {st}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Action Buttons: Print Customer Receipt & Kitchen KOT */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-stone-100 dark:border-stone-800">
+              <button
+                onClick={() => {
+                  if (window.confirm(`Cancel order ${selectedOrder.order_no}?`)) {
+                    handleUpdateOrderStatus(selectedOrder.id, 'cancelled');
+                    setOrderModalOpen(false);
+                  }
+                }}
+                className="px-3 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-xl font-bold transition"
+              >
+                Cancel Order
+              </button>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handlePrintSlip('kot')}
+                  className="px-3.5 py-2 bg-stone-800 hover:bg-stone-700 text-white rounded-xl font-bold flex items-center gap-1.5 transition"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>Print Kitchen KOT</span>
+                </button>
+
+                <button
+                  onClick={() => handlePrintSlip('bill')}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold shadow-xs flex items-center gap-1.5 transition"
+                >
+                  <Printer className="w-3.5 h-3.5" />
+                  <span>Print Guest Bill</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==================================================================== */}
+      {/* MODAL 5: BULK PRINT ALL PLACARDS (PHASE 2) */}
+      {/* ==================================================================== */}
+      {bulkPrintModalOpen && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 backdrop-blur-xs overflow-y-auto">
+          <div className="bg-white dark:bg-stone-900 rounded-3xl p-6 w-full max-w-4xl shadow-2xl border border-stone-200 dark:border-stone-800 my-8">
+            <div className="flex items-center justify-between pb-4 border-b border-stone-200 dark:border-stone-800 mb-6 print:hidden">
+              <div>
+                <h3 className="font-black text-lg text-stone-900 dark:text-white">
+                  Bulk Print All Table QR Placards ({tables.length} Tables)
+                </h3>
+                <p className="text-xs text-stone-500">
+                  Ready to print full sheet of table tent cards for restaurant dining tables
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => window.print()}
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow-xs flex items-center gap-1.5"
+                >
+                  <Printer className="w-4 h-4" />
+                  Print All Pages
+                </button>
+                <button
+                  onClick={() => setBulkPrintModalOpen(false)}
+                  className="p-2 rounded-xl text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 transition"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Grid of Placards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+              {tables.map((t) => {
+                const tableUrl = `${window.location.origin}/chat?table=${t.table_number}`;
+                return (
+                  <div
+                    key={t.id || t.table_number}
+                    className="p-6 rounded-3xl bg-white text-stone-900 border-2 border-stone-200 text-center shadow-xs page-break-inside-avoid"
+                  >
+                    <div className="w-12 h-12 mx-auto mb-2 rounded-xl bg-emerald-600 flex items-center justify-center text-white text-xl shadow-xs">
+                      🍖
+                    </div>
+                    <h4 className="text-xs font-black tracking-tight text-stone-900 uppercase">
+                      {profile.name}
+                    </h4>
+                    <p className="text-[9px] font-bold text-emerald-700 uppercase tracking-widest mb-3">
+                      Dine-In • AI Chat Ordering
+                    </p>
+
+                    <div className="bg-stone-50 p-3 rounded-2xl border border-stone-200 inline-block mb-3">
+                      <QRCodeSVG value={tableUrl} size={130} level="H" includeMargin={true} />
+                    </div>
+
+                    <div>
+                      <span className="inline-block px-4 py-1 rounded-full bg-stone-900 text-white font-black text-sm font-mono">
+                        TABLE #{formatSeqId(t.table_number)}
+                      </span>
+                      <p className="text-[10px] text-stone-600 mt-1 font-semibold">
+                        Scan with camera to order!
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}
