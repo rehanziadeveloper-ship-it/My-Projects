@@ -1102,6 +1102,16 @@ export default function AdminPanel() {
               {soundEnabled ? <Volume2 className="w-4 h-4 text-red-600" /> : <VolumeX className="w-4 h-4 text-stone-400" />}
             </button>
 
+            {/* Top Bar Light / Dark Theme Toggle */}
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-xl border border-stone-200/80 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-700 dark:text-stone-200 hover:bg-stone-50 dark:hover:bg-stone-700 transition flex items-center gap-1.5 text-xs font-bold shadow-xs"
+              title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            >
+              {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-stone-600" />}
+              <span className="hidden sm:inline">{theme === 'dark' ? 'Light' : 'Dark'}</span>
+            </button>
+
             {/* Data Refresh */}
             <button
               onClick={loadAllData}
@@ -2195,15 +2205,25 @@ export default function AdminPanel() {
                     Live cooking line view for kitchen staff with status timers
                   </p>
                 </div>
-                <a
-                  href="/kitchen"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-2 transition"
-                >
-                  <ExternalLink className="w-4 h-4" />
-                  Open Fullscreen KDS Screen
-                </a>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    onClick={toggleTheme}
+                    className="px-3.5 py-2 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-100 dark:bg-stone-800 text-stone-800 dark:text-stone-200 text-xs font-bold flex items-center gap-1.5 hover:opacity-80 transition"
+                    title={theme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
+                  >
+                    {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-stone-600" />}
+                    <span>{theme === 'dark' ? 'Light Theme' : 'Dark Theme'}</span>
+                  </button>
+                  <a
+                    href="/kitchen"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-2 transition"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    Open Fullscreen KDS Screen
+                  </a>
+                </div>
               </div>
 
               {/* Kitchen In-Flight Cards */}
@@ -2282,15 +2302,25 @@ export default function AdminPanel() {
                     Real-time service buzzer notifications from customer tables
                   </p>
                 </div>
-                <a
-                  href="/waiter"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-stone-900 rounded-xl text-xs font-bold shadow-xs flex items-center gap-2 transition"
-                >
-                  <ExternalLink className="w-4 h-4" />
-                  Open Floor Waiter Screen
-                </a>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button
+                    onClick={toggleTheme}
+                    className="px-3.5 py-2 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-100 dark:bg-stone-800 text-stone-800 dark:text-stone-200 text-xs font-bold flex items-center gap-1.5 hover:opacity-80 transition"
+                    title={theme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
+                  >
+                    {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-stone-600" />}
+                    <span>{theme === 'dark' ? 'Light Theme' : 'Dark Theme'}</span>
+                  </button>
+                  <a
+                    href="/waiter"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-2 transition"
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                    Open Floor Waiter Screen
+                  </a>
+                </div>
               </div>
 
               {waiterCalls.length === 0 ? (

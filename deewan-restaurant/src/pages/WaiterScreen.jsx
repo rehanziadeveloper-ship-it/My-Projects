@@ -153,19 +153,25 @@ export default function WaiterScreen() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5">
-          {/* Light / Dark Mode Toggle */}
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
+          {/* Light / Dark Mode Toggle Button - Highly Visible & Unmissable */}
           <button
             onClick={toggleTheme}
-            className={`p-2 sm:px-3 sm:py-2 rounded-xl border flex items-center gap-1.5 font-bold text-xs transition ${
+            className={`px-3 py-2 rounded-xl border-2 flex items-center gap-2 text-xs font-black transition-all shadow-md active:scale-95 ${
               theme === 'dark'
-                ? 'bg-stone-900 hover:bg-stone-800 text-amber-400 border-stone-800'
-                : 'bg-white hover:bg-stone-100 text-stone-800 border-stone-300 shadow-sm'
+                ? 'bg-white text-stone-950 border-white hover:bg-stone-100 shadow-white/10'
+                : 'bg-stone-900 text-white border-stone-900 hover:bg-black shadow-stone-900/10'
             }`}
-            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            title={theme === 'dark' ? 'Switch Waiter to Light Theme' : 'Switch Waiter to Dark Theme'}
           >
-            {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-stone-700" />}
-            <span className="hidden sm:inline">{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+            {theme === 'dark' ? (
+              <Sun className="w-4 h-4 text-amber-500 fill-amber-500 shrink-0" />
+            ) : (
+              <Moon className="w-4 h-4 text-amber-300 fill-amber-300 shrink-0" />
+            )}
+            <span className="font-black text-xs uppercase tracking-wider">
+              {theme === 'dark' ? 'Light Theme' : 'Dark Theme'}
+            </span>
           </button>
 
           {!soundEnabled ? (
