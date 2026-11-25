@@ -1,6 +1,6 @@
 // Conversational AI Ordering & Knowledge Engine for Deewan-E-Khaas (Namak Mandi)
-// Features: E-commerce style quantity selector, Flexible menu name matching (spelling & spacing tolerance),
-// Natural Roman Urdu / English comprehension, Menu Q&A, and full Dine-In checkout flow.
+// Features: Dynamic Supabase Menu Hydration, E-commerce style quantity selector,
+// Out-of-stock detection, Restaurant Open/Closed status enforcement, Menu Q&A, and Dine-In flow.
 
 export const DEEWAN_MENU = [
   // Rice & Pulao
@@ -583,6 +583,37 @@ export const DEEWAN_MENU = [
   }
 ];
 
+// Active dynamic menu state (hydrated from Supabase & Admin changes)
+export let ACTIVE_MENU = [...DEEWAN_MENU];
+export let ACTIVE_CATEGORIES = [];
+export let ACTIVE_RESTAURANT = null;
+
+export function setDynamicMenu(items, categories = [], profile = null) {
+  if (items && items.length > 0) {
+    ACTIVE_MENU = items.map((itm) => {
+      let aliases = itm.aliases || [];
+      if (!Array.isArray(aliases)) aliases = [itm.name.toLowerCase()];
+      if (!aliases.includes(itm.name.toLowerCase())) aliases.push(itm.name.toLowerCase());
+      return {
+        ...itm,
+        price: Number(itm.price),
+        aliases,
+        unit: itm.unit || 'Portion',
+        unitPlural: itm.unit_plural || itm.unitPlural || (itm.unit ? `${itm.unit}s` : 'Portions'),
+        hasSizes: Boolean(itm.has_sizes || itm.sizes),
+        sizes: itm.sizes || null,
+        is_available: itm.is_available !== undefined ? itm.is_available : true
+      };
+    });
+  }
+  if (categories && categories.length > 0) {
+    ACTIVE_CATEGORIES = categories;
+  }
+  if (profile) {
+    ACTIVE_RESTAURANT = profile;
+  }
+}
+
 // Helper to get formatted unit label based on quantity
 export function getItemUnitLabel(item, qty = 1) {
   const unit = item.unit || 'Portion';
@@ -769,11 +800,11 @@ export function matchMenuFlexible(text) {
     };
   }
 
-  // 2. High-Priority Direct Matching across DEEWAN_MENU
+  // 2. High-Priority Direct Matching across ACTIVE_MENU
   // Sort items by longest match first so specific items ("chicken shinwari", "roghni naan") match before generic ("naan", "roti")
-  const sortedMenu = [...DEEWAN_MENU].sort((a, b) => {
-    const maxA = Math.max(...a.aliases.map((al) => al.length));
-    const maxB = Math.max(...b.aliases.map((al) => al.length));
+  const sortedMenu = [...ACTIVE_MENU].sort((a, b) => {
+    const maxA = Math.max(...(a.aliases || [a.name.toLowerCase()]).map((al) => al.length));
+    const maxB = Math.max(...(b.aliases || [b.name.toLowerCase()]).map((al) => al.length));
     return maxB - maxA;
   });
 
@@ -788,7 +819,8 @@ export function matchMenuFlexible(text) {
   let bestScore = 0;
 
   for (const item of sortedMenu) {
-    for (const alias of item.aliases) {
+    const aliases = item.aliases && item.aliases.length > 0 ? item.aliases : [item.name.toLowerCase()];
+    for (const alias of aliases) {
       const aliasSquashed = squashString(alias);
       const aliasNormalized = normalizePhonetic(alias);
       const aliasNormalizedSquashed = squashString(aliasNormalized);
@@ -837,6 +869,15 @@ export function matchMenuFlexible(text) {
   }
 
   if (bestScore >= 70 && bestMatch) {
+    // Check if the item is out of stock!
+    if (bestMatch.is_available === false) {
+      return {
+        isOutOfStock: true,
+        item: bestMatch,
+        reply: `Maaf kijiye ga, *${bestMatch.name}* is waqt khatam (out of stock) hai! ❌\n\nBarah-e-karam koi doosri dish muntakhib karein ya menu dekhein. 😊`
+      };
+    }
+
     let chosenSize = null;
     if (bestMatch.hasSizes) {
       if (isHalf && bestMatch.sizes?.half) chosenSize = bestMatch.sizes.half;
@@ -1252,12 +1293,24 @@ export function handleMenuQuestions(lowerText) {
     }
 
     // 9b. Check matching specific menu item
-    for (const item of DEEWAN_MENU) {
-      const match = item.aliases.find((a) => t.includes(a));
+    for (const item of ACTIVE_MENU) {
+      const match = (item.aliases || [item.name.toLowerCase()]).find((a) => t.includes(a));
       if (match) {
-        if (item.hasSizes) {
+        if (item.is_available === false) {
+          return {
+            reply:
+              `💰 *${item.name}* ki qeemat *Rs. ${Number(item.price).toLocaleString()}* hai, magar yeh item is waqt *khatam (out of stock)* hai. ❌\n\n` +
+              `Barah-e-karam koi doosri dish muntakhib karein. 😊`,
+            buttons: [
+              { label: '📜 Dastyab Menu', payload: 'menu' },
+              { label: '🛎️ Waiter Bulao', payload: 'waiter' }
+            ]
+          };
+        }
+
+        if (item.hasSizes && item.sizes) {
           const sizeText = Object.values(item.sizes)
-            .map((s) => `   ├─ 🥣 *${s.label}*: Rs. ${s.price.toLocaleString()}`)
+            .map((s) => `   ├─ 🥣 *${s.label}*: Rs. ${Number(s.price).toLocaleString()}`)
             .join('\n');
           return {
             reply:
@@ -1267,14 +1320,14 @@ export function handleMenuQuestions(lowerText) {
               `━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n` +
               `Kya aap iska order karna chahenge? 😊`,
             buttons: Object.values(item.sizes).map((s) => ({
-              label: `${s.label} (Rs. ${s.price.toLocaleString()})`,
+              label: `${s.label} (Rs. ${Number(s.price).toLocaleString()})`,
               payload: `${s.label.toLowerCase()} ${item.name.toLowerCase()}`
             }))
           };
         } else {
           return {
             reply:
-              `💰 *${item.name}* ki qeemat *Rs. ${item.price.toLocaleString()}* per ${item.unit || 'Portion'} hai.\n\n` +
+              `💰 *${item.name}* ki qeemat *Rs. ${Number(item.price).toLocaleString()}* per ${item.unit || 'Portion'} hai.\n\n` +
               `Kya aap isay order karna chahenge? 😊`,
             buttons: [
               { label: `➕ Order ${item.name}`, payload: item.name.toLowerCase() },
@@ -1290,12 +1343,24 @@ export function handleMenuQuestions(lowerText) {
   if (
     /\b(available|dastyab|mil\s*jayeg[ai]|milta\s*hai|milti\s*hai|hai\s*kya|hai\s*bhi|milay\s*ga|milay\s*gi)\b/i.test(t)
   ) {
-    for (const item of DEEWAN_MENU) {
-      const match = item.aliases.find((a) => t.includes(a));
+    for (const item of ACTIVE_MENU) {
+      const match = (item.aliases || [item.name.toLowerCase()]).find((a) => t.includes(a));
       if (match) {
-        const priceStr = item.hasSizes
-          ? `Half Rs. ${item.sizes.half?.price?.toLocaleString()} | Full Rs. ${item.sizes.full?.price?.toLocaleString()}`
-          : `Rs. ${item.price?.toLocaleString()}`;
+        if (item.is_available === false) {
+          return {
+            reply:
+              `❌ Maaf kijiye ga, *${item.name}* is waqt khatam (out of stock) hai aur dastyab nahi hai.\n\n` +
+              `Barah-e-karam koi doosri dish muntakhib karein. 😊`,
+            buttons: [
+              { label: '📜 Dastyab Menu', payload: 'menu' },
+              { label: '🛎️ Waiter Bulao', payload: 'waiter' }
+            ]
+          };
+        }
+
+        const priceStr = item.hasSizes && item.sizes
+          ? `Half Rs. ${Number(item.sizes.half?.price || 0).toLocaleString()} | Full Rs. ${Number(item.sizes.full?.price || 0).toLocaleString()}`
+          : `Rs. ${Number(item.price).toLocaleString()}`;
         return {
           reply:
             `✅ Ji haan! *${item.name}* Deewan-E-Khaas mein bilkul taza aur garam garam available hai!\n\n` +
@@ -1734,6 +1799,20 @@ export function processUserChat(text, sessionState = {}) {
     };
   }
 
+  // 0c. CHECK IF RESTAURANT IS CLOSED
+  if (ACTIVE_RESTAURANT && ACTIVE_RESTAURANT.is_open === false) {
+    if (
+      /confirm|checkout|karo|bhejo|order|aur/i.test(lower) ||
+      /^(done|confirm|checkout)$/i.test(lower)
+    ) {
+      return {
+        reply: `🔴 **Deewan-E-Khaas is waqt band (Closed) hai.**\n\nOpening hours: ${ACTIVE_RESTAURANT.opening_hours || '12:00 PM - 02:00 AM'}.\nAap menu zaroor dekh sakte hain magar naye orders is waqt accept nahi ho rahe. Shukriya! 😊`,
+        buttons: [{ label: '📜 Menu dekhein', payload: 'menu' }],
+        sessionState: state
+      };
+    }
+  }
+
   // 0b. CHECK WAITER CALL INTENT IN CHAT (e.g. "waiter ko bula do", "waiter bulao", "call waiter")
   if (
     /\b(waiter|bulao|bula\s*do|waiter\s*ko\s*bula|waiter\s*chahiye|call\s*waiter)\b/i.test(lower) &&
@@ -2088,6 +2167,27 @@ export function processUserChat(text, sessionState = {}) {
   const matchResult = matchMenuFlexible(lower);
 
   if (matchResult) {
+    // 10-0. Check if item is out of stock
+    if (matchResult.isOutOfStock) {
+      return {
+        reply: matchResult.reply,
+        buttons: [
+          { label: '📜 Dastyab Menu', payload: 'menu' },
+          { label: '🛎️ Waiter Bulao', payload: 'waiter' }
+        ],
+        sessionState: state
+      };
+    }
+
+    // 10-0b. Check if restaurant is closed when adding dish
+    if (ACTIVE_RESTAURANT && ACTIVE_RESTAURANT.is_open === false) {
+      return {
+        reply: `🔴 **Deewan-E-Khaas is waqt closed hai.**\n\nOpening hours: ${ACTIVE_RESTAURANT.opening_hours || '12:00 PM - 02:00 AM'}.\nNaye items cart mein add nahi kiye ja sakte. Aap menu dekh sakte hain. Shukriya! 😊`,
+        buttons: [{ label: '📜 Menu dekhein', payload: 'menu' }],
+        sessionState: state
+      };
+    }
+
     // 10a. Ambiguous match requiring customer clarification
     if (matchResult.isAmbiguous) {
       return {

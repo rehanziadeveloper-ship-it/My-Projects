@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Send, Bell, Image as ImageIcon, RefreshCw, ShoppingBag, X, Trash2, ChevronUp, ChevronDown } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { processUserChat, DEEWAN_MENU, getItemUnitLabel, MAIN_MENU_BUTTONS } from '../services/conversationEngine';
+import { processUserChat, setDynamicMenu, getItemUnitLabel, MAIN_MENU_BUTTONS } from '../services/conversationEngine';
+import { getRestaurantProfile, getCategories, getMenuItems, onSyncChange } from '../services/restaurantService';
 import { supabase } from '../services/supabase';
 import WaiterCallModal from '../components/WaiterCallModal';
 import ImageModal from '../components/ImageModal';
@@ -242,6 +243,35 @@ export default function GuestChat() {
   const [previewModal, setPreviewModal] = useState({ isOpen: false, index: 0 });
   const [showWaiterModal, setShowWaiterModal] = useState(false);
   const [cooldown, setCooldown] = useState(0);
+  const [profile, setProfile] = useState({
+    name: 'Deewan-E-Khaas (Deewan Namak Mandi)',
+    is_open: true,
+    opening_hours: '12:00 PM - 02:00 AM',
+    logo_url: ''
+  });
+
+  // Dynamic restaurant & menu synchronization with Supabase and Admin
+  useEffect(() => {
+    const syncData = async () => {
+      try {
+        const [prof, cats, itms] = await Promise.all([
+          getRestaurantProfile(),
+          getCategories(),
+          getMenuItems()
+        ]);
+        if (prof) setProfile(prof);
+        setDynamicMenu(itms, cats, prof);
+      } catch (err) {
+        console.warn('Error loading dynamic restaurant data:', err);
+      }
+    };
+
+    syncData();
+    const unsub = onSyncChange(() => {
+      syncData();
+    });
+    return () => unsub();
+  }, []);
 
   const messagesEndRef = useRef(null);
   const sessionInitialized = useRef(false);
@@ -781,12 +811,22 @@ export default function GuestChat() {
         {/* Responsive Mobile-First Header */}
         <header className="flex items-center justify-between px-3.5 sm:px-4 py-2.5 sm:py-3 bg-[#c2410c] text-white z-20 shadow-md shrink-0">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/20 p-1 flex items-center justify-center font-black text-lg sm:text-xl shadow-inner border border-white/30 shrink-0">
-              🍖
-            </div>
+            {profile.logo_url ? (
+              <img
+                src={profile.logo_url}
+                alt="Logo"
+                className="w-9 h-9 sm:w-10 sm:h-10 rounded-full object-cover border border-white/40 shadow-inner shrink-0"
+              />
+            ) : (
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/20 p-1 flex items-center justify-center font-black text-lg sm:text-xl shadow-inner border border-white/30 shrink-0">
+                🍖
+              </div>
+            )}
             <div className="min-w-0">
               <div className="flex items-center gap-1.5 sm:gap-2">
-                <h1 className="font-bold text-sm sm:text-base leading-tight truncate">Deewan-E-Khaas</h1>
+                <h1 className="font-bold text-sm sm:text-base leading-tight truncate">
+                  {profile.name || 'Deewan-E-Khaas'}
+                </h1>
                 {tableNo && (
                   <button
                     onClick={() => handleSendMessage(undefined, 'change table')}
@@ -799,8 +839,10 @@ export default function GuestChat() {
                 )}
               </div>
               <p className="text-[11px] sm:text-xs text-orange-200 flex items-center gap-1.5 mt-0.5 truncate">
-                <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full bg-emerald-400 inline-block animate-pulse shrink-0"></span>
-                <span className="truncate">Dine-In • AI Server Online</span>
+                <span className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full inline-block animate-pulse shrink-0 ${profile.is_open ? 'bg-emerald-400' : 'bg-red-400'}`}></span>
+                <span className="truncate">
+                  {profile.is_open ? 'Dine-In • AI Server Online' : 'Dine-In • Currently Closed'}
+                </span>
               </p>
             </div>
           </div>
@@ -823,6 +865,13 @@ export default function GuestChat() {
             </button>
           </div>
         </header>
+
+        {/* Closed Banner */}
+        {!profile.is_open && (
+          <div className="bg-red-700 text-white px-3 py-1.5 text-[11px] font-bold text-center flex items-center justify-center gap-1.5 shadow-inner shrink-0">
+            <span>🔴 Closed for orders • Opening Hours: {profile.opening_hours || '12:00 PM - 02:00 AM'}</span>
+          </div>
+        )}
 
         {/* Messages Stream */}
         <div className="flex-1 overflow-y-auto overscroll-contain p-3 sm:p-4 space-y-3.5">
