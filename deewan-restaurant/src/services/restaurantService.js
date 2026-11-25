@@ -92,6 +92,64 @@ export function onSyncChange(callback) {
   };
 }
 
+// Global Supabase Realtime Profile Listener across all devices & tabs
+export function subscribeToProfileRealtime(onProfileUpdate) {
+  if (typeof window === 'undefined') return () => {};
+
+  // Listen to waiter_calls broadcast event (ultra-fast cross-device realtime broadcast)
+  const channel = supabase
+    .channel('deewan_global_profile_sync')
+    .on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'waiter_calls' },
+      (payload) => {
+        if (payload.new && payload.new.call_type === 'profile_sync' && payload.new.notes) {
+          try {
+            const parsed = JSON.parse(payload.new.notes);
+            if (parsed && parsed.name) {
+              if (typeof window !== 'undefined') {
+                localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(parsed));
+              }
+              onProfileUpdate(parsed);
+            }
+          } catch (e) {
+            console.warn('Error parsing realtime profile broadcast:', e);
+          }
+        }
+      }
+    )
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'restaurants' },
+      (payload) => {
+        if (payload.new && payload.new.name) {
+          const updated = {
+            ...DEFAULT_RESTAURANT,
+            ...payload.new,
+            display_id: formatSeqId(payload.new.display_id || 1)
+          };
+          if (typeof window !== 'undefined') {
+            localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(updated));
+          }
+          onProfileUpdate(updated);
+        }
+      }
+    )
+    .subscribe();
+
+  // Also listen to local broadcast event in current browser
+  const localUnsub = onSyncChange((event) => {
+    if (event?.type === 'PROFILE_UPDATED' && event?.data) {
+      onProfileUpdate(event.data);
+    }
+  });
+
+  return () => {
+    supabase.removeChannel(channel);
+    localUnsub();
+  };
+}
+
 // ==============================================================================
 // 1. RESTAURANT PROFILE MODULE
 // ==============================================================================
@@ -141,35 +199,68 @@ export async function updateRestaurantProfile(updates) {
   };
 
   // 1. Save to local storage for immediate persistence
-  localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(merged));
+  if (typeof window !== 'undefined') {
+    localStorage.setItem(STORAGE_KEYS.PROFILE, JSON.stringify(merged));
+  }
 
   // 2. Persist to Supabase
   try {
-    const payload = {
-      id: RESTAURANT_ID,
-      name: merged.name,
-      slug: merged.slug || 'deewan-e-khaas',
-      phone: merged.phone,
-      address: merged.address,
-      currency: merged.currency || 'PKR',
-      description: merged.description,
-      opening_hours: merged.opening_hours,
-      is_open: merged.is_open,
-      logo_url: merged.logo_url,
-      display_id: merged.display_id || '01'
-    };
-
-    const { error } = await supabase
+    const { data: existingRows } = await supabase
       .from('restaurants')
-      .upsert(payload, { onConflict: 'slug' });
+      .select('id, slug')
+      .limit(1);
 
-    if (error) {
-      console.warn('Supabase restaurant upsert notice (saved locally):', error.message);
+    const existingId = existingRows?.[0]?.id;
+
+    if (existingId) {
+      await supabase
+        .from('restaurants')
+        .update({
+          name: merged.name,
+          phone: merged.phone,
+          address: merged.address,
+          currency: merged.currency || 'PKR',
+          description: merged.description,
+          opening_hours: merged.opening_hours,
+          is_open: merged.is_open,
+          logo_url: merged.logo_url,
+          display_id: merged.display_id || '01',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', existingId);
+    } else {
+      const payload = {
+        id: RESTAURANT_ID,
+        name: merged.name,
+        slug: merged.slug || 'deewan-e-khaas',
+        phone: merged.phone,
+        address: merged.address,
+        currency: merged.currency || 'PKR',
+        description: merged.description,
+        opening_hours: merged.opening_hours,
+        is_open: merged.is_open,
+        logo_url: merged.logo_url,
+        display_id: merged.display_id || '01'
+      };
+      await supabase.from('restaurants').upsert(payload, { onConflict: 'slug' });
     }
   } catch (err) {
     console.warn('Supabase profile update notice:', err);
   }
 
+  // 3. Ultra-fast Supabase Realtime broadcast across all devices, screens & tabs
+  try {
+    await supabase.from('waiter_calls').insert({
+      table_no: '0',
+      call_type: 'profile_sync',
+      status: 'resolved',
+      notes: JSON.stringify(merged)
+    });
+  } catch (err) {
+    console.warn('Supabase realtime profile broadcast notice:', err);
+  }
+
+  // 4. Local browser tab broadcast
   broadcastChange('PROFILE_UPDATED', merged);
   return merged;
 }

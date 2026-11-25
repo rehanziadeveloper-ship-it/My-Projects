@@ -413,14 +413,30 @@ export default function AdminPanel() {
     }
 
     const reader = new FileReader();
-    reader.onloadend = () => {
-      setProfile((prev) => ({ ...prev, logo_url: reader.result }));
+    reader.onloadend = async () => {
+      const updated = { ...profile, logo_url: reader.result };
+      setProfile(updated);
+      try {
+        await updateRestaurantProfile(updated);
+        setProfileSuccessMsg('Restaurant logo updated and synced live across all screens!');
+        setTimeout(() => setProfileSuccessMsg(''), 4000);
+      } catch (err) {
+        console.warn('Auto-save logo notice:', err);
+      }
     };
     reader.readAsDataURL(file);
   };
 
-  const handleDeleteLogo = () => {
-    setProfile((prev) => ({ ...prev, logo_url: '' }));
+  const handleDeleteLogo = async () => {
+    const updated = { ...profile, logo_url: '' };
+    setProfile(updated);
+    try {
+      await updateRestaurantProfile(updated);
+      setProfileSuccessMsg('Restaurant logo removed and synced live across all screens!');
+      setTimeout(() => setProfileSuccessMsg(''), 4000);
+    } catch (err) {
+      console.warn('Auto-delete logo notice:', err);
+    }
   };
 
   // ==============================================================================

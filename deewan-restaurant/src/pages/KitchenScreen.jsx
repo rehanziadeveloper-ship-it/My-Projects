@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { ChefHat, Clock, CheckCircle, Flame, Bell, Volume2, VolumeX, Check, AlertTriangle, RefreshCw } from 'lucide-react';
+import { ChefHat, Clock, CheckCircle, Flame, Bell, Volume2, VolumeX, Check, AlertTriangle, RefreshCw, Sun, Moon } from 'lucide-react';
 import { supabase } from '../services/supabase';
 import { updateKitchenOrderStatus } from '../services/n8n';
 import { sound } from '../utils/audio';
-import { getRestaurantProfile, onSyncChange } from '../services/restaurantService';
+import { getRestaurantProfile, onSyncChange, subscribeToProfileRealtime } from '../services/restaurantService';
 
 export default function KitchenScreen() {
   const [profile, setProfile] = useState({
@@ -16,7 +16,21 @@ export default function KitchenScreen() {
   const [activeTab, setActiveTab] = useState('active'); // 'active', 'ready', 'all'
   const [loading, setLoading] = useState(false);
 
-  // Sync Restaurant Name & Logo across all screens
+  // Theme state: 'light' or 'dark'
+  const [theme, setTheme] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('deewan_kitchen_theme') || 'dark';
+    }
+    return 'dark';
+  });
+
+  const toggleTheme = () => {
+    const nextTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(nextTheme);
+    localStorage.setItem('deewan_kitchen_theme', nextTheme);
+  };
+
+  // Sync Restaurant Name & Logo across all screens via Realtime
   useEffect(() => {
     const loadProfile = async () => {
       try {
@@ -27,10 +41,16 @@ export default function KitchenScreen() {
       }
     };
     loadProfile();
-    const unsub = onSyncChange(() => {
+    const unsubRealtime = subscribeToProfileRealtime((p) => {
+      if (p) setProfile((prev) => ({ ...prev, ...p }));
+    });
+    const unsubLocal = onSyncChange(() => {
       loadProfile();
     });
-    return () => unsub();
+    return () => {
+      unsubRealtime();
+      unsubLocal();
+    };
   }, []);
 
   // Initial Fetch & Supabase Realtime Subscription
@@ -225,9 +245,13 @@ export default function KitchenScreen() {
   });
 
   return (
-    <div className="min-h-screen bg-black text-stone-100 p-4 sm:p-6 font-['Plus_Jakarta_Sans',sans-serif]">
+    <div className={`min-h-screen p-4 sm:p-6 font-['Plus_Jakarta_Sans',sans-serif] transition-colors duration-200 ${
+      theme === 'dark' ? 'bg-black text-stone-100' : 'bg-slate-100 text-stone-900'
+    }`}>
       {/* Top Header - Red, Black, White */}
-      <header className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b-2 border-red-600 bg-stone-950/80 -mx-4 -mt-4 px-4 pt-4 sm:-mx-6 sm:-mt-6 sm:px-6 sm:pt-6 mb-6">
+      <header className={`flex flex-wrap items-center justify-between gap-4 pb-4 border-b-2 border-red-600 -mx-4 -mt-4 px-4 pt-4 sm:-mx-6 sm:-mt-6 sm:px-6 sm:pt-6 mb-6 transition-colors ${
+        theme === 'dark' ? 'bg-stone-950/90 text-white' : 'bg-white/95 text-stone-900 shadow-sm'
+      }`}>
         <div className="flex items-center gap-3">
           {profile.logo_url ? (
             <img
@@ -236,19 +260,37 @@ export default function KitchenScreen() {
               className="w-11 h-11 rounded-2xl object-cover border border-red-600/40 shadow-lg shrink-0"
             />
           ) : (
-            <div className="w-11 h-11 bg-red-600 rounded-2xl flex items-center justify-center text-2xl shadow-lg shadow-red-600/30 shrink-0">
+            <div className="w-11 h-11 bg-red-600 rounded-2xl flex items-center justify-center text-2xl shadow-lg shadow-red-600/30 shrink-0 text-white">
               🍖
             </div>
           )}
           <div>
-            <h1 className="text-xl sm:text-2xl font-black tracking-tight text-white flex items-center gap-2">
-              {profile.name || 'Deewan-E-Khaas'} <span className="text-red-500">KDS</span>
+            <h1 className={`text-xl sm:text-2xl font-black tracking-tight flex items-center gap-2 ${
+              theme === 'dark' ? 'text-white' : 'text-stone-900'
+            }`}>
+              {profile.name || 'Deewan-E-Khaas'} <span className="text-red-600">KDS</span>
             </h1>
-            <p className="text-xs text-stone-400">Kitchen Display System • Live Supabase Realtime</p>
+            <p className={`text-xs ${theme === 'dark' ? 'text-stone-400' : 'text-stone-500'}`}>
+              Kitchen Display System • Live Supabase Realtime
+            </p>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
+          {/* Light / Dark Mode Toggle */}
+          <button
+            onClick={toggleTheme}
+            className={`p-2.5 rounded-xl border flex items-center gap-2 text-xs font-bold transition ${
+              theme === 'dark'
+                ? 'bg-stone-900 hover:bg-stone-800 text-amber-400 border-stone-800'
+                : 'bg-white hover:bg-stone-100 text-stone-800 border-stone-300 shadow-sm'
+            }`}
+            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+          >
+            {theme === 'dark' ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-stone-700" />}
+            <span className="hidden sm:inline">{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+          </button>
+
           {!soundEnabled ? (
             <button
               onClick={enableSound}
@@ -258,7 +300,7 @@ export default function KitchenScreen() {
               Enable Sound Alerts
             </button>
           ) : (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600/20 text-red-400 rounded-xl text-xs font-semibold border border-red-600/30">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600/20 text-red-500 rounded-xl text-xs font-semibold border border-red-600/30">
               <Volume2 className="w-4 h-4" />
               Sound Active
             </div>
@@ -269,7 +311,11 @@ export default function KitchenScreen() {
               fetchOrders();
               fetchWaiterCalls();
             }}
-            className="p-2.5 rounded-xl bg-stone-900 hover:bg-stone-800 text-stone-300 border border-stone-800 transition"
+            className={`p-2.5 rounded-xl border transition ${
+              theme === 'dark'
+                ? 'bg-stone-900 hover:bg-stone-800 text-stone-300 border-stone-800'
+                : 'bg-white hover:bg-stone-100 text-stone-700 border-stone-300 shadow-sm'
+            }`}
             title="Refresh"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -303,13 +349,17 @@ export default function KitchenScreen() {
       )}
 
       {/* Filter Tabs - Red, Black, White */}
-      <div className="flex items-center gap-2 mb-6">
+      <div className={`p-1.5 rounded-2xl flex flex-wrap gap-2 mb-6 border ${
+        theme === 'dark' ? 'bg-stone-900/90 border-stone-800' : 'bg-stone-200/90 border-stone-300'
+      }`}>
         <button
           onClick={() => setActiveTab('active')}
           className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
             activeTab === 'active'
               ? 'bg-red-600 text-white shadow-lg shadow-red-600/30'
-              : 'bg-stone-900 text-stone-400 hover:bg-stone-800 border border-stone-800'
+              : theme === 'dark'
+                ? 'text-stone-400 hover:text-white hover:bg-stone-800/60'
+                : 'text-stone-700 hover:text-stone-900 hover:bg-white/60'
           }`}
         >
           Active Orders ({orders.filter((o) => o.status === 'received' || o.status === 'preparing').length})
@@ -318,8 +368,12 @@ export default function KitchenScreen() {
           onClick={() => setActiveTab('ready')}
           className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
             activeTab === 'ready'
-              ? 'bg-white text-black font-extrabold shadow-lg'
-              : 'bg-stone-900 text-stone-400 hover:bg-stone-800 border border-stone-800'
+              ? theme === 'dark'
+                ? 'bg-white text-black font-extrabold shadow-lg'
+                : 'bg-stone-900 text-white font-extrabold shadow-lg'
+              : theme === 'dark'
+                ? 'text-stone-400 hover:text-white hover:bg-stone-800/60'
+                : 'text-stone-700 hover:text-stone-900 hover:bg-white/60'
           }`}
         >
           Ready to Serve ({orders.filter((o) => o.status === 'ready').length})
@@ -328,8 +382,10 @@ export default function KitchenScreen() {
           onClick={() => setActiveTab('all')}
           className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
             activeTab === 'all'
-              ? 'bg-stone-800 text-white border border-stone-700 shadow'
-              : 'bg-stone-900 text-stone-400 hover:bg-stone-800 border border-stone-800'
+              ? 'bg-red-700 text-white shadow'
+              : theme === 'dark'
+                ? 'text-stone-400 hover:text-white hover:bg-stone-800/60'
+                : 'text-stone-700 hover:text-stone-900 hover:bg-white/60'
           }`}
         >
           All Orders ({orders.length})
@@ -338,10 +394,16 @@ export default function KitchenScreen() {
 
       {/* Orders Grid */}
       {filteredOrders.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-stone-500 bg-stone-950 border border-stone-900 rounded-3xl">
-          <ChefHat className="w-16 h-16 stroke-[1.5] mb-3 text-stone-700" />
-          <p className="text-lg font-bold text-stone-400">No active kitchen orders</p>
-          <p className="text-xs text-stone-600 mt-1">Orders placed by guests will appear here live with sound alerts.</p>
+        <div className={`flex flex-col items-center justify-center py-20 rounded-3xl border transition-colors ${
+          theme === 'dark'
+            ? 'bg-stone-950 border-stone-900 text-stone-500'
+            : 'bg-white border-stone-200 text-stone-400 shadow-sm'
+        }`}>
+          <ChefHat className={`w-16 h-16 stroke-[1.5] mb-3 ${theme === 'dark' ? 'text-stone-700' : 'text-stone-300'}`} />
+          <p className={`text-lg font-bold ${theme === 'dark' ? 'text-stone-400' : 'text-stone-700'}`}>No active kitchen orders</p>
+          <p className={`text-xs mt-1 ${theme === 'dark' ? 'text-stone-600' : 'text-stone-500'}`}>
+            Orders placed by guests will appear here live with sound alerts.
+          </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -349,6 +411,7 @@ export default function KitchenScreen() {
             <OrderTicketCard
               key={order.id}
               order={order}
+              theme={theme}
               onStatusChange={handleStatusChange}
             />
           ))}
@@ -358,8 +421,8 @@ export default function KitchenScreen() {
   );
 }
 
-// Subcomponent: Live Order Ticket Card with Timer
-function OrderTicketCard({ order, onStatusChange }) {
+// Subcomponent: Live Order Ticket Card with Timer & Theme Support
+function OrderTicketCard({ order, theme = 'dark', onStatusChange }) {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
   useEffect(() => {
@@ -377,16 +440,18 @@ function OrderTicketCard({ order, onStatusChange }) {
   const seconds = elapsedSeconds % 60;
   const timeFormatted = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 
-  let timerBadgeColor = 'bg-stone-950 text-stone-300 border-stone-800';
-  let cardBorder = 'border-stone-800';
+  let timerBadgeColor = theme === 'dark' 
+    ? 'bg-stone-900 text-stone-300 border-stone-800' 
+    : 'bg-stone-100 text-stone-700 border-stone-300';
+  let cardBorder = theme === 'dark' ? 'border-stone-800' : 'border-stone-200';
 
   if (order.status !== 'served' && order.status !== 'ready') {
     if (minutes >= 20) {
       timerBadgeColor = 'bg-red-600 text-white animate-pulse border-red-500';
       cardBorder = 'border-red-600 shadow-xl shadow-red-600/20';
     } else if (minutes >= 10) {
-      timerBadgeColor = 'bg-red-950 text-red-300 border-red-800 font-bold';
-      cardBorder = 'border-red-800/60 shadow-lg';
+      timerBadgeColor = 'bg-red-900/60 text-red-200 border-red-700 font-bold';
+      cardBorder = 'border-red-600/60 shadow-lg';
     }
   }
 
@@ -405,18 +470,24 @@ function OrderTicketCard({ order, onStatusChange }) {
   items = items || [];
 
   return (
-    <div className={`bg-stone-950 rounded-2xl p-4 border-2 ${cardBorder} flex flex-col justify-between transition-all duration-200`}>
+    <div className={`rounded-2xl p-4 border-2 ${cardBorder} flex flex-col justify-between transition-all duration-200 ${
+      theme === 'dark' ? 'bg-stone-950 text-stone-100' : 'bg-white text-stone-900 shadow-md'
+    }`}>
       <div>
         {/* Card Header */}
-        <div className="flex items-center justify-between pb-3 border-b border-stone-800">
+        <div className={`flex items-center justify-between pb-3 border-b ${
+          theme === 'dark' ? 'border-stone-800' : 'border-stone-200'
+        }`}>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-xl font-black text-white">{order.order_no || '#101'}</span>
+              <span className={`text-xl font-black ${theme === 'dark' ? 'text-white' : 'text-stone-900'}`}>
+                {order.order_no || '#101'}
+              </span>
               <span className="text-xs font-black px-2.5 py-0.5 rounded-full bg-red-600 text-white">
                 Table #{order.table_no}
               </span>
             </div>
-            <p className="text-xs text-stone-400 mt-1 font-medium">
+            <p className={`text-xs mt-1 font-medium ${theme === 'dark' ? 'text-stone-400' : 'text-stone-500'}`}>
               {order.customer_name || 'Guest'} {order.customer_phone ? `• ${order.customer_phone}` : ''}
             </p>
           </div>
@@ -431,13 +502,15 @@ function OrderTicketCard({ order, onStatusChange }) {
         <div className="py-3 space-y-2">
           {items.map((item, idx) => (
             <div key={idx} className="flex items-start justify-between text-sm">
-              <div className="flex items-center gap-2 font-semibold text-stone-100">
-                <span className="w-6 h-6 rounded-md bg-red-600/20 border border-red-600/30 flex items-center justify-center text-xs font-black text-red-500">
+              <div className={`flex items-center gap-2 font-semibold ${
+                theme === 'dark' ? 'text-stone-100' : 'text-stone-800'
+              }`}>
+                <span className="w-6 h-6 rounded-md bg-red-600/10 border border-red-600/30 flex items-center justify-center text-xs font-black text-red-600">
                   {item.quantity}x
                 </span>
                 <span>{item.name || item.item_name}</span>
               </div>
-              <span className="text-xs text-stone-400 font-mono">
+              <span className={`text-xs font-mono ${theme === 'dark' ? 'text-stone-400' : 'text-stone-500'}`}>
                 Rs. {item.line_total || item.subtotal || ''}
               </span>
             </div>
@@ -446,7 +519,7 @@ function OrderTicketCard({ order, onStatusChange }) {
       </div>
 
       {/* Card Actions */}
-      <div className="pt-3 border-t border-stone-800 mt-2">
+      <div className={`pt-3 border-t mt-2 ${theme === 'dark' ? 'border-stone-800' : 'border-stone-200'}`}>
         <div className="flex items-center gap-2">
           {order.status === 'received' && (
             <button
@@ -461,7 +534,11 @@ function OrderTicketCard({ order, onStatusChange }) {
           {order.status === 'preparing' && (
             <button
               onClick={() => onStatusChange(order.id, 'ready')}
-              className="flex-1 py-2.5 bg-white hover:bg-stone-100 active:scale-95 text-black font-extrabold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md transition"
+              className={`flex-1 py-2.5 active:scale-95 font-extrabold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md transition ${
+                theme === 'dark'
+                  ? 'bg-white hover:bg-stone-100 text-black'
+                  : 'bg-stone-900 hover:bg-black text-white'
+              }`}
             >
               <Check className="w-4 h-4 text-red-600 stroke-[3]" />
               Mark Ready to Serve
@@ -471,15 +548,23 @@ function OrderTicketCard({ order, onStatusChange }) {
           {order.status === 'ready' && (
             <button
               onClick={() => onStatusChange(order.id, 'served')}
-              className="flex-1 py-2.5 bg-stone-900 hover:bg-stone-800 active:scale-95 text-white border border-stone-700 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition"
+              className={`flex-1 py-2.5 active:scale-95 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition border ${
+                theme === 'dark'
+                  ? 'bg-stone-900 hover:bg-stone-800 text-white border-stone-700'
+                  : 'bg-stone-100 hover:bg-stone-200 text-stone-900 border-stone-300'
+              }`}
             >
-              <CheckCircle className="w-4 h-4 text-red-500" />
+              <CheckCircle className="w-4 h-4 text-red-600" />
               Mark Served
             </button>
           )}
 
           {order.status === 'served' && (
-            <div className="w-full py-2 bg-stone-900 text-stone-400 rounded-xl text-xs font-bold text-center border border-stone-800">
+            <div className={`w-full py-2 rounded-xl text-xs font-bold text-center border ${
+              theme === 'dark'
+                ? 'bg-stone-900 text-stone-400 border-stone-800'
+                : 'bg-stone-100 text-stone-600 border-stone-200'
+            }`}>
               ✓ Served to Table #{order.table_no}
             </div>
           )}

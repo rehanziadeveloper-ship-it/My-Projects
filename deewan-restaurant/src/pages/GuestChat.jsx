@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Send, Bell, Image as ImageIcon, RefreshCw, ShoppingBag, X, Trash2, ChevronUp, ChevronDown } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { processUserChat, setDynamicMenu, getItemUnitLabel, MAIN_MENU_BUTTONS } from '../services/conversationEngine';
-import { getRestaurantProfile, getCategories, getMenuItems, onSyncChange } from '../services/restaurantService';
+import { getRestaurantProfile, getCategories, getMenuItems, onSyncChange, subscribeToProfileRealtime } from '../services/restaurantService';
 import { supabase } from '../services/supabase';
 import WaiterCallModal from '../components/WaiterCallModal';
 import ImageModal from '../components/ImageModal';
@@ -267,10 +267,19 @@ export default function GuestChat() {
     };
 
     syncData();
-    const unsub = onSyncChange(() => {
+    const unsubProfile = subscribeToProfileRealtime((newProfile) => {
+      if (newProfile) {
+        setProfile((prev) => ({ ...prev, ...newProfile }));
+        setDynamicMenu(null, null, newProfile);
+      }
+    });
+    const unsubSync = onSyncChange(() => {
       syncData();
     });
-    return () => unsub();
+    return () => {
+      unsubProfile();
+      unsubSync();
+    };
   }, []);
 
   const messagesEndRef = useRef(null);
