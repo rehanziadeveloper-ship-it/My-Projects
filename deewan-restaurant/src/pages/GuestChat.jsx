@@ -35,10 +35,10 @@ function FormattedChatText({ text }) {
           return (
             <div
               key={idx}
-              className="flex items-center justify-between text-xs py-1.5 px-2.5 ml-1 sm:ml-2 my-1 rounded-lg bg-orange-50/70 border border-orange-200/60 text-stone-800"
+              className="flex items-center justify-between text-xs py-1.5 px-2.5 ml-1 sm:ml-2 my-1 rounded-lg bg-red-50/70 border border-red-200/60 text-stone-900"
             >
               <span className="font-semibold text-stone-800 min-w-0 flex-1 truncate pr-2">{rawLabel}</span>
-              <span className="font-bold text-orange-700 bg-white px-2 py-0.5 rounded border border-orange-200 shadow-2xs font-mono shrink-0 whitespace-nowrap">
+              <span className="font-bold text-red-600 bg-white px-2 py-0.5 rounded border border-red-200 shadow-2xs font-mono shrink-0 whitespace-nowrap">
                 {price}
               </span>
             </div>
@@ -56,7 +56,7 @@ function FormattedChatText({ text }) {
               className="flex items-center justify-between text-xs py-1.5 px-2.5 my-1 rounded-lg bg-stone-50 border border-stone-200/80 text-stone-900"
             >
               <span className="font-semibold text-stone-800 min-w-0 flex-1 truncate pr-2">{rawLabel}</span>
-              <span className="font-bold text-orange-700 bg-white px-2 py-0.5 rounded border border-orange-200 shadow-2xs font-mono shrink-0 whitespace-nowrap">
+              <span className="font-bold text-red-600 bg-white px-2 py-0.5 rounded border border-red-200 shadow-2xs font-mono shrink-0 whitespace-nowrap">
                 {price}
               </span>
             </div>
@@ -104,7 +104,7 @@ function MessageButtons({ buttons, onSend }) {
           <button
             key={idx}
             onClick={() => onSend(btn.payload)}
-            className="min-h-[42px] px-3 py-2 rounded-xl font-bold text-xs sm:text-sm bg-white hover:bg-orange-50 active:scale-95 text-orange-800 border-2 border-orange-300 shadow-xs hover:border-orange-500 transition flex items-center justify-center text-center touch-manipulation select-none"
+            className="min-h-[42px] px-3 py-2 rounded-xl font-bold text-xs sm:text-sm bg-white hover:bg-red-50 active:scale-95 text-red-700 border-2 border-red-300 shadow-xs hover:border-red-500 transition flex items-center justify-center text-center touch-manipulation select-none"
           >
             {btn.label}
           </button>
@@ -121,7 +121,7 @@ function MessageButtons({ buttons, onSend }) {
           <button
             key={idx}
             onClick={() => onSend(btn.payload)}
-            className="min-h-[40px] px-1.5 sm:px-2 py-2 rounded-xl font-bold text-[11px] sm:text-xs bg-white hover:bg-orange-50 active:scale-95 text-orange-800 border border-orange-300 shadow-xs hover:border-orange-500 transition flex items-center justify-center text-center touch-manipulation select-none"
+            className="min-h-[40px] px-1.5 sm:px-2 py-2 rounded-xl font-bold text-[11px] sm:text-xs bg-white hover:bg-red-50 active:scale-95 text-red-700 border border-red-300 shadow-xs hover:border-red-500 transition flex items-center justify-center text-center touch-manipulation select-none"
           >
             {btn.label}
           </button>
@@ -140,7 +140,7 @@ function MessageButtons({ buttons, onSend }) {
           <button
             key={idx}
             onClick={() => onSend(btn.payload)}
-            className={`min-h-[40px] px-2.5 py-2 rounded-xl font-semibold text-xs bg-white hover:bg-orange-50 active:scale-95 text-orange-800 border border-orange-200/90 shadow-xs hover:border-orange-400 transition flex items-center justify-center text-center touch-manipulation select-none ${
+            className={`min-h-[40px] px-2.5 py-2 rounded-xl font-semibold text-xs bg-white hover:bg-red-50 active:scale-95 text-stone-900 border border-stone-300 shadow-xs hover:border-red-500 hover:text-red-600 transition flex items-center justify-center text-center touch-manipulation select-none ${
               isLastOdd ? 'col-span-2' : ''
             }`}
           >
@@ -185,7 +185,7 @@ function QuantitySelector({ item, onUpdate, compact = false }) {
 
   return (
     <div
-      className={`inline-flex items-center gap-1.5 bg-white border-2 border-orange-300 rounded-xl px-2 py-1 shadow-xs ${
+      className={`inline-flex items-center gap-1.5 bg-white border-2 border-red-300 rounded-xl px-2 py-1 shadow-xs ${
         compact ? 'py-0.5 px-1.5' : ''
       }`}
       onClick={(e) => e.stopPropagation()}
@@ -193,7 +193,7 @@ function QuantitySelector({ item, onUpdate, compact = false }) {
       <button
         type="button"
         onClick={handleDec}
-        className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg bg-stone-100 hover:bg-orange-100 active:scale-90 text-stone-800 font-extrabold text-base transition select-none touch-manipulation"
+        className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg bg-stone-100 hover:bg-red-50 active:scale-90 text-stone-800 font-extrabold text-base transition select-none touch-manipulation"
         title="Decrease quantity by 1"
       >
         −
@@ -208,7 +208,7 @@ function QuantitySelector({ item, onUpdate, compact = false }) {
           onChange={(e) => setVal(e.target.value)}
           onBlur={handleBlur}
           onKeyDown={(e) => e.key === 'Enter' && handleBlur()}
-          className="w-8 text-center font-bold text-xs sm:text-sm text-stone-900 bg-transparent focus:outline-none focus:ring-1 focus:ring-orange-400 rounded select-all"
+          className="w-8 text-center font-bold text-xs sm:text-sm text-stone-900 bg-transparent focus:outline-none focus:ring-1 focus:ring-red-500 rounded select-all"
         />
         <span className="text-[11px] font-bold text-stone-600 whitespace-nowrap select-none">
           {unitLabel}
@@ -218,7 +218,7 @@ function QuantitySelector({ item, onUpdate, compact = false }) {
       <button
         type="button"
         onClick={handleInc}
-        className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg bg-orange-600 hover:bg-orange-500 active:scale-90 text-white font-extrabold text-base transition select-none shadow-xs touch-manipulation"
+        className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center rounded-lg bg-red-600 hover:bg-red-700 active:scale-90 text-white font-extrabold text-base transition select-none shadow-xs touch-manipulation"
         title="Increase quantity by 1"
       >
         +
@@ -697,7 +697,6 @@ export default function GuestChat() {
 
           setMessages((prev) => [...prev, botMsg]);
         }
-        setSessionState(result.sessionState);
 
         // If order finalized
         if (result.order) {
@@ -708,13 +707,13 @@ export default function GuestChat() {
           });
 
           setShowCartDrawer(false);
-          // Instantly record activeOrder in sessionState, clear cart and mark order completed
-          setSessionState((prev) => ({
-            ...prev,
+          // Instantly record activeOrder in sessionState, empty cart, and mark order completed
+          setSessionState({
+            ...(result.sessionState || {}),
             cart: [],
             step: 'ORDER_COMPLETED',
             activeOrder: { ...result.order, status: 'received' }
-          }));
+          });
 
           // 1. Realtime broadcast to Kitchen & Admin via waiter_calls table (public insert & realtime enabled)
           try {
@@ -802,7 +801,7 @@ export default function GuestChat() {
         {
           id: 'msg_welcome',
           sender: 'bot',
-          text: 'Welcome to Deewan-E-Khaas (Namak Mandi)! 🍖🔥\nAap kya order karna chahenge? 😊',
+          text: `Welcome to ${profile.name || 'Deewan-E-Khaas (Namak Mandi)'}! 🍖🔥\nAap kya order karna chahenge? 😊`,
           buttons: initialButtons,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }
@@ -812,11 +811,11 @@ export default function GuestChat() {
   };
 
   return (
-    <div className="w-full min-h-[100dvh] bg-stone-200 sm:p-4 md:py-6 flex justify-center items-center">
-      <div className="w-full max-w-lg h-[100dvh] sm:h-[860px] sm:max-h-[92vh] bg-[#efeae2] sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden relative border-0 sm:border border-stone-300">
+    <div className="w-full min-h-[100dvh] bg-stone-900 sm:p-4 md:py-6 flex justify-center items-center font-['Plus_Jakarta_Sans',sans-serif]">
+      <div className="w-full max-w-lg h-[100dvh] sm:h-[860px] sm:max-h-[92vh] bg-stone-100 sm:rounded-3xl shadow-2xl flex flex-col overflow-hidden relative border-0 sm:border border-stone-800">
         
         {/* Responsive Mobile-First Header */}
-        <header className="flex items-center justify-between px-3.5 sm:px-4 py-2.5 sm:py-3 bg-[#c2410c] text-white z-20 shadow-md shrink-0">
+        <header className="flex items-center justify-between px-3.5 sm:px-4 py-2.5 sm:py-3 bg-black border-b-2 border-red-600 text-white z-20 shadow-md shrink-0">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
             {profile.logo_url ? (
               <img
@@ -845,8 +844,8 @@ export default function GuestChat() {
                   </button>
                 )}
               </div>
-              <p className="text-[11px] sm:text-xs text-orange-200 flex items-center gap-1.5 mt-0.5 truncate">
-                <span className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full inline-block animate-pulse shrink-0 ${profile.is_open ? 'bg-emerald-400' : 'bg-red-400'}`}></span>
+              <p className="text-[11px] sm:text-xs text-stone-300 flex items-center gap-1.5 mt-0.5 truncate">
+                <span className={`w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full inline-block animate-pulse shrink-0 ${profile.is_open ? 'bg-red-500' : 'bg-stone-500'}`}></span>
                 <span className="truncate">
                   {profile.is_open ? 'Dine-In • AI Server Online' : 'Dine-In • Currently Closed'}
                 </span>
@@ -857,7 +856,7 @@ export default function GuestChat() {
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             <button
               onClick={() => setShowWaiterModal(true)}
-              className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 bg-amber-400 hover:bg-amber-300 active:scale-95 text-stone-900 rounded-full font-bold text-xs shadow-md transition whitespace-nowrap"
+              className="flex items-center gap-1 sm:gap-1.5 px-2.5 sm:px-3 py-1.5 bg-red-600 hover:bg-red-700 active:scale-95 text-white rounded-full font-bold text-xs shadow-md transition whitespace-nowrap"
               title="Call Waiter"
             >
               <Bell className="w-3.5 h-3.5 fill-current animate-bounce shrink-0" />
@@ -939,7 +938,7 @@ export default function GuestChat() {
 
                   {/* Inline Interactive Item Card with Quantity Selector */}
                   {msg.itemCard && (
-                    <div className="mt-2.5 p-2.5 bg-orange-50/90 border border-orange-200/90 rounded-xl shadow-2xs">
+                    <div className="mt-2.5 p-2.5 bg-stone-50 border border-stone-200 rounded-xl shadow-2xs">
                       <div className="flex items-center justify-between mb-2">
                         <div className="min-w-0 pr-2">
                           <span className="font-bold text-stone-900 text-xs sm:text-sm block truncate">
@@ -950,13 +949,13 @@ export default function GuestChat() {
                           </span>
                         </div>
                         <div className="text-right shrink-0">
-                          <span className="font-extrabold text-orange-700 font-mono text-xs sm:text-sm">
+                          <span className="font-extrabold text-red-600 font-mono text-xs sm:text-sm">
                             Rs. {((sessionState.cart.find((i) => i.id === msg.itemCard.id)?.subtotal) ?? msg.itemCard.subtotal).toLocaleString()}
                           </span>
                         </div>
                       </div>
 
-                      <div className="flex items-center justify-between pt-1.5 border-t border-orange-200/60">
+                      <div className="flex items-center justify-between pt-1.5 border-t border-stone-200">
                         <span className="text-[11px] text-stone-600 font-semibold">Tadad / Quantity:</span>
                         <QuantitySelector
                           item={sessionState.cart.find((i) => i.id === msg.itemCard.id) || msg.itemCard}
@@ -984,9 +983,9 @@ export default function GuestChat() {
 
           {loading && (
             <div className="flex items-center gap-2 p-3 bg-white/80 rounded-2xl w-fit shadow-xs border border-stone-200">
-              <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse"></span>
-              <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse delay-100"></span>
-              <span className="w-2 h-2 rounded-full bg-orange-500 animate-pulse delay-200"></span>
+              <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse"></span>
+              <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse delay-100"></span>
+              <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse delay-200"></span>
               <span className="text-xs text-stone-500 italic ml-1">Deewan likh raha hai...</span>
             </div>
           )}
@@ -994,37 +993,38 @@ export default function GuestChat() {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Floating Cart Indicator (hidden during checkout & once order is completed) */}
+        {/* Floating Cart Indicator (STRICTLY HIDDEN during checkout & once order is completed) */}
         {sessionState &&
-          sessionState.cart &&
+          Array.isArray(sessionState.cart) &&
           sessionState.cart.length > 0 &&
-          !['AWAITING_CONFIRMATION', 'COLLECT_TABLE', 'COLLECT_NAME', 'COLLECT_PHONE', 'ORDER_COMPLETED'].includes(sessionState.step) &&
-          !sessionState.activeOrder && (
-          <div className="mx-2.5 sm:mx-4 mb-2 p-2.5 sm:p-3 bg-stone-900 text-white rounded-xl sm:rounded-2xl shadow-lg flex items-center justify-between text-xs shrink-0 animate-in fade-in slide-in-from-bottom-2 duration-150">
+          sessionState.step !== 'ORDER_COMPLETED' &&
+          !sessionState.activeOrder &&
+          !['AWAITING_CONFIRMATION', 'COLLECT_TABLE', 'COLLECT_NAME', 'COLLECT_PHONE', 'ORDER_COMPLETED'].includes(sessionState.step) && (
+          <div className="mx-2.5 sm:mx-4 mb-2 p-2.5 sm:p-3 bg-black text-white rounded-xl sm:rounded-2xl shadow-xl border border-stone-800 flex items-center justify-between text-xs shrink-0 animate-in fade-in slide-in-from-bottom-2 duration-150">
             <div
               className="flex items-center gap-2 min-w-0 cursor-pointer hover:opacity-90 active:scale-95 transition"
               onClick={() => setShowCartDrawer(true)}
               title="Click to view/edit cart items"
             >
-              <div className="p-1.5 bg-orange-500/20 rounded-lg text-orange-400 shrink-0">
+              <div className="p-1.5 bg-red-600/20 rounded-lg text-red-500 shrink-0">
                 <ShoppingBag className="w-4 h-4" />
               </div>
               <div className="min-w-0 truncate">
                 <span className="font-bold text-white">
                   {sessionState.cart.reduce((s, i) => s + i.quantity, 0)} Items
                 </span>
-                <span className="text-orange-400 text-[11px] ml-1.5 font-semibold underline underline-offset-2">
+                <span className="text-red-400 text-[11px] ml-1.5 font-semibold underline underline-offset-2">
                   (View / Edit)
                 </span>
               </div>
             </div>
             <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
-              <span className="font-extrabold text-orange-400 text-xs sm:text-sm font-mono whitespace-nowrap">
+              <span className="font-extrabold text-white text-xs sm:text-sm font-mono whitespace-nowrap">
                 Rs. {sessionState.cart.reduce((s, i) => s + i.subtotal, 0).toLocaleString()}
               </span>
               <button
                 onClick={() => handleSendMessage('done')}
-                className="bg-orange-600 hover:bg-orange-500 active:scale-95 px-3 py-1.5 rounded-lg font-bold text-white transition whitespace-nowrap text-xs shadow-xs"
+                className="bg-red-600 hover:bg-red-700 active:scale-95 px-3 py-1.5 rounded-lg font-bold text-white transition whitespace-nowrap text-xs shadow-md"
               >
                 Checkout ➔
               </button>
@@ -1043,11 +1043,11 @@ export default function GuestChat() {
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
-              <div className="flex items-center justify-between px-4 py-3.5 bg-stone-900 text-white border-b border-stone-800">
+              <div className="flex items-center justify-between px-4 py-3.5 bg-black text-white border-b border-stone-800">
                 <div className="flex items-center gap-2">
-                  <ShoppingBag className="w-5 h-5 text-orange-400" />
+                  <ShoppingBag className="w-5 h-5 text-red-500" />
                   <h3 className="font-bold text-sm sm:text-base">Aapka Order Cart</h3>
-                  <span className="text-xs bg-orange-600 px-2 py-0.5 rounded-full font-bold">
+                  <span className="text-xs bg-red-600 px-2 py-0.5 rounded-full font-bold">
                     {sessionState.cart.reduce((s, i) => s + i.quantity, 0)} Items
                   </span>
                 </div>
@@ -1078,7 +1078,7 @@ export default function GuestChat() {
 
                       <div className="flex items-center gap-2 shrink-0">
                         <QuantitySelector item={item} onUpdate={handleUpdateCartQuantity} compact={true} />
-                        <span className="font-extrabold text-orange-700 font-mono text-xs sm:text-sm min-w-[62px] text-right">
+                        <span className="font-extrabold text-red-600 font-mono text-xs sm:text-sm min-w-[62px] text-right">
                           Rs. {item.subtotal.toLocaleString()}
                         </span>
                         <button
@@ -1099,7 +1099,7 @@ export default function GuestChat() {
                 <div className="p-3 sm:p-4 bg-stone-50 border-t border-stone-200 flex items-center justify-between gap-3">
                   <div>
                     <div className="text-[11px] text-stone-500 uppercase tracking-wider font-semibold">Total Bill</div>
-                    <div className="font-extrabold text-orange-700 font-mono text-base sm:text-lg">
+                    <div className="font-extrabold text-red-600 font-mono text-base sm:text-lg">
                       Rs. {sessionState.cart.reduce((s, i) => s + i.subtotal, 0).toLocaleString()}
                     </div>
                   </div>
@@ -1108,7 +1108,7 @@ export default function GuestChat() {
                       setShowCartDrawer(false);
                       handleSendMessage('done');
                     }}
-                    className="flex-1 max-w-[200px] bg-orange-600 hover:bg-orange-500 active:scale-95 text-white font-bold py-2.5 px-4 rounded-xl shadow-md text-xs sm:text-sm text-center transition"
+                    className="flex-1 max-w-[200px] bg-red-600 hover:bg-red-700 active:scale-95 text-white font-bold py-2.5 px-4 rounded-xl shadow-md text-xs sm:text-sm text-center transition"
                   >
                     Checkout Karein ➔
                   </button>
@@ -1126,13 +1126,13 @@ export default function GuestChat() {
             onChange={(e) => setInputText(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
             placeholder="Order karein (maslan: karahi, biryani)..."
-            className="flex-1 bg-white border border-stone-300 rounded-full px-4 py-2 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 shadow-inner text-stone-900 placeholder:text-stone-400 min-h-[42px]"
+            className="flex-1 bg-white border border-stone-300 rounded-full px-4 py-2 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-red-500 shadow-inner text-stone-900 placeholder:text-stone-400 min-h-[42px]"
           />
 
           <button
             onClick={() => handleSendMessage()}
             disabled={!inputText.trim() || loading}
-            className="w-10 h-10 sm:w-11 sm:h-11 bg-orange-600 hover:bg-orange-700 disabled:opacity-40 text-white rounded-full shadow-md active:scale-95 transition flex items-center justify-center shrink-0 touch-manipulation"
+            className="w-10 h-10 sm:w-11 sm:h-11 bg-red-600 hover:bg-red-700 disabled:opacity-40 text-white rounded-full shadow-md active:scale-95 transition flex items-center justify-center shrink-0 touch-manipulation"
             title="Send order"
           >
             <Send className="w-4 h-4" />

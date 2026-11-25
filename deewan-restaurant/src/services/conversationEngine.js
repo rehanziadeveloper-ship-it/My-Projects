@@ -1724,6 +1724,7 @@ function createConfirmedOrder(state) {
   state.cart = [];
   state.pendingItem = null;
   state.lastAddedItemId = null;
+  state.activeOrder = confirmedOrder;
 
   const finalReply =
     `🎉 Mubarak ${state.customer_name || 'Valued Guest'} sahib! Aapka order confirm ho chuka hai!\n\n` +
@@ -1788,7 +1789,8 @@ export function processUserChat(text, sessionState = {}) {
     lastCategory: sessionState.lastCategory || null,
     table_no: sessionState.table_no || '',
     customer_name: sessionState.customer_name || '',
-    customer_phone: sessionState.customer_phone || ''
+    customer_phone: sessionState.customer_phone || '',
+    activeOrder: sessionState.activeOrder || null
   };
 
   // 0. CHECK ORDER CANCELLATION INTENT FIRST

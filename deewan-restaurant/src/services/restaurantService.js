@@ -4,7 +4,8 @@
 
 import { supabase } from './supabase';
 
-export const RESTAURANT_ID = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+export const RESTAURANT_ID = '01';
+export const LEGACY_RESTAURANT_ID = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
 
 // Default initial restaurant profile
 export const DEFAULT_RESTAURANT = {
@@ -241,7 +242,7 @@ export async function saveCategory(categoryData) {
       ? Math.max(...updatedList.map((c) => c.display_order || 0)) + 1 
       : 1;
     const nextSeq = formatSeqId(nextOrder);
-    const newId = 'c1000000-0000-0000-0000-' + String(Date.now()).slice(-12).padStart(12, '0');
+    const newId = nextSeq;
     const slug = (categoryData.name || 'category')
       .toLowerCase()
       .trim()
@@ -404,9 +405,7 @@ export async function saveMenuItem(itemData) {
     const nextNumber = updatedList.length > 0
       ? Math.max(...updatedList.map((i) => i.item_number || 0)) + 1
       : 1;
-    const newId = (typeof crypto !== 'undefined' && crypto.randomUUID) 
-      ? crypto.randomUUID() 
-      : ('b1000000-0000-0000-0000-' + String(Date.now()).slice(-12).padStart(12, '0'));
+    const newId = formatSeqId(nextNumber);
 
     savedItem = {
       id: newId,
@@ -588,7 +587,7 @@ export async function saveRestaurantTable(tableData) {
   } else {
     // Add new table
     const tableNum = parseInt(tableData.table_number, 10) || (currentTables.length + 1);
-    const newId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `tbl-${Date.now()}`;
+    const newId = formatSeqId(tableNum);
     savedTable = {
       id: newId,
       restaurant_id: RESTAURANT_ID,

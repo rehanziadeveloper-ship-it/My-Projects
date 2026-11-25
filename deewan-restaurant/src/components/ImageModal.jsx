@@ -190,7 +190,7 @@ export default function ImageModal({ images = [], initialIndex = 0, onClose }) {
               }}
               className={`px-2.5 py-1 text-xs rounded-lg font-bold transition ${
                 currentIndex === idx
-                  ? 'bg-orange-600 text-white shadow-md'
+                  ? 'bg-red-600 text-white shadow-md'
                   : 'bg-stone-800 hover:bg-stone-700 text-stone-300'
               }`}
             >
@@ -283,7 +283,7 @@ export default function ImageModal({ images = [], initialIndex = 0, onClose }) {
 
           <button
             onClick={resetZoom}
-            className="flex items-center gap-1 px-3 py-2 rounded-xl bg-orange-600 hover:bg-orange-500 text-white active:scale-95 transition text-xs font-bold shadow-md"
+            className="flex items-center gap-1 px-3 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white active:scale-95 transition text-xs font-bold shadow-md"
             title="Reset Zoom (100%)"
           >
             <RotateCcw className="w-3.5 h-3.5" />

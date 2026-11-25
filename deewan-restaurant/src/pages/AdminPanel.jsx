@@ -835,10 +835,10 @@ export default function AdminPanel() {
                 <img
                   src={profile.logo_url}
                   alt="Restaurant Logo"
-                  className="w-10 h-10 rounded-2xl object-cover border border-emerald-500/40 shadow-xs shrink-0"
+                  className="w-10 h-10 rounded-2xl object-cover border border-red-600/40 shadow-xs shrink-0"
                 />
               ) : (
-                <div className="w-10 h-10 rounded-2xl bg-emerald-600 flex items-center justify-center text-white text-lg font-bold shadow-xs shrink-0">
+                <div className="w-10 h-10 rounded-2xl bg-red-600 flex items-center justify-center text-white text-lg font-bold shadow-xs shrink-0">
                   🍖
                 </div>
               )}
@@ -847,8 +847,8 @@ export default function AdminPanel() {
                   {profile.name || 'Deewan-E-Khaas'}
                 </h1>
                 <div className="flex items-center gap-1.5 mt-0.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                  <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+                  <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse"></span>
+                  <span className="text-[11px] font-semibold text-red-700 dark:text-red-500">
                     Admin Dashboard
                   </span>
                 </div>
@@ -883,7 +883,7 @@ export default function AdminPanel() {
                   }}
                   className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all duration-150 ${
                     isActive
-                      ? 'bg-emerald-600 text-white shadow-xs font-bold'
+                      ? 'bg-red-600 text-white shadow-xs font-bold'
                       : 'text-stone-600 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800/60 hover:text-stone-900 dark:hover:text-stone-200'
                   }`}
                 >
@@ -945,7 +945,7 @@ export default function AdminPanel() {
             {/* Logged-In Admin Card */}
             <div className="pt-2 border-t border-stone-200/60 dark:border-stone-800 flex items-center justify-between gap-2">
               <div className="flex items-center gap-2.5 min-w-0">
-                <div className="w-8 h-8 rounded-full bg-emerald-700 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
+                <div className="w-8 h-8 rounded-full bg-red-700 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
                   DA
                 </div>
                 <div className="min-w-0">
@@ -1034,12 +1034,12 @@ export default function AdminPanel() {
               onClick={handleQuickStatusToggle}
               className={`flex items-center gap-2 px-3 py-1.5 rounded-xl font-bold text-xs shadow-xs transition active:scale-95 ${
                 profile.is_open
-                  ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                  ? 'bg-red-600 text-white hover:bg-red-700'
                   : 'bg-rose-600 text-white hover:bg-rose-700'
               }`}
               title="Click to toggle restaurant Open/Closed status instantly"
             >
-              <span className={`w-2 h-2 rounded-full ${profile.is_open ? 'bg-emerald-200 animate-pulse' : 'bg-rose-200'}`} />
+              <span className={`w-2 h-2 rounded-full ${profile.is_open ? 'bg-red-200 animate-pulse' : 'bg-rose-200'}`} />
               <span className="hidden xs:inline">{profile.is_open ? 'STATUS: OPEN' : 'STATUS: CLOSED'}</span>
               <span className="xs:hidden">{profile.is_open ? 'OPEN' : 'CLOSED'}</span>
             </button>
@@ -1048,7 +1048,7 @@ export default function AdminPanel() {
             {activeTab === 'menu' && (
               <button
                 onClick={() => handleOpenItemModal()}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition active:scale-95"
+                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold shadow-xs transition active:scale-95"
               >
                 <Plus className="w-4 h-4" />
                 <span className="hidden sm:inline">Add Food Item</span>
@@ -1059,7 +1059,7 @@ export default function AdminPanel() {
             {activeTab === 'categories' && (
               <button
                 onClick={() => handleOpenCatModal()}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition active:scale-95"
+                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold shadow-xs transition active:scale-95"
               >
                 <Plus className="w-4 h-4" />
                 <span className="hidden sm:inline">Add Category</span>
@@ -1083,7 +1083,7 @@ export default function AdminPanel() {
               className="p-2 text-stone-500 hover:text-stone-800 dark:hover:text-stone-200 rounded-xl hover:bg-stone-100 dark:hover:bg-stone-800 transition"
               title={soundEnabled ? 'Audio Chimes Enabled' : 'Audio Muted'}
             >
-              {soundEnabled ? <Volume2 className="w-4 h-4 text-emerald-600" /> : <VolumeX className="w-4 h-4 text-stone-400" />}
+              {soundEnabled ? <Volume2 className="w-4 h-4 text-red-600" /> : <VolumeX className="w-4 h-4 text-stone-400" />}
             </button>
 
             {/* Data Refresh */}
@@ -1093,14 +1093,14 @@ export default function AdminPanel() {
               className="p-2 text-stone-500 hover:text-stone-800 dark:hover:text-stone-200 rounded-xl hover:bg-stone-100 dark:hover:bg-stone-800 transition disabled:opacity-40"
               title="Refresh All Data"
             >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-emerald-600' : ''}`} />
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-red-600' : ''}`} />
             </button>
           </div>
         </header>
 
         {/* Global Alert Notification for incoming real-time orders */}
         {newOrderAlert && (
-          <div className="mx-4 sm:mx-6 mt-4 p-3.5 bg-emerald-600 text-white rounded-2xl shadow-lg flex items-center justify-between text-xs font-bold animate-in slide-in-from-top-4 duration-200">
+          <div className="mx-4 sm:mx-6 mt-4 p-3.5 bg-red-600 text-white rounded-2xl shadow-lg flex items-center justify-between text-xs font-bold animate-in slide-in-from-top-4 duration-200">
             <div className="flex items-center gap-2.5">
               <span className="p-1.5 bg-white/20 rounded-xl text-base">🔔</span>
               <div>
@@ -1113,7 +1113,7 @@ export default function AdminPanel() {
                 setActiveTab('orders');
                 setNewOrderAlert(null);
               }}
-              className="px-3 py-1 bg-white text-emerald-800 rounded-lg text-xs font-bold hover:bg-emerald-50 transition"
+              className="px-3 py-1 bg-white text-red-800 rounded-lg text-xs font-bold hover:bg-red-50 transition"
             >
               View Order ➔
             </button>
@@ -1133,14 +1133,14 @@ export default function AdminPanel() {
                 <div className="bg-white dark:bg-stone-900 p-5 rounded-2xl border border-stone-200/80 dark:border-stone-800 shadow-xs">
                   <div className="flex items-center justify-between text-stone-500 dark:text-stone-400 mb-2">
                     <span className="text-xs font-bold uppercase tracking-wider">Gross Sales</span>
-                    <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                    <div className="p-2 rounded-xl bg-red-600/10 text-red-600 dark:text-red-500">
                       <DollarSign className="w-4 h-4" />
                     </div>
                   </div>
                   <div className="text-xl sm:text-2xl font-black text-stone-900 dark:text-white font-mono">
                     PKR {totalGrossRevenue.toLocaleString()}
                   </div>
-                  <div className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 mt-2 flex items-center gap-1">
+                  <div className="text-[11px] font-semibold text-red-700 dark:text-red-500 mt-2 flex items-center gap-1">
                     <TrendingUp className="w-3.5 h-3.5" />
                     Live Dine-In Revenue
                   </div>
@@ -1208,7 +1208,7 @@ export default function AdminPanel() {
                     </div>
                     <button
                       onClick={() => setActiveTab('orders')}
-                      className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1"
+                      className="text-xs font-bold text-red-600 dark:text-red-500 hover:underline flex items-center gap-1"
                     >
                       View All ({orders.length}) <ChevronRight className="w-3.5 h-3.5" />
                     </button>
@@ -1236,7 +1236,7 @@ export default function AdminPanel() {
                         <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
                           {orders.slice(0, 6).map((ord) => (
                             <tr key={ord.id} className="hover:bg-stone-50 dark:hover:bg-stone-800/40 transition">
-                              <td className="py-3 px-3 font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                              <td className="py-3 px-3 font-mono font-bold text-red-600 dark:text-red-500">
                                 {ord.order_no}
                               </td>
                               <td className="py-3 px-3 font-semibold text-stone-900 dark:text-white">
@@ -1261,7 +1261,7 @@ export default function AdminPanel() {
                                       : ord.status === 'ready'
                                       ? 'bg-purple-500/10 text-purple-700 dark:bg-purple-500/20 dark:text-purple-300'
                                       : ord.status === 'served'
-                                      ? 'bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300'
+                                      ? 'bg-red-600/10 text-red-700 dark:bg-red-600/20 dark:text-red-300'
                                       : 'bg-stone-200 text-stone-600 dark:bg-stone-800 dark:text-stone-400'
                                   }`}
                                 >
@@ -1306,7 +1306,7 @@ export default function AdminPanel() {
                     <div className="mt-3 space-y-2.5 max-h-56 overflow-y-auto">
                       {waiterCalls.filter((w) => w.status === 'pending').length === 0 ? (
                         <div className="text-center py-6 text-stone-400 text-xs">
-                          <CheckCircle className="w-8 h-8 mx-auto mb-1 text-emerald-500/40" />
+                          <CheckCircle className="w-8 h-8 mx-auto mb-1 text-red-600/40" />
                           No pending waiter calls
                         </div>
                       ) : (
@@ -1328,7 +1328,7 @@ export default function AdminPanel() {
                               </div>
                               <button
                                 onClick={() => handleResolveWaiterCall(call.id)}
-                                className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold transition"
+                                className="px-2.5 py-1 rounded-lg bg-red-600 hover:bg-red-700 text-white text-[10px] font-bold transition"
                               >
                                 Resolve
                               </button>
@@ -1346,7 +1346,7 @@ export default function AdminPanel() {
                     <div className="grid grid-cols-2 gap-2 text-xs font-bold">
                       <button
                         onClick={() => setActiveTab('menu')}
-                        className="p-3 rounded-xl bg-stone-50 dark:bg-stone-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 text-stone-700 dark:text-stone-300 hover:text-emerald-700 dark:hover:text-emerald-400 border border-stone-200/60 dark:border-stone-700/60 flex flex-col items-center gap-1.5 transition text-center"
+                        className="p-3 rounded-xl bg-stone-50 dark:bg-stone-800 hover:bg-red-50 dark:hover:bg-red-950/20 text-stone-700 dark:text-stone-300 hover:text-red-700 dark:hover:text-red-500 border border-stone-200/60 dark:border-stone-700/60 flex flex-col items-center gap-1.5 transition text-center"
                       >
                         <UtensilsCrossed className="w-4 h-4" />
                         <span>Add Dish</span>
@@ -1354,7 +1354,7 @@ export default function AdminPanel() {
 
                       <button
                         onClick={() => setActiveTab('qr')}
-                        className="p-3 rounded-xl bg-stone-50 dark:bg-stone-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 text-stone-700 dark:text-stone-300 hover:text-emerald-700 dark:hover:text-emerald-400 border border-stone-200/60 dark:border-stone-700/60 flex flex-col items-center gap-1.5 transition text-center"
+                        className="p-3 rounded-xl bg-stone-50 dark:bg-stone-800 hover:bg-red-50 dark:hover:bg-red-950/20 text-stone-700 dark:text-stone-300 hover:text-red-700 dark:hover:text-red-500 border border-stone-200/60 dark:border-stone-700/60 flex flex-col items-center gap-1.5 transition text-center"
                       >
                         <QrCode className="w-4 h-4" />
                         <span>Print QRs</span>
@@ -1364,7 +1364,7 @@ export default function AdminPanel() {
                         href="/kitchen"
                         target="_blank"
                         rel="noreferrer"
-                        className="p-3 rounded-xl bg-stone-50 dark:bg-stone-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 text-stone-700 dark:text-stone-300 hover:text-emerald-700 dark:hover:text-emerald-400 border border-stone-200/60 dark:border-stone-700/60 flex flex-col items-center gap-1.5 transition text-center"
+                        className="p-3 rounded-xl bg-stone-50 dark:bg-stone-800 hover:bg-red-50 dark:hover:bg-red-950/20 text-stone-700 dark:text-stone-300 hover:text-red-700 dark:hover:text-red-500 border border-stone-200/60 dark:border-stone-700/60 flex flex-col items-center gap-1.5 transition text-center"
                       >
                         <ChefHat className="w-4 h-4" />
                         <span>KDS Screen</span>
@@ -1372,7 +1372,7 @@ export default function AdminPanel() {
 
                       <button
                         onClick={() => setActiveTab('profile')}
-                        className="p-3 rounded-xl bg-stone-50 dark:bg-stone-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 text-stone-700 dark:text-stone-300 hover:text-emerald-700 dark:hover:text-emerald-400 border border-stone-200/60 dark:border-stone-700/60 flex flex-col items-center gap-1.5 transition text-center"
+                        className="p-3 rounded-xl bg-stone-50 dark:bg-stone-800 hover:bg-red-50 dark:hover:bg-red-950/20 text-stone-700 dark:text-stone-300 hover:text-red-700 dark:hover:text-red-500 border border-stone-200/60 dark:border-stone-700/60 flex flex-col items-center gap-1.5 transition text-center"
                       >
                         <Store className="w-4 h-4" />
                         <span>Edit Hours</span>
@@ -1408,7 +1408,7 @@ export default function AdminPanel() {
                       value={orderSearchQuery}
                       onChange={(e) => setOrderSearchQuery(e.target.value)}
                       placeholder="Search order #, customer, table..."
-                      className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                      className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white text-xs focus:ring-2 focus:ring-red-600 focus:outline-none"
                     />
                     {orderSearchQuery && (
                       <button
@@ -1475,7 +1475,7 @@ export default function AdminPanel() {
                             className="hover:bg-stone-50/80 dark:hover:bg-stone-800/40 transition group cursor-pointer"
                             onClick={() => handleOpenOrderDetails(ord)}
                           >
-                            <td className="py-3.5 px-4 font-mono font-bold text-emerald-600 dark:text-emerald-400 text-xs sm:text-sm">
+                            <td className="py-3.5 px-4 font-mono font-bold text-red-600 dark:text-red-500 text-xs sm:text-sm">
                               {ord.order_no}
                             </td>
                             <td className="py-3.5 px-4 font-bold text-stone-900 dark:text-white">
@@ -1516,7 +1516,7 @@ export default function AdminPanel() {
                                     : ord.status === 'ready'
                                     ? 'bg-purple-50 text-purple-800 dark:bg-purple-950/40 dark:text-purple-300'
                                     : ord.status === 'served'
-                                    ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
+                                    ? 'bg-red-50 text-red-800 dark:bg-red-950/40 dark:text-red-300'
                                     : 'bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-300'
                                 }`}
                               >
@@ -1534,7 +1534,7 @@ export default function AdminPanel() {
                               <div className="flex items-center justify-end gap-1.5">
                                 <button
                                   onClick={() => handleOpenOrderDetails(ord)}
-                                  className="px-2.5 py-1 bg-stone-100 dark:bg-stone-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 text-stone-700 dark:text-stone-300 hover:text-emerald-600 rounded-lg text-[11px] font-bold transition"
+                                  className="px-2.5 py-1 bg-stone-100 dark:bg-stone-800 hover:bg-red-50 dark:hover:bg-red-950/30 text-stone-700 dark:text-stone-300 hover:text-red-600 rounded-lg text-[11px] font-bold transition"
                                   title="View full order details and print receipt"
                                 >
                                   Details
@@ -1575,7 +1575,7 @@ export default function AdminPanel() {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     placeholder="Search dishes by name, ID (#01) or number..."
-                    className="w-full pl-9 pr-4 py-2 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white placeholder:text-stone-400 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="w-full pl-9 pr-4 py-2 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white placeholder:text-stone-400 text-xs focus:outline-none focus:ring-2 focus:ring-red-600"
                   />
                 </div>
 
@@ -1584,7 +1584,7 @@ export default function AdminPanel() {
                   <select
                     value={selectedCatFilter}
                     onChange={(e) => setSelectedCatFilter(e.target.value)}
-                    className="px-3 py-2 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-800 dark:text-stone-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                    className="px-3 py-2 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-800 dark:text-stone-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-red-600 cursor-pointer"
                   >
                     <option value="ALL">All Categories ({menuItems.length})</option>
                     {categories.map((c) => (
@@ -1602,7 +1602,7 @@ export default function AdminPanel() {
                   onClick={() => setSelectedCatFilter('ALL')}
                   className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition ${
                     selectedCatFilter === 'ALL'
-                      ? 'bg-emerald-600 text-white shadow-xs'
+                      ? 'bg-red-600 text-white shadow-xs'
                       : 'bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-400 hover:bg-stone-200'
                   }`}
                 >
@@ -1616,7 +1616,7 @@ export default function AdminPanel() {
                       onClick={() => setSelectedCatFilter(cat.id)}
                       className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition flex items-center gap-1.5 ${
                         selectedCatFilter === cat.id
-                          ? 'bg-emerald-600 text-white shadow-xs'
+                          ? 'bg-red-600 text-white shadow-xs'
                           : 'bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-400 hover:bg-stone-200'
                       }`}
                     >
@@ -1695,11 +1695,11 @@ export default function AdminPanel() {
                             onClick={() => handleToggleAvailability(item)}
                             className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold transition ${
                               item.is_available
-                                ? 'bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300'
+                                ? 'bg-red-600/10 text-red-700 dark:bg-red-600/20 dark:text-red-300'
                                 : 'bg-stone-200 text-stone-500 dark:bg-stone-800 dark:text-stone-400'
                             }`}
                           >
-                            <span className={`w-1.5 h-1.5 rounded-full ${item.is_available ? 'bg-emerald-500' : 'bg-stone-400'}`} />
+                            <span className={`w-1.5 h-1.5 rounded-full ${item.is_available ? 'bg-red-600' : 'bg-stone-400'}`} />
                             {item.is_available ? 'Available' : 'Out of Stock'}
                           </button>
                         </td>
@@ -1707,7 +1707,7 @@ export default function AdminPanel() {
                           <div className="flex items-center justify-end gap-1.5">
                             <button
                               onClick={() => handleOpenItemModal(item)}
-                              className="p-1.5 text-stone-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 rounded-lg transition"
+                              className="p-1.5 text-stone-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition"
                               title="Edit Item"
                             >
                               <Edit2 className="w-3.5 h-3.5" />
@@ -1745,7 +1745,7 @@ export default function AdminPanel() {
                 </div>
                 <button
                   onClick={() => handleOpenCatModal()}
-                  className="flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition active:scale-95"
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold shadow-xs transition active:scale-95"
                 >
                   <Plus className="w-4 h-4" />
                   <span>Add Category</span>
@@ -1788,11 +1788,11 @@ export default function AdminPanel() {
                               onClick={() => handleToggleCategoryActive(cat)}
                               className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold transition ${
                                 cat.is_active !== false
-                                  ? 'bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300'
+                                  ? 'bg-red-600/10 text-red-700 dark:bg-red-600/20 dark:text-red-300'
                                   : 'bg-stone-200 text-stone-500 dark:bg-stone-800 dark:text-stone-400'
                               }`}
                             >
-                              <span className={`w-1.5 h-1.5 rounded-full ${cat.is_active !== false ? 'bg-emerald-500' : 'bg-stone-400'}`} />
+                              <span className={`w-1.5 h-1.5 rounded-full ${cat.is_active !== false ? 'bg-red-600' : 'bg-stone-400'}`} />
                               {cat.is_active !== false ? 'Active' : 'Hidden'}
                             </button>
                           </td>
@@ -1800,7 +1800,7 @@ export default function AdminPanel() {
                             <div className="flex items-center justify-end gap-1.5">
                               <button
                                 onClick={() => handleOpenCatModal(cat)}
-                                className="p-1.5 text-stone-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 rounded-lg transition"
+                                className="p-1.5 text-stone-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition"
                                 title="Edit Category"
                               >
                                 <Edit2 className="w-3.5 h-3.5" />
@@ -1840,7 +1840,7 @@ export default function AdminPanel() {
                 <button
                   onClick={handleQuickStatusToggle}
                   className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold shadow-xs transition ${
-                    profile.is_open ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'
+                    profile.is_open ? 'bg-red-600 text-white' : 'bg-rose-600 text-white'
                   }`}
                 >
                   <Power className="w-3.5 h-3.5" />
@@ -1849,8 +1849,8 @@ export default function AdminPanel() {
               </div>
 
               {profileSuccessMsg && (
-                <div className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs font-semibold flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                <div className="p-3.5 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-300 text-xs font-semibold flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-red-600 shrink-0" />
                   <span>{profileSuccessMsg}</span>
                 </div>
               )}
@@ -1863,7 +1863,7 @@ export default function AdminPanel() {
                       <img
                         src={profile.logo_url}
                         alt="Logo Preview"
-                        className="w-16 h-16 rounded-2xl object-cover border-2 border-emerald-500 shadow-xs"
+                        className="w-16 h-16 rounded-2xl object-cover border-2 border-red-600 shadow-xs"
                       />
                     ) : (
                       <div className="w-16 h-16 rounded-2xl bg-stone-200 dark:bg-stone-700 border-2 border-dashed border-stone-300 dark:border-stone-600 flex items-center justify-center text-stone-400">
@@ -1905,7 +1905,7 @@ export default function AdminPanel() {
                       value={profile.name}
                       onChange={(e) => setProfile((prev) => ({ ...prev, name: e.target.value }))}
                       required
-                      className="w-full px-3.5 py-2 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                      className="w-full px-3.5 py-2 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white text-xs focus:ring-2 focus:ring-red-600 focus:outline-none"
                     />
                   </div>
 
@@ -1917,7 +1917,7 @@ export default function AdminPanel() {
                       type="text"
                       value={profile.phone}
                       onChange={(e) => setProfile((prev) => ({ ...prev, phone: e.target.value }))}
-                      className="w-full px-3.5 py-2 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                      className="w-full px-3.5 py-2 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white text-xs focus:ring-2 focus:ring-red-600 focus:outline-none"
                     />
                   </div>
 
@@ -1929,7 +1929,7 @@ export default function AdminPanel() {
                       type="text"
                       value={profile.opening_hours}
                       onChange={(e) => setProfile((prev) => ({ ...prev, opening_hours: e.target.value }))}
-                      className="w-full px-3.5 py-2 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                      className="w-full px-3.5 py-2 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white text-xs focus:ring-2 focus:ring-red-600 focus:outline-none"
                     />
                   </div>
 
@@ -1941,7 +1941,7 @@ export default function AdminPanel() {
                       type="text"
                       value={profile.address}
                       onChange={(e) => setProfile((prev) => ({ ...prev, address: e.target.value }))}
-                      className="w-full px-3.5 py-2 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                      className="w-full px-3.5 py-2 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white text-xs focus:ring-2 focus:ring-red-600 focus:outline-none"
                     />
                   </div>
 
@@ -1953,7 +1953,7 @@ export default function AdminPanel() {
                       rows={3}
                       value={profile.description}
                       onChange={(e) => setProfile((prev) => ({ ...prev, description: e.target.value }))}
-                      className="w-full px-3.5 py-2 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                      className="w-full px-3.5 py-2 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white text-xs focus:ring-2 focus:ring-red-600 focus:outline-none"
                     />
                   </div>
                 </div>
@@ -1962,7 +1962,7 @@ export default function AdminPanel() {
                   <button
                     type="submit"
                     disabled={profileSaving}
-                    className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition active:scale-95 disabled:opacity-50"
+                    className="px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold shadow-xs transition active:scale-95 disabled:opacity-50"
                   >
                     {profileSaving ? 'Saving...' : 'Save Profile Changes'}
                   </button>
@@ -1988,7 +1988,7 @@ export default function AdminPanel() {
                 <div className="flex flex-wrap items-center gap-2">
                   <button
                     onClick={() => handleOpenTableModal()}
-                    className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 transition active:scale-95"
+                    className="px-3.5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-1.5 transition active:scale-95"
                   >
                     <Plus className="w-4 h-4" />
                     <span>Add Dining Table</span>
@@ -2033,7 +2033,7 @@ export default function AdminPanel() {
                         onClick={() => setSelectedTableForQr(t.table_number)}
                         className={`p-3.5 rounded-2xl border transition-all cursor-pointer text-xs ${
                           isSelected
-                            ? 'bg-emerald-50/70 dark:bg-emerald-950/20 border-emerald-500 shadow-sm ring-2 ring-emerald-500/20'
+                            ? 'bg-red-50/70 dark:bg-red-950/20 border-red-600 shadow-sm ring-2 ring-red-600/20'
                             : 'bg-stone-50/60 dark:bg-stone-800/40 border-stone-200/80 dark:border-stone-700/80 hover:bg-white dark:hover:bg-stone-800'
                         }`}
                       >
@@ -2051,7 +2051,7 @@ export default function AdminPanel() {
                             className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                               isOccupied
                                 ? 'bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 animate-pulse'
-                                : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300'
+                                : 'bg-red-100 text-red-800 dark:bg-red-950/60 dark:text-red-300'
                             }`}
                           >
                             {isOccupied ? 'Occupied' : 'Vacant'}
@@ -2060,7 +2060,7 @@ export default function AdminPanel() {
 
                         <div className="py-2.5 flex items-center justify-between text-[11px]">
                           <span className="text-stone-500 dark:text-stone-400 font-medium">Ordering QR:</span>
-                          <span className="font-mono text-emerald-600 dark:text-emerald-400 font-semibold truncate max-w-[120px]">
+                          <span className="font-mono text-red-600 dark:text-red-500 font-semibold truncate max-w-[120px]">
                             /chat?table={t.table_number}
                           </span>
                         </div>
@@ -2071,7 +2071,7 @@ export default function AdminPanel() {
                               onClick={() => handleToggleTableActive(t)}
                               className={`p-1 rounded-lg text-[10px] font-bold ${
                                 t.is_active
-                                  ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300'
+                                  ? 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300'
                                   : 'bg-stone-200 text-stone-600 dark:bg-stone-700 dark:text-stone-400'
                               }`}
                               title="Toggle table active on ordering"
@@ -2082,7 +2082,7 @@ export default function AdminPanel() {
                               href={`/chat?table=${t.table_number}`}
                               target="_blank"
                               rel="noreferrer"
-                              className="p-1 px-1.5 text-stone-500 hover:text-emerald-600 hover:bg-stone-200 dark:hover:bg-stone-700 rounded-lg transition"
+                              className="p-1 px-1.5 text-stone-500 hover:text-red-600 hover:bg-stone-200 dark:hover:bg-stone-700 rounded-lg transition"
                               title="Test live table ordering"
                             >
                               <ExternalLink className="w-3.5 h-3.5" />
@@ -2134,17 +2134,17 @@ export default function AdminPanel() {
                     <img
                       src={profile.logo_url}
                       alt="Logo"
-                      className="w-16 h-16 mx-auto mb-2 rounded-2xl object-cover border border-emerald-500 shadow-xs"
+                      className="w-16 h-16 mx-auto mb-2 rounded-2xl object-cover border border-red-600 shadow-xs"
                     />
                   ) : (
-                    <div className="w-16 h-16 mx-auto mb-2 rounded-2xl bg-emerald-600 flex items-center justify-center text-white text-2xl shadow-xs">
+                    <div className="w-16 h-16 mx-auto mb-2 rounded-2xl bg-red-600 flex items-center justify-center text-white text-2xl shadow-xs">
                       🍖
                     </div>
                   )}
                   <h3 className="text-base font-black tracking-tight text-stone-900 uppercase">
                     {profile.name}
                   </h3>
-                  <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest mb-5">
+                  <p className="text-[10px] font-bold text-red-700 uppercase tracking-widest mb-5">
                     Dine-In • AI Chat Ordering
                   </p>
 
@@ -2183,7 +2183,7 @@ export default function AdminPanel() {
                   href="/kitchen"
                   target="_blank"
                   rel="noreferrer"
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-2 transition"
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-2 transition"
                 >
                   <ExternalLink className="w-4 h-4" />
                   Open Fullscreen KDS Screen
@@ -2216,7 +2216,7 @@ export default function AdminPanel() {
                         >
                           <div>
                             <div className="flex items-center justify-between pb-2 border-b border-stone-200/60 dark:border-stone-700/60">
-                              <span className="font-mono font-black text-sm text-emerald-600 dark:text-emerald-400">
+                              <span className="font-mono font-black text-sm text-red-600 dark:text-red-500">
                                 {ord.order_no}
                               </span>
                               <span className="px-2.5 py-0.5 rounded-full bg-stone-900 text-white font-bold text-xs">
@@ -2239,7 +2239,7 @@ export default function AdminPanel() {
                             </span>
                             <button
                               onClick={() => handleUpdateOrderStatus(ord.id, ord.status === 'received' ? 'preparing' : 'ready')}
-                              className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition"
+                              className="px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition"
                             >
                               {ord.status === 'received' ? 'Mark Preparing ➔' : 'Mark Ready ➔'}
                             </button>
@@ -2316,7 +2316,7 @@ export default function AdminPanel() {
                       {call.status === 'pending' && (
                         <button
                           onClick={() => handleResolveWaiterCall(call.id)}
-                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition shrink-0"
+                          className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold transition shrink-0"
                         >
                           Resolve
                         </button>
@@ -2346,7 +2346,7 @@ export default function AdminPanel() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="p-4 rounded-xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200/60 dark:border-stone-700/60">
                   <span className="text-[11px] font-bold uppercase text-stone-400">Gross Sales</span>
-                  <div className="text-xl font-black text-emerald-600 dark:text-emerald-400 font-mono mt-1">
+                  <div className="text-xl font-black text-red-600 dark:text-red-500 font-mono mt-1">
                     {settings.currency_symbol || 'PKR'} {analyticsData.grossSales.toLocaleString()}
                   </div>
                   <span className="text-[10px] text-stone-500 font-medium">Across {analyticsData.totalOrders} total orders</span>
@@ -2384,7 +2384,7 @@ export default function AdminPanel() {
                 {/* Top Selling Dishes Leaderboard */}
                 <div>
                   <h4 className="font-bold text-xs text-stone-700 dark:text-stone-300 mb-3 flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4 text-emerald-600" />
+                    <TrendingUp className="w-4 h-4 text-red-600" />
                     Top Selling Dishes
                   </h4>
                   {analyticsData.topDishes.length === 0 ? (
@@ -2399,7 +2399,7 @@ export default function AdminPanel() {
                             <span className="text-stone-900 dark:text-white truncate">
                               #{idx + 1} {dish.name}
                             </span>
-                            <span className="font-mono text-emerald-600 dark:text-emerald-400 shrink-0">
+                            <span className="font-mono text-red-600 dark:text-red-500 shrink-0">
                               {settings.currency_symbol || 'PKR'} {dish.revenue.toLocaleString()}
                             </span>
                           </div>
@@ -2416,7 +2416,7 @@ export default function AdminPanel() {
                 {/* Status Distribution */}
                 <div>
                   <h4 className="font-bold text-xs text-stone-700 dark:text-stone-300 mb-3 flex items-center gap-2">
-                    <Layers className="w-4 h-4 text-emerald-600" />
+                    <Layers className="w-4 h-4 text-red-600" />
                     Live Order Pipeline
                   </h4>
                   <div className="grid grid-cols-2 gap-3">
@@ -2438,9 +2438,9 @@ export default function AdminPanel() {
                         {analyticsData.statusCounts.ready}
                       </div>
                     </div>
-                    <div className="p-3 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-xs">
-                      <span className="text-[10px] font-bold uppercase text-emerald-700 dark:text-emerald-400">Served & Billed</span>
-                      <div className="text-lg font-black text-emerald-800 dark:text-emerald-300 font-mono mt-1">
+                    <div className="p-3 rounded-xl bg-red-50/70 dark:bg-red-950/30 border border-red-200 dark:border-red-800 text-xs">
+                      <span className="text-[10px] font-bold uppercase text-red-700 dark:text-red-500">Served & Billed</span>
+                      <div className="text-lg font-black text-red-800 dark:text-red-300 font-mono mt-1">
                         {analyticsData.statusCounts.served}
                       </div>
                     </div>
@@ -2464,7 +2464,7 @@ export default function AdminPanel() {
                           <span className="text-stone-500 font-mono">{count} items ({pct}%)</span>
                         </div>
                         <div className="w-full bg-stone-100 dark:bg-stone-800 h-2 rounded-full overflow-hidden">
-                          <div className="bg-emerald-600 h-full rounded-full" style={{ width: `${pct}%` }} />
+                          <div className="bg-red-600 h-full rounded-full" style={{ width: `${pct}%` }} />
                         </div>
                       </div>
                     );
@@ -2489,8 +2489,8 @@ export default function AdminPanel() {
               </div>
 
               {settingsSuccessMsg && (
-                <div className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs font-semibold flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                <div className="p-3.5 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-300 text-xs font-semibold flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-red-600 shrink-0" />
                   <span>{settingsSuccessMsg}</span>
                 </div>
               )}
@@ -2517,7 +2517,7 @@ export default function AdminPanel() {
                         setSettings((prev) => ({ ...prev, sound_enabled: !soundEnabled }));
                       }}
                       className={`px-3 py-1.5 rounded-lg font-bold text-white transition ${
-                        soundEnabled ? 'bg-emerald-600' : 'bg-stone-400'
+                        soundEnabled ? 'bg-red-600' : 'bg-stone-400'
                       }`}
                     >
                       {soundEnabled ? 'Enabled' : 'Muted'}
@@ -2585,8 +2585,8 @@ export default function AdminPanel() {
                     <h5 className="font-bold text-stone-900 dark:text-white">Supabase Realtime Sync</h5>
                     <p className="text-stone-500 text-[11px]">PostgreSQL websocket status for live order stream</p>
                   </div>
-                  <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="flex items-center gap-1.5 text-red-600 dark:text-red-500 font-bold">
+                    <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse" />
                     Connected
                   </span>
                 </div>
@@ -2595,7 +2595,7 @@ export default function AdminPanel() {
                   <button
                     type="submit"
                     disabled={settingsSaving}
-                    className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition active:scale-95 disabled:opacity-50"
+                    className="px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-bold shadow-xs transition active:scale-95 disabled:opacity-50"
                   >
                     {settingsSaving ? 'Saving...' : 'Save System Settings'}
                   </button>
@@ -2640,7 +2640,7 @@ export default function AdminPanel() {
                   onChange={(e) => setCatFormData((prev) => ({ ...prev, name: e.target.value }))}
                   placeholder="e.g. Seafood & Fish"
                   required
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white focus:ring-2 focus:ring-red-600 focus:outline-none"
                 />
               </div>
 
@@ -2651,7 +2651,7 @@ export default function AdminPanel() {
                   value={catFormData.display_order}
                   onChange={(e) => setCatFormData((prev) => ({ ...prev, display_order: e.target.value }))}
                   min="1"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none font-mono"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white focus:ring-2 focus:ring-red-600 focus:outline-none font-mono"
                 />
               </div>
 
@@ -2661,7 +2661,7 @@ export default function AdminPanel() {
                   id="catActive"
                   checked={catFormData.is_active}
                   onChange={(e) => setCatFormData((prev) => ({ ...prev, is_active: e.target.checked }))}
-                  className="w-4 h-4 text-emerald-600 rounded-md focus:ring-emerald-500"
+                  className="w-4 h-4 text-red-600 rounded-md focus:ring-red-600"
                 />
                 <label htmlFor="catActive" className="font-semibold text-stone-700 dark:text-stone-300 cursor-pointer">
                   Category is Active (Visible on Customer Menu)
@@ -2678,7 +2678,7 @@ export default function AdminPanel() {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold shadow-xs transition"
+                  className="px-5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold shadow-xs transition"
                 >
                   {editingCat ? 'Update Category' : 'Create Category'}
                 </button>
@@ -2723,7 +2723,7 @@ export default function AdminPanel() {
                     onChange={(e) => setItemFormData((prev) => ({ ...prev, name: e.target.value }))}
                     placeholder="e.g. Chicken Malai Handi"
                     required
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white focus:ring-2 focus:ring-red-600 focus:outline-none"
                   />
                 </div>
 
@@ -2732,7 +2732,7 @@ export default function AdminPanel() {
                   <select
                     value={itemFormData.category_id}
                     onChange={(e) => setItemFormData((prev) => ({ ...prev, category_id: e.target.value }))}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white focus:ring-2 focus:ring-red-600 focus:outline-none"
                   >
                     {categories.map((c) => (
                       <option key={c.id} value={c.id}>
@@ -2747,7 +2747,7 @@ export default function AdminPanel() {
                   <select
                     value={itemFormData.unit}
                     onChange={(e) => setItemFormData((prev) => ({ ...prev, unit: e.target.value }))}
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white focus:ring-2 focus:ring-red-600 focus:outline-none"
                   >
                     <option value="Portion">Portion (Karahi / Handi)</option>
                     <option value="Piece">Piece (Roti / Burger / Sweet)</option>
@@ -2770,7 +2770,7 @@ export default function AdminPanel() {
                       id="hasSizes"
                       checked={itemFormData.has_sizes}
                       onChange={(e) => setItemFormData((prev) => ({ ...prev, has_sizes: e.target.checked }))}
-                      className="w-4 h-4 text-emerald-600 rounded-md focus:ring-emerald-500"
+                      className="w-4 h-4 text-red-600 rounded-md focus:ring-red-600"
                     />
                     <label htmlFor="hasSizes" className="font-bold text-stone-800 dark:text-stone-200 cursor-pointer">
                       Has Half / Full Sizes (Karahi / Handi)
@@ -2822,7 +2822,7 @@ export default function AdminPanel() {
                   value={itemFormData.description}
                   onChange={(e) => setItemFormData((prev) => ({ ...prev, description: e.target.value }))}
                   placeholder="Ingredients, spice level, preparation style..."
-                  className="w-full px-3.5 py-2 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                  className="w-full px-3.5 py-2 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white focus:ring-2 focus:ring-red-600 focus:outline-none"
                 />
               </div>
 
@@ -2854,7 +2854,7 @@ export default function AdminPanel() {
                   id="itemAvailable"
                   checked={itemFormData.is_available}
                   onChange={(e) => setItemFormData((prev) => ({ ...prev, is_available: e.target.checked }))}
-                  className="w-4 h-4 text-emerald-600 rounded-md focus:ring-emerald-500"
+                  className="w-4 h-4 text-red-600 rounded-md focus:ring-red-600"
                 />
                 <label htmlFor="itemAvailable" className="font-semibold text-stone-700 dark:text-stone-300 cursor-pointer">
                   Item is Available for Dine-In Ordering
@@ -2871,7 +2871,7 @@ export default function AdminPanel() {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold shadow-xs transition"
+                  className="px-5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold shadow-xs transition"
                 >
                   {editingItem ? 'Update Dish' : 'Add Dish'}
                 </button>
@@ -2919,7 +2919,7 @@ export default function AdminPanel() {
                   onChange={(e) => setTableFormData((prev) => ({ ...prev, table_number: e.target.value }))}
                   placeholder="e.g. 11"
                   required
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none font-mono font-bold"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white focus:ring-2 focus:ring-red-600 focus:outline-none font-mono font-bold"
                 />
                 <p className="text-[11px] text-stone-400 mt-1">
                   Unique physical dining table number in the restaurant
@@ -2937,7 +2937,7 @@ export default function AdminPanel() {
                   value={tableFormData.capacity}
                   onChange={(e) => setTableFormData((prev) => ({ ...prev, capacity: e.target.value }))}
                   placeholder="4"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none font-mono"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white focus:ring-2 focus:ring-red-600 focus:outline-none font-mono"
                 />
               </div>
 
@@ -2947,7 +2947,7 @@ export default function AdminPanel() {
                   id="tableActive"
                   checked={tableFormData.is_active}
                   onChange={(e) => setTableFormData((prev) => ({ ...prev, is_active: e.target.checked }))}
-                  className="w-4 h-4 text-emerald-600 rounded-md focus:ring-emerald-500"
+                  className="w-4 h-4 text-red-600 rounded-md focus:ring-red-600"
                 />
                 <label htmlFor="tableActive" className="font-semibold text-stone-700 dark:text-stone-300 cursor-pointer">
                   Table is Active for Dine-In Ordering
@@ -2964,7 +2964,7 @@ export default function AdminPanel() {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold shadow-xs transition"
+                  className="px-5 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold shadow-xs transition"
                 >
                   {editingTable ? 'Update Table' : 'Add Table'}
                 </button>
@@ -2983,7 +2983,7 @@ export default function AdminPanel() {
             {/* Modal Header */}
             <div className="flex items-center justify-between pb-4 border-b border-stone-200 dark:border-stone-800 mb-4">
               <div className="flex items-center gap-2.5">
-                <span className="font-mono font-black text-lg text-emerald-600 dark:text-emerald-400">
+                <span className="font-mono font-black text-lg text-red-600 dark:text-red-500">
                   {selectedOrder.order_no}
                 </span>
                 <span className="px-2.5 py-0.5 rounded-lg bg-stone-900 text-white font-bold text-xs">
@@ -3020,7 +3020,7 @@ export default function AdminPanel() {
               </div>
               <div>
                 <span className="text-[10px] uppercase font-bold text-stone-400">Current Status</span>
-                <div className="font-bold capitalize text-emerald-600 dark:text-emerald-400">
+                <div className="font-bold capitalize text-red-600 dark:text-red-500">
                   {selectedOrder.status || 'Received'}
                 </div>
               </div>
@@ -3068,7 +3068,7 @@ export default function AdminPanel() {
                   <tfoot className="bg-stone-50 dark:bg-stone-800/80 font-bold border-t border-stone-200 dark:border-stone-700">
                     <tr>
                       <td colSpan="3" className="py-2.5 px-3 text-right text-stone-600 dark:text-stone-300">Total Bill Amount:</td>
-                      <td className="py-2.5 px-3 text-right font-mono text-emerald-600 dark:text-emerald-400 text-sm">
+                      <td className="py-2.5 px-3 text-right font-mono text-red-600 dark:text-red-500 text-sm">
                         {settings.currency_symbol || 'PKR'} {Number(selectedOrder.total).toLocaleString()}
                       </td>
                     </tr>
@@ -3090,7 +3090,7 @@ export default function AdminPanel() {
                     }}
                     className={`py-2 px-2 rounded-xl capitalize font-bold text-xs transition ${
                       selectedOrder.status === st
-                        ? 'bg-emerald-600 text-white shadow-xs'
+                        ? 'bg-red-600 text-white shadow-xs'
                         : 'bg-white dark:bg-stone-800 text-stone-700 dark:text-stone-300 hover:bg-stone-100'
                     }`}
                   >
@@ -3125,7 +3125,7 @@ export default function AdminPanel() {
 
                 <button
                   onClick={() => handlePrintSlip('bill')}
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold shadow-xs flex items-center gap-1.5 transition"
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold shadow-xs flex items-center gap-1.5 transition"
                 >
                   <Printer className="w-3.5 h-3.5" />
                   <span>Print Guest Bill</span>
@@ -3154,7 +3154,7 @@ export default function AdminPanel() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => window.print()}
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-xs shadow-xs flex items-center gap-1.5"
+                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl font-bold text-xs shadow-xs flex items-center gap-1.5"
                 >
                   <Printer className="w-4 h-4" />
                   Print All Pages
@@ -3177,13 +3177,13 @@ export default function AdminPanel() {
                     key={t.id || t.table_number}
                     className="p-6 rounded-3xl bg-white text-stone-900 border-2 border-stone-200 text-center shadow-xs page-break-inside-avoid"
                   >
-                    <div className="w-12 h-12 mx-auto mb-2 rounded-xl bg-emerald-600 flex items-center justify-center text-white text-xl shadow-xs">
+                    <div className="w-12 h-12 mx-auto mb-2 rounded-xl bg-red-600 flex items-center justify-center text-white text-xl shadow-xs">
                       🍖
                     </div>
                     <h4 className="text-xs font-black tracking-tight text-stone-900 uppercase">
                       {profile.name}
                     </h4>
-                    <p className="text-[9px] font-bold text-emerald-700 uppercase tracking-widest mb-3">
+                    <p className="text-[9px] font-bold text-red-700 uppercase tracking-widest mb-3">
                       Dine-In • AI Chat Ordering
                     </p>
 
