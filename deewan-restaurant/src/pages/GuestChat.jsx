@@ -698,7 +698,7 @@ export default function GuestChat() {
           setMessages((prev) => [...prev, botMsg]);
         }
 
-        // If order finalized
+        // Always update sessionState with the result from conversationEngine
         if (result.order) {
           confetti({
             particleCount: 120,
@@ -766,6 +766,11 @@ export default function GuestChat() {
           } catch (e) {
             console.warn('Supabase order insert note:', e);
           }
+        } else if (result.sessionState) {
+          setSessionState((prev) => ({
+            ...result.sessionState,
+            activeOrder: result.sessionState?.activeOrder || prev?.activeOrder || null
+          }));
         }
       } catch (err) {
         console.error(err);
@@ -895,7 +900,7 @@ export default function GuestChat() {
                     isPureImage ? 'p-1.5 bg-white border border-stone-200' : 'p-3 sm:p-3.5'
                   } text-sm shadow-sm leading-relaxed ${
                     isUser
-                      ? 'bg-[#d9fdd3] text-stone-900 rounded-tr-none'
+                      ? 'bg-red-600 text-white rounded-tr-none font-medium'
                       : 'bg-white text-stone-900 rounded-tl-none border border-stone-200'
                   }`}
                 >
@@ -965,7 +970,7 @@ export default function GuestChat() {
                     </div>
                   )}
 
-                  <div className={`text-[10px] mt-1 text-right ${isUser ? 'text-stone-500' : 'text-stone-400'}`}>
+                  <div className={`text-[10px] mt-1 text-right ${isUser ? 'text-red-100' : 'text-stone-400'}`}>
                     {msg.timestamp}
                   </div>
                 </div>

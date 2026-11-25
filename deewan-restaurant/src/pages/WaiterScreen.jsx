@@ -115,8 +115,8 @@ export default function WaiterScreen() {
               className="w-11 h-11 rounded-2xl object-cover border border-red-600/40 shadow-lg shrink-0"
             />
           ) : (
-            <div className="p-2.5 bg-red-600 rounded-2xl text-white shadow-lg shadow-red-600/30 animate-pulse">
-              <Bell className="w-6 h-6" />
+            <div className="w-11 h-11 bg-red-600 rounded-2xl flex items-center justify-center text-2xl shadow-lg shadow-red-600/30 shrink-0">
+              🍖
             </div>
           )}
           <div>
