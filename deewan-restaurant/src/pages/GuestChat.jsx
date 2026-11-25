@@ -305,9 +305,13 @@ export default function GuestChat() {
         if (parsed.messages && parsed.messages.length > 0 && !hasOldIntroImages && !isStaleGuestSession) {
           setMessages(parsed.messages);
           if (parsed.sessionState) {
-            setSessionState(parsed.sessionState);
-            if (parsed.sessionState.table_no) {
-              setTableNo(parsed.sessionState.table_no);
+            const sanitizedState = { ...parsed.sessionState };
+            if (sanitizedState.step === 'ORDER_COMPLETED' || sanitizedState.activeOrder) {
+              sanitizedState.cart = [];
+            }
+            setSessionState(sanitizedState);
+            if (sanitizedState.table_no) {
+              setTableNo(sanitizedState.table_no);
             }
           }
           return;
@@ -703,9 +707,12 @@ export default function GuestChat() {
             origin: { y: 0.6 }
           });
 
-          // Instantly record activeOrder in sessionState for in-memory and cancellation tracking
+          setShowCartDrawer(false);
+          // Instantly record activeOrder in sessionState, clear cart and mark order completed
           setSessionState((prev) => ({
             ...prev,
+            cart: [],
+            step: 'ORDER_COMPLETED',
             activeOrder: { ...result.order, status: 'received' }
           }));
 
@@ -987,8 +994,12 @@ export default function GuestChat() {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Floating Cart Indicator (hidden once order is completed) */}
-        {sessionState && sessionState.cart && sessionState.cart.length > 0 && sessionState.step !== 'ORDER_COMPLETED' && (
+        {/* Floating Cart Indicator (hidden during checkout & once order is completed) */}
+        {sessionState &&
+          sessionState.cart &&
+          sessionState.cart.length > 0 &&
+          !['AWAITING_CONFIRMATION', 'COLLECT_TABLE', 'COLLECT_NAME', 'COLLECT_PHONE', 'ORDER_COMPLETED'].includes(sessionState.step) &&
+          !sessionState.activeOrder && (
           <div className="mx-2.5 sm:mx-4 mb-2 p-2.5 sm:p-3 bg-stone-900 text-white rounded-xl sm:rounded-2xl shadow-lg flex items-center justify-between text-xs shrink-0 animate-in fade-in slide-in-from-bottom-2 duration-150">
             <div
               className="flex items-center gap-2 min-w-0 cursor-pointer hover:opacity-90 active:scale-95 transition"
