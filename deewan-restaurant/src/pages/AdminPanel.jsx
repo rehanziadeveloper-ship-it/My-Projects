@@ -1,19 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import {
-  Settings,
-  Utensils,
+  LayoutDashboard,
+  ShoppingBag,
+  UtensilsCrossed,
+  Layers,
+  Store,
   QrCode,
-  FileText,
+  ChefHat,
+  Bell,
+  BarChart3,
+  Sliders,
   Search,
   Printer,
   DollarSign,
   Image as ImageIcon,
-  Bell,
   CheckCircle,
   Clock,
-  Store,
-  Layers,
   Plus,
   Edit2,
   Trash2,
@@ -21,7 +24,25 @@ import {
   Upload,
   AlertTriangle,
   Check,
-  Power
+  Power,
+  Sun,
+  Moon,
+  LogOut,
+  ExternalLink,
+  Menu as MenuIcon,
+  RefreshCw,
+  Users,
+  Volume2,
+  VolumeX,
+  ChevronRight,
+  Filter,
+  Eye,
+  EyeOff,
+  TrendingUp,
+  MapPin,
+  Phone,
+  Sparkles,
+  Calendar
 } from 'lucide-react';
 import { supabase } from '../services/supabase';
 import { sound } from '../utils/audio';
@@ -39,8 +60,27 @@ import {
 } from '../services/restaurantService';
 
 export default function AdminPanel() {
-  const [activeTab, setActiveTab] = useState('menu'); // 'profile', 'menu', 'categories', 'qr', 'orders'
+  // Navigation Tabs: 'overview', 'orders', 'menu', 'categories', 'profile', 'qr', 'kitchen', 'waiter', 'analytics', 'settings'
+  const [activeTab, setActiveTab] = useState('overview');
   const [loading, setLoading] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false); // Mobile drawer state
+
+  // Theme state: 'light' or 'dark'
+  const [theme, setTheme] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('deewan_admin_theme') || 'light';
+    }
+    return 'light';
+  });
+
+  const toggleTheme = () => {
+    const nextTheme = theme === 'light' ? 'dark' : 'light';
+    setTheme(nextTheme);
+    localStorage.setItem('deewan_admin_theme', nextTheme);
+  };
+
+  // Audio chimes enabled
+  const [soundEnabled, setSoundEnabled] = useState(true);
 
   // 1. Restaurant Profile State
   const [profile, setProfile] = useState({
@@ -85,8 +125,10 @@ export default function AdminPanel() {
   });
   const [itemError, setItemError] = useState('');
 
-  // 4. Orders & QR State
+  // 4. Orders, Waiter Calls & QR State
   const [orders, setOrders] = useState([]);
+  const [waiterCalls, setWaiterCalls] = useState([]);
+  const [orderFilter, setOrderFilter] = useState('ALL');
   const [newOrderAlert, setNewOrderAlert] = useState(null);
   const [selectedTableForQr, setSelectedTableForQr] = useState(1);
 
@@ -102,7 +144,7 @@ export default function AdminPanel() {
         { event: '*', schema: 'public', table: 'orders' },
         (payload) => {
           if (payload.eventType === 'INSERT') {
-            sound.playNewOrderChime();
+            if (soundEnabled) sound.playNewOrderChime();
             setNewOrderAlert(payload.new);
             setOrders((prev) => [payload.new, ...prev.filter((o) => o.id !== payload.new.id)]);
             setTimeout(() => setNewOrderAlert(null), 8000);
@@ -124,34 +166,48 @@ export default function AdminPanel() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'waiter_calls' },
         (payload) => {
-          if (payload.eventType === 'INSERT' && payload.new.call_type === 'order') {
-            try {
-              const parsed = JSON.parse(payload.new.notes);
-              const orderObj = {
-                id: payload.new.id,
-                order_no: parsed.order_no || '#' + payload.new.id.slice(0, 4),
-                table_no: payload.new.table_no,
-                customer_name: parsed.customer_name || 'Guest',
-                customer_phone: parsed.customer_phone || '',
-                total: parsed.total || 0,
-                status: payload.new.status === 'pending' ? 'received' : payload.new.status,
-                notes: JSON.stringify(parsed.items || []),
-                created_at: payload.new.created_at
-              };
-              sound.playNewOrderChime();
-              setNewOrderAlert(orderObj);
-              setOrders((prev) => {
-                if (prev.some((o) => o.order_no === orderObj.order_no)) return prev;
-                return [orderObj, ...prev];
-              });
-              setTimeout(() => setNewOrderAlert(null), 8000);
-            } catch (e) {
-              console.warn('Error parsing realtime order from waiter_calls:', e);
+          if (payload.eventType === 'INSERT') {
+            if (payload.new.call_type === 'order') {
+              try {
+                const parsed = JSON.parse(payload.new.notes);
+                const orderObj = {
+                  id: payload.new.id,
+                  order_no: parsed.order_no || '#' + payload.new.id.slice(0, 4),
+                  table_no: payload.new.table_no,
+                  customer_name: parsed.customer_name || 'Guest',
+                  customer_phone: parsed.customer_phone || '',
+                  total: parsed.total || 0,
+                  status: payload.new.status === 'pending' ? 'received' : payload.new.status,
+                  notes: JSON.stringify(parsed.items || []),
+                  created_at: payload.new.created_at
+                };
+                if (soundEnabled) sound.playNewOrderChime();
+                setNewOrderAlert(orderObj);
+                setOrders((prev) => {
+                  if (prev.some((o) => o.order_no === orderObj.order_no)) return prev;
+                  return [orderObj, ...prev];
+                });
+                setTimeout(() => setNewOrderAlert(null), 8000);
+              } catch (e) {
+                console.warn('Error parsing realtime order from waiter_calls:', e);
+              }
+            } else {
+              // General service / waiter buzzer
+              if (soundEnabled) sound.playBellChime();
+              setWaiterCalls((prev) => [payload.new, ...prev.filter((w) => w.id !== payload.new.id)]);
             }
-          } else if (payload.eventType === 'UPDATE' && payload.new.call_type === 'order') {
-            setOrders((prev) =>
-              prev.map((o) => (o.id === payload.new.id ? { ...o, status: payload.new.status } : o))
-            );
+          } else if (payload.eventType === 'UPDATE') {
+            if (payload.new.call_type === 'order') {
+              setOrders((prev) =>
+                prev.map((o) => (o.id === payload.new.id ? { ...o, status: payload.new.status } : o))
+              );
+            } else {
+              setWaiterCalls((prev) =>
+                prev.map((w) => (w.id === payload.new.id ? payload.new : w))
+              );
+            }
+          } else if (payload.eventType === 'DELETE') {
+            setWaiterCalls((prev) => prev.filter((w) => w.id !== payload.old.id));
           }
         }
       )
@@ -161,7 +217,7 @@ export default function AdminPanel() {
       supabase.removeChannel(ordersChannel);
       supabase.removeChannel(waiterCallsChannel);
     };
-  }, []);
+  }, [soundEnabled]);
 
   const loadAllData = async () => {
     setLoading(true);
@@ -174,7 +230,7 @@ export default function AdminPanel() {
       setProfile(profData);
       setCategories(catsData);
       setMenuItems(itemsData);
-      await fetchOrders();
+      await Promise.all([fetchOrders(), fetchWaiterCalls()]);
     } catch (e) {
       console.error('Error loading admin data:', e);
     } finally {
@@ -188,14 +244,14 @@ export default function AdminPanel() {
         .from('orders')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(30);
+        .limit(50);
 
       const { data: wcOrders } = await supabase
         .from('waiter_calls')
         .select('*')
         .eq('call_type', 'order')
         .order('created_at', { ascending: false })
-        .limit(30);
+        .limit(50);
 
       const combined = [...(dbOrders || [])];
 
@@ -226,7 +282,24 @@ export default function AdminPanel() {
       combined.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
       setOrders(combined);
     } catch (e) {
-      console.error(e);
+      console.error('Fetch orders error:', e);
+    }
+  };
+
+  const fetchWaiterCalls = async () => {
+    try {
+      const { data } = await supabase
+        .from('waiter_calls')
+        .select('*')
+        .neq('call_type', 'order')
+        .order('created_at', { ascending: false })
+        .limit(30);
+
+      if (data) {
+        setWaiterCalls(data);
+      }
+    } catch (e) {
+      console.warn('Fetch waiter calls error:', e);
     }
   };
 
@@ -243,6 +316,17 @@ export default function AdminPanel() {
     }
   };
 
+  const handleResolveWaiterCall = async (callId) => {
+    setWaiterCalls((prev) =>
+      prev.map((w) => (w.id === callId ? { ...w, status: 'resolved' } : w))
+    );
+    try {
+      await supabase.from('waiter_calls').update({ status: 'resolved', resolved_at: new Date().toISOString() }).eq('id', callId);
+    } catch (err) {
+      console.warn('Resolve call error:', err);
+    }
+  };
+
   // ==============================================================================
   // A. RESTAURANT PROFILE ACTIONS
   // ==============================================================================
@@ -254,7 +338,7 @@ export default function AdminPanel() {
     try {
       const saved = await updateRestaurantProfile({ ...profile, is_open: nextStatus });
       setProfile(saved);
-      setProfileSuccessMsg(`Restaurant status updated to ${nextStatus ? 'OPEN' : 'CLOSED'} and synced!`);
+      setProfileSuccessMsg(`Restaurant status updated to ${nextStatus ? 'OPEN' : 'CLOSED'} and synced system-wide!`);
       setTimeout(() => setProfileSuccessMsg(''), 4000);
     } catch (err) {
       console.warn('Status toggle error:', err);
@@ -488,6 +572,17 @@ export default function AdminPanel() {
     }
   };
 
+  const handleLogout = async () => {
+    if (window.confirm('Do you want to log out of the Deewan Admin Terminal?')) {
+      try {
+        await supabase.auth.signOut();
+      } catch (e) {
+        console.warn('Sign out note:', e);
+      }
+      window.location.href = '/login';
+    }
+  };
+
   // Filtered menu items
   const filteredItems = menuItems.filter((i) => {
     const matchesSearch =
@@ -503,6 +598,12 @@ export default function AdminPanel() {
     return matchesSearch && matchesCat;
   });
 
+  // Filtered Orders
+  const filteredOrders = orders.filter((o) => {
+    if (orderFilter === 'ALL') return true;
+    return (o.status || 'received').toLowerCase() === orderFilter.toLowerCase();
+  });
+
   const handlePrintQr = () => {
     window.print();
   };
@@ -515,117 +616,331 @@ export default function AdminPanel() {
     return c ? c.name : 'General';
   };
 
+  // Compute live KPI metrics
+  const totalGrossRevenue = orders.reduce((sum, o) => {
+    if (o.status === 'cancelled') return sum;
+    return sum + (Number(o.total) || 0);
+  }, 0);
+
+  const activeOrdersCount = orders.filter(
+    (o) => o.status === 'received' || o.status === 'preparing' || o.status === 'ready'
+  ).length;
+
+  const pendingWaiterCallsCount = waiterCalls.filter(
+    (w) => w.status === 'pending'
+  ).length;
+
+  const occupiedTables = Array.from(
+    new Set(
+      orders
+        .filter((o) => o.status === 'received' || o.status === 'preparing')
+        .map((o) => o.table_no)
+    )
+  ).filter(Boolean);
+
+  // Sidebar navigation configuration matching actual restaurant system
+  const navItems = [
+    { id: 'overview', label: 'Dashboard', icon: LayoutDashboard, badge: null },
+    { id: 'orders', label: 'Orders', icon: ShoppingBag, badge: activeOrdersCount > 0 ? activeOrdersCount : orders.length },
+    { id: 'menu', label: 'Menu Management', icon: UtensilsCrossed, badge: menuItems.length },
+    { id: 'categories', label: 'Categories', icon: Layers, badge: categories.length },
+    { id: 'profile', label: 'Restaurant Profile', icon: Store, badge: profile.is_open ? 'Open' : 'Closed' },
+    { id: 'qr', label: 'Table & QR Management', icon: QrCode, badge: '10' },
+    { id: 'kitchen', label: 'Kitchen KDS', icon: ChefHat, badge: orders.filter((o) => o.status === 'received' || o.status === 'preparing').length },
+    { id: 'waiter', label: 'Waiter Calls', icon: Bell, badge: pendingWaiterCallsCount > 0 ? pendingWaiterCallsCount : null },
+    { id: 'analytics', label: 'Analytics', icon: BarChart3, badge: null },
+    { id: 'settings', label: 'Settings', icon: Sliders, badge: null }
+  ];
+
   return (
-    <div className="min-h-screen bg-stone-100 text-stone-900 font-['Plus_Jakarta_Sans',sans-serif]">
-      {/* Top Navbar */}
-      <nav className="bg-stone-900 text-white px-4 sm:px-6 py-4 flex flex-wrap items-center justify-between gap-4 shadow-lg sticky top-0 z-30">
-        <div className="flex items-center gap-3">
-          {profile.logo_url ? (
-            <img
-              src={profile.logo_url}
-              alt="Logo"
-              className="w-10 h-10 rounded-xl object-cover border border-orange-500/50 shadow"
-            />
-          ) : (
-            <div className="p-2.5 bg-orange-600 rounded-xl shadow-md">
-              <Store className="w-5 h-5 text-white" />
+    <div className={`min-h-screen ${theme === 'dark' ? 'dark bg-stone-950 text-stone-100' : 'bg-slate-50 text-stone-900'} flex font-['Plus_Jakarta_Sans',sans-serif] transition-colors duration-200`}>
+      {/* ==================================================================== */}
+      {/* 1. LEFT SIDEBAR (FIXED NAVIGATION) */}
+      {/* ==================================================================== */}
+      <aside
+        className={`fixed inset-y-0 left-0 z-40 w-64 md:w-72 bg-white dark:bg-stone-900 border-r border-stone-200/80 dark:border-stone-800 flex flex-col justify-between transition-transform duration-300 ease-in-out ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+        }`}
+      >
+        <div className="flex flex-col h-full overflow-hidden">
+          {/* A. Sidebar Header & Logo */}
+          <div className="p-5 border-b border-stone-100 dark:border-stone-800/80 flex items-center justify-between">
+            <div className="flex items-center gap-3 min-w-0">
+              {profile.logo_url ? (
+                <img
+                  src={profile.logo_url}
+                  alt="Restaurant Logo"
+                  className="w-10 h-10 rounded-2xl object-cover border border-emerald-500/40 shadow-xs shrink-0"
+                />
+              ) : (
+                <div className="w-10 h-10 rounded-2xl bg-emerald-600 flex items-center justify-center text-white text-lg font-bold shadow-xs shrink-0">
+                  🍖
+                </div>
+              )}
+              <div className="min-w-0">
+                <h1 className="font-extrabold text-sm text-stone-900 dark:text-white truncate leading-tight">
+                  {profile.name || 'Deewan-E-Khaas'}
+                </h1>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+                    Admin Dashboard
+                  </span>
+                </div>
+              </div>
             </div>
-          )}
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="font-extrabold text-base sm:text-lg leading-tight truncate max-w-[220px] sm:max-w-xs">
-                {profile.name}
-              </h1>
-              <span
-                className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
-                  profile.is_open ? 'bg-emerald-500/20 text-emerald-300' : 'bg-red-500/20 text-red-300'
-                }`}
-              >
-                {profile.is_open ? 'Open' : 'Closed'}
+
+            {/* Mobile Close Button */}
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="p-1.5 text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 md:hidden rounded-lg hover:bg-stone-100 dark:hover:bg-stone-800"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* B. Navigation Items (Scrollable) */}
+          <nav className="flex-1 overflow-y-auto p-3 space-y-1">
+            <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500">
+              Main Navigation
+            </div>
+
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.id;
+
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    setActiveTab(item.id);
+                    setSidebarOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all duration-150 ${
+                    isActive
+                      ? 'bg-emerald-600 text-white shadow-xs font-bold'
+                      : 'text-stone-600 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800/60 hover:text-stone-900 dark:hover:text-stone-200'
+                  }`}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-stone-400 dark:text-stone-500'}`} />
+                    <span className="truncate">{item.label}</span>
+                  </div>
+
+                  {item.badge !== null && item.badge !== undefined && (
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                        isActive
+                          ? 'bg-white/20 text-white'
+                          : item.id === 'orders' && activeOrdersCount > 0
+                          ? 'bg-amber-500/10 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300'
+                          : item.id === 'waiter' && pendingWaiterCallsCount > 0
+                          ? 'bg-rose-500/10 text-rose-700 dark:bg-rose-500/20 dark:text-rose-300 animate-pulse'
+                          : 'bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-400'
+                      }`}
+                    >
+                      {item.badge}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </nav>
+
+          {/* C. Sidebar Footer (Theme, Public Link, Admin Profile & Logout) */}
+          <div className="p-3 border-t border-stone-100 dark:border-stone-800/80 space-y-2 bg-stone-50/50 dark:bg-stone-900/50">
+            {/* Dark / Light Mode Toggle */}
+            <div className="flex items-center justify-between p-2 rounded-xl bg-white dark:bg-stone-800/80 border border-stone-200/60 dark:border-stone-700/60 text-xs">
+              <span className="font-semibold text-stone-600 dark:text-stone-400 flex items-center gap-2">
+                {theme === 'dark' ? <Moon className="w-3.5 h-3.5 text-amber-400" /> : <Sun className="w-3.5 h-3.5 text-amber-500" />}
+                {theme === 'dark' ? 'Dark Mode' : 'Light Mode'}
               </span>
+              <button
+                onClick={toggleTheme}
+                className="p-1 px-2.5 rounded-lg bg-stone-100 dark:bg-stone-700 text-stone-700 dark:text-stone-200 text-[11px] font-bold hover:opacity-80 transition"
+              >
+                Switch
+              </button>
             </div>
-            <p className="text-xs text-stone-400">Admin Operating System • Terminal #{profile.display_id || '01'}</p>
+
+            {/* Public Website Link */}
+            <a
+              href="/chat"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-stone-600 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800 transition"
+            >
+              <span className="flex items-center gap-2">
+                <Store className="w-3.5 h-3.5 text-stone-400" />
+                Customer Menu
+              </span>
+              <ExternalLink className="w-3.5 h-3.5 text-stone-400" />
+            </a>
+
+            {/* Logged-In Admin Card */}
+            <div className="pt-2 border-t border-stone-200/60 dark:border-stone-800 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-full bg-emerald-700 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
+                  DA
+                </div>
+                <div className="min-w-0">
+                  <div className="font-bold text-xs text-stone-900 dark:text-white truncate">
+                    Deewan Admin
+                  </div>
+                  <div className="text-[10px] text-stone-400 dark:text-stone-500 truncate">
+                    Terminal #{profile.display_id || '01'}
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={handleLogout}
+                className="p-2 text-stone-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-xl transition shrink-0"
+                title="Log Out"
+              >
+                <LogOut className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
+      </aside>
 
-        {/* Navigation Tabs */}
-        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-          <button
-            onClick={() => setActiveTab('profile')}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition ${
-              activeTab === 'profile'
-                ? 'bg-orange-600 text-white shadow-md'
-                : 'text-stone-300 hover:bg-stone-800'
-            }`}
-          >
-            <Store className="w-4 h-4" />
-            Profile (#{profile.display_id || '01'})
-          </button>
+      {/* Backdrop for mobile drawer */}
+      {sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          className="fixed inset-0 z-30 bg-black/40 backdrop-blur-xs md:hidden"
+        />
+      )}
 
-          <button
-            onClick={() => setActiveTab('menu')}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition ${
-              activeTab === 'menu'
-                ? 'bg-orange-600 text-white shadow-md'
-                : 'text-stone-300 hover:bg-stone-800'
-            }`}
-          >
-            <Utensils className="w-4 h-4" />
-            Menu ({menuItems.length})
-          </button>
+      {/* ==================================================================== */}
+      {/* 2. MAIN CONTENT AREA */}
+      {/* ==================================================================== */}
+      <main className="flex-1 md:ml-64 lg:ml-72 flex flex-col min-h-screen min-w-0 overflow-x-hidden">
+        {/* A. Top Header Bar */}
+        <header className="sticky top-0 z-20 bg-white/90 dark:bg-stone-900/90 backdrop-blur-md border-b border-stone-200/80 dark:border-stone-800 px-4 sm:px-6 py-3.5 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
+            {/* Hamburger button for mobile */}
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="p-2 -ml-1 text-stone-600 dark:text-stone-300 hover:bg-stone-100 dark:hover:bg-stone-800 rounded-xl md:hidden"
+            >
+              <MenuIcon className="w-5 h-5" />
+            </button>
 
-          <button
-            onClick={() => setActiveTab('categories')}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition ${
-              activeTab === 'categories'
-                ? 'bg-orange-600 text-white shadow-md'
-                : 'text-stone-300 hover:bg-stone-800'
-            }`}
-          >
-            <Layers className="w-4 h-4" />
-            Categories ({categories.length})
-          </button>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-base sm:text-lg font-extrabold text-stone-900 dark:text-white truncate">
+                  {activeTab === 'overview' && 'Dashboard Overview'}
+                  {activeTab === 'orders' && 'Live Dine-In Orders'}
+                  {activeTab === 'menu' && 'Menu Management'}
+                  {activeTab === 'categories' && 'Categories Management'}
+                  {activeTab === 'profile' && 'Restaurant Profile'}
+                  {activeTab === 'qr' && 'Table & QR Management'}
+                  {activeTab === 'kitchen' && 'Kitchen Display (KDS)'}
+                  {activeTab === 'waiter' && 'Floor Waiter Calls'}
+                  {activeTab === 'analytics' && 'Restaurant Analytics'}
+                  {activeTab === 'settings' && 'System Settings'}
+                </h2>
 
-          <button
-            onClick={() => setActiveTab('qr')}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition ${
-              activeTab === 'qr'
-                ? 'bg-orange-600 text-white shadow-md'
-                : 'text-stone-300 hover:bg-stone-800'
-            }`}
-          >
-            <QrCode className="w-4 h-4" />
-            Table QRs
-          </button>
-
-          <button
-            onClick={() => setActiveTab('orders')}
-            className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition ${
-              activeTab === 'orders'
-                ? 'bg-orange-600 text-white shadow-md'
-                : 'text-stone-300 hover:bg-stone-800'
-            }`}
-          >
-            <FileText className="w-4 h-4" />
-            Orders ({orders.length})
-          </button>
-        </div>
-      </nav>
-
-      {/* Main Content Container */}
-      <main className="max-w-7xl mx-auto p-4 sm:p-6">
-        {/* Realtime Alert Banner */}
-        {newOrderAlert && (
-          <div className="mb-6 p-4 rounded-2xl bg-orange-600 text-white shadow-xl flex items-center justify-between animate-bounce">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-white/20 rounded-xl">
-                <Bell className="w-6 h-6 text-white" />
+                <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-300 border border-stone-200/60 dark:border-stone-700">
+                  Terminal #{profile.display_id || '01'}
+                </span>
               </div>
+              <p className="text-xs text-stone-500 dark:text-stone-400 hidden sm:block">
+                {activeTab === 'overview' && 'Real-time performance, kitchen throughput and live orders stream'}
+                {activeTab === 'orders' && 'Monitor, update, and manage customer orders across all dining tables'}
+                {activeTab === 'menu' && 'Manage food dishes, half/full prices, availability and product units'}
+                {activeTab === 'categories' && 'Organize category order, active visibility, and assigned dish counts'}
+                {activeTab === 'profile' && 'Update restaurant contact, address, operating hours, and branding'}
+                {activeTab === 'qr' && 'Generate and print table placards for contactless customer dine-in ordering'}
+                {activeTab === 'kitchen' && 'Kitchen line view with cooking timers and status advance'}
+                {activeTab === 'waiter' && 'Floor staff assistance requests with table-specific buzzer'}
+                {activeTab === 'analytics' && 'Revenue metrics, popular menu categories, and sales analytics'}
+                {activeTab === 'settings' && 'Configure sound chimes, terminal parameters, and currency'}
+              </p>
+            </div>
+          </div>
+
+          {/* Top-Right Action Controls */}
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            {/* Quick Status Toggle: OPEN / CLOSED */}
+            <button
+              onClick={handleQuickStatusToggle}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl font-bold text-xs shadow-xs transition active:scale-95 ${
+                profile.is_open
+                  ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                  : 'bg-rose-600 text-white hover:bg-rose-700'
+              }`}
+              title="Click to toggle restaurant Open/Closed status instantly"
+            >
+              <span className={`w-2 h-2 rounded-full ${profile.is_open ? 'bg-emerald-200 animate-pulse' : 'bg-rose-200'}`} />
+              <span className="hidden xs:inline">{profile.is_open ? 'STATUS: OPEN' : 'STATUS: CLOSED'}</span>
+              <span className="xs:hidden">{profile.is_open ? 'OPEN' : 'CLOSED'}</span>
+            </button>
+
+            {/* Contextual Action Button */}
+            {activeTab === 'menu' && (
+              <button
+                onClick={() => handleOpenItemModal()}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition active:scale-95"
+              >
+                <Plus className="w-4 h-4" />
+                <span className="hidden sm:inline">Add Food Item</span>
+                <span className="sm:hidden">Add</span>
+              </button>
+            )}
+
+            {activeTab === 'categories' && (
+              <button
+                onClick={() => handleOpenCatModal()}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition active:scale-95"
+              >
+                <Plus className="w-4 h-4" />
+                <span className="hidden sm:inline">Add Category</span>
+                <span className="sm:hidden">Add</span>
+              </button>
+            )}
+
+            {activeTab === 'qr' && (
+              <button
+                onClick={handlePrintQr}
+                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-stone-900 hover:bg-stone-800 text-white rounded-xl text-xs font-bold shadow-xs transition active:scale-95"
+              >
+                <Printer className="w-4 h-4" />
+                <span>Print Placard</span>
+              </button>
+            )}
+
+            {/* Sound Mute Toggle */}
+            <button
+              onClick={() => setSoundEnabled(!soundEnabled)}
+              className="p-2 text-stone-500 hover:text-stone-800 dark:hover:text-stone-200 rounded-xl hover:bg-stone-100 dark:hover:bg-stone-800 transition"
+              title={soundEnabled ? 'Audio Chimes Enabled' : 'Audio Muted'}
+            >
+              {soundEnabled ? <Volume2 className="w-4 h-4 text-emerald-600" /> : <VolumeX className="w-4 h-4 text-stone-400" />}
+            </button>
+
+            {/* Data Refresh */}
+            <button
+              onClick={loadAllData}
+              disabled={loading}
+              className="p-2 text-stone-500 hover:text-stone-800 dark:hover:text-stone-200 rounded-xl hover:bg-stone-100 dark:hover:bg-stone-800 transition disabled:opacity-40"
+              title="Refresh All Data"
+            >
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-emerald-600' : ''}`} />
+            </button>
+          </div>
+        </header>
+
+        {/* Global Alert Notification for incoming real-time orders */}
+        {newOrderAlert && (
+          <div className="mx-4 sm:mx-6 mt-4 p-3.5 bg-emerald-600 text-white rounded-2xl shadow-lg flex items-center justify-between text-xs font-bold animate-in slide-in-from-top-4 duration-200">
+            <div className="flex items-center gap-2.5">
+              <span className="p-1.5 bg-white/20 rounded-xl text-base">🔔</span>
               <div>
-                <h3 className="font-extrabold text-sm sm:text-base">🔔 New Order: {newOrderAlert.order_no}</h3>
-                <p className="text-xs text-orange-100">
-                  Table #{newOrderAlert.table_no} • {newOrderAlert.customer_name} • PKR {Number(newOrderAlert.total).toLocaleString()}
-                </p>
+                <span className="font-extrabold text-white text-sm">NEW ORDER {newOrderAlert.order_no}!</span>
+                <span className="opacity-90 ml-2">Table #{formatSeqId(newOrderAlert.table_no)} • PKR {Number(newOrderAlert.total).toLocaleString()}</span>
               </div>
             </div>
             <button
@@ -633,593 +948,651 @@ export default function AdminPanel() {
                 setActiveTab('orders');
                 setNewOrderAlert(null);
               }}
-              className="px-3.5 py-1.5 bg-white text-orange-800 font-bold text-xs rounded-xl shadow hover:bg-orange-50 active:scale-95 transition"
+              className="px-3 py-1 bg-white text-emerald-800 rounded-lg text-xs font-bold hover:bg-emerald-50 transition"
             >
-              View Orders
+              View Order ➔
             </button>
           </div>
         )}
 
-        {/* ==================================================================== */}
-        {/* TAB 1: RESTAURANT PROFILE MODULE */}
-        {/* ==================================================================== */}
-        {activeTab === 'profile' && (
-          <div className="max-w-3xl mx-auto bg-white rounded-3xl shadow-sm border border-stone-200 overflow-hidden">
-            <div className="p-6 border-b border-stone-200 bg-gradient-to-r from-orange-50 to-white flex items-center justify-between">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-0.5 rounded-md bg-stone-900 text-white font-mono font-bold text-xs">
-                    ID #{profile.display_id || '01'}
-                  </span>
-                  <h2 className="text-lg font-black text-stone-900">Restaurant Profile & Settings</h2>
-                </div>
-                <p className="text-xs text-stone-500 mt-1">
-                  Manage restaurant identity, contact details, opening hours, and operating status.
-                </p>
-              </div>
-
-              {/* Open / Closed Toggle */}
-              <button
-                type="button"
-                onClick={handleQuickStatusToggle}
-                className={`flex items-center gap-2 px-4 py-2 rounded-2xl font-bold text-xs shadow-sm transition active:scale-95 ${
-                  profile.is_open
-                    ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-                    : 'bg-red-600 text-white hover:bg-red-700'
-                }`}
-              >
-                <Power className="w-4 h-4" />
-                {profile.is_open ? 'STATUS: OPEN' : 'STATUS: CLOSED'}
-              </button>
-            </div>
-
-            {profileSuccessMsg && (
-              <div className="m-6 p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-semibold flex items-center gap-2">
-                <CheckCircle className="w-4 h-4 text-emerald-600" />
-                {profileSuccessMsg}
-              </div>
-            )}
-
-            <form onSubmit={handleSaveProfile} className="p-6 space-y-6">
-              {/* Logo Upload Section */}
-              <div className="p-4 rounded-2xl bg-stone-50 border border-stone-200 flex flex-wrap items-center justify-between gap-4">
-                <div className="flex items-center gap-4">
-                  {profile.logo_url ? (
-                    <img
-                      src={profile.logo_url}
-                      alt="Logo Preview"
-                      className="w-16 h-16 rounded-2xl object-cover border-2 border-orange-500 shadow-md"
-                    />
-                  ) : (
-                    <div className="w-16 h-16 rounded-2xl bg-stone-200 border-2 border-dashed border-stone-300 flex items-center justify-center text-stone-400">
-                      <ImageIcon className="w-6 h-6" />
+        {/* B. Tab Content Modules */}
+        <div className="p-4 sm:p-6 lg:p-8 flex-1">
+          {/* ==================================================================== */}
+          {/* TAB 1: DASHBOARD OVERVIEW */}
+          {/* ==================================================================== */}
+          {activeTab === 'overview' && (
+            <div className="space-y-6">
+              {/* 4 Bento KPI Metric Cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                {/* 1. Total Revenue */}
+                <div className="bg-white dark:bg-stone-900 p-5 rounded-2xl border border-stone-200/80 dark:border-stone-800 shadow-xs">
+                  <div className="flex items-center justify-between text-stone-500 dark:text-stone-400 mb-2">
+                    <span className="text-xs font-bold uppercase tracking-wider">Gross Sales</span>
+                    <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                      <DollarSign className="w-4 h-4" />
                     </div>
-                  )}
-                  <div>
-                    <h4 className="font-bold text-xs text-stone-900">Restaurant Logo</h4>
-                    <p className="text-[11px] text-stone-500">Appears on customer chatbot header & placards (PNG/JPG, max 2MB)</p>
+                  </div>
+                  <div className="text-xl sm:text-2xl font-black text-stone-900 dark:text-white font-mono">
+                    PKR {totalGrossRevenue.toLocaleString()}
+                  </div>
+                  <div className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400 mt-2 flex items-center gap-1">
+                    <TrendingUp className="w-3.5 h-3.5" />
+                    Live Dine-In Revenue
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <label className="cursor-pointer px-3.5 py-2 bg-stone-900 hover:bg-stone-800 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow transition active:scale-95">
-                    <Upload className="w-3.5 h-3.5" />
-                    Upload Logo
-                    <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
-                  </label>
-                  {profile.logo_url && (
+                {/* 2. Total Orders */}
+                <div className="bg-white dark:bg-stone-900 p-5 rounded-2xl border border-stone-200/80 dark:border-stone-800 shadow-xs">
+                  <div className="flex items-center justify-between text-stone-500 dark:text-stone-400 mb-2">
+                    <span className="text-xs font-bold uppercase tracking-wider">Total Orders</span>
+                    <div className="p-2 rounded-xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                      <ShoppingBag className="w-4 h-4" />
+                    </div>
+                  </div>
+                  <div className="text-xl sm:text-2xl font-black text-stone-900 dark:text-white font-mono">
+                    {orders.length} Orders
+                  </div>
+                  <div className="text-[11px] text-stone-500 dark:text-stone-400 mt-2">
+                    {activeOrdersCount} in-flight • {orders.filter((o) => o.status === 'served').length} served
+                  </div>
+                </div>
+
+                {/* 3. Occupied Tables */}
+                <div className="bg-white dark:bg-stone-900 p-5 rounded-2xl border border-stone-200/80 dark:border-stone-800 shadow-xs">
+                  <div className="flex items-center justify-between text-stone-500 dark:text-stone-400 mb-2">
+                    <span className="text-xs font-bold uppercase tracking-wider">Active Tables</span>
+                    <div className="p-2 rounded-xl bg-blue-500/10 text-blue-600 dark:text-blue-400">
+                      <Users className="w-4 h-4" />
+                    </div>
+                  </div>
+                  <div className="text-xl sm:text-2xl font-black text-stone-900 dark:text-white font-mono">
+                    {occupiedTables.length} / 10 Tables
+                  </div>
+                  <div className="text-[11px] text-stone-500 dark:text-stone-400 mt-2">
+                    {occupiedTables.length > 0 ? `Tables: ${occupiedTables.join(', ')}` : 'All tables ready'}
+                  </div>
+                </div>
+
+                {/* 4. Menu Dishes */}
+                <div className="bg-white dark:bg-stone-900 p-5 rounded-2xl border border-stone-200/80 dark:border-stone-800 shadow-xs">
+                  <div className="flex items-center justify-between text-stone-500 dark:text-stone-400 mb-2">
+                    <span className="text-xs font-bold uppercase tracking-wider">Menu Catalog</span>
+                    <div className="p-2 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400">
+                      <UtensilsCrossed className="w-4 h-4" />
+                    </div>
+                  </div>
+                  <div className="text-xl sm:text-2xl font-black text-stone-900 dark:text-white font-mono">
+                    {menuItems.length} Dishes
+                  </div>
+                  <div className="text-[11px] text-stone-500 dark:text-stone-400 mt-2">
+                    Across {categories.length} organized categories
+                  </div>
+                </div>
+              </div>
+
+              {/* Recent Orders Stream & Floor Quick Actions */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Left 2 Cols: Recent Live Orders */}
+                <div className="lg:col-span-2 bg-white dark:bg-stone-900 rounded-2xl border border-stone-200/80 dark:border-stone-800 shadow-xs p-5">
+                  <div className="flex items-center justify-between pb-4 border-b border-stone-100 dark:border-stone-800">
+                    <div>
+                      <h3 className="font-extrabold text-sm sm:text-base text-stone-900 dark:text-white">
+                        Live Kitchen & Order Stream
+                      </h3>
+                      <p className="text-xs text-stone-500 dark:text-stone-400">Recent customer orders synchronized via Supabase Realtime</p>
+                    </div>
                     <button
-                      type="button"
-                      onClick={handleDeleteLogo}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded-xl transition"
-                      title="Delete Logo"
+                      onClick={() => setActiveTab('orders')}
+                      className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      View All ({orders.length}) <ChevronRight className="w-3.5 h-3.5" />
                     </button>
+                  </div>
+
+                  {orders.length === 0 ? (
+                    <div className="py-12 text-center text-stone-400">
+                      <ShoppingBag className="w-10 h-10 mx-auto mb-2 opacity-40" />
+                      <p className="font-semibold text-xs">No orders yet</p>
+                      <p className="text-[11px]">Orders placed by customers in the chat will appear here live.</p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto mt-3">
+                      <table className="w-full text-left text-xs">
+                        <thead className="text-[11px] font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500 border-b border-stone-100 dark:border-stone-800">
+                          <tr>
+                            <th className="py-2.5 px-3">Order #</th>
+                            <th className="py-2.5 px-3">Table</th>
+                            <th className="py-2.5 px-3">Customer</th>
+                            <th className="py-2.5 px-3">Amount</th>
+                            <th className="py-2.5 px-3">Status</th>
+                            <th className="py-2.5 px-3 text-right">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
+                          {orders.slice(0, 6).map((ord) => (
+                            <tr key={ord.id} className="hover:bg-stone-50 dark:hover:bg-stone-800/40 transition">
+                              <td className="py-3 px-3 font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                                {ord.order_no}
+                              </td>
+                              <td className="py-3 px-3 font-semibold text-stone-900 dark:text-white">
+                                Table #{formatSeqId(ord.table_no)}
+                              </td>
+                              <td className="py-3 px-3">
+                                <div className="font-bold text-stone-900 dark:text-white truncate max-w-[120px]">
+                                  {ord.customer_name || 'Guest'}
+                                </div>
+                                <div className="text-[10px] text-stone-400 font-mono">{ord.customer_phone}</div>
+                              </td>
+                              <td className="py-3 px-3 font-mono font-bold text-stone-900 dark:text-white">
+                                PKR {Number(ord.total).toLocaleString()}
+                              </td>
+                              <td className="py-3 px-3">
+                                <span
+                                  className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase ${
+                                    ord.status === 'received'
+                                      ? 'bg-amber-500/10 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300'
+                                      : ord.status === 'preparing'
+                                      ? 'bg-blue-500/10 text-blue-700 dark:bg-blue-500/20 dark:text-blue-300'
+                                      : ord.status === 'ready'
+                                      ? 'bg-purple-500/10 text-purple-700 dark:bg-purple-500/20 dark:text-purple-300'
+                                      : ord.status === 'served'
+                                      ? 'bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300'
+                                      : 'bg-stone-200 text-stone-600 dark:bg-stone-800 dark:text-stone-400'
+                                  }`}
+                                >
+                                  {ord.status || 'received'}
+                                </span>
+                              </td>
+                              <td className="py-3 px-3 text-right">
+                                <select
+                                  value={ord.status || 'received'}
+                                  onChange={(e) => handleUpdateOrderStatus(ord.id, e.target.value)}
+                                  className="px-2 py-1 rounded-lg text-[11px] font-bold border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-800 dark:text-stone-200 cursor-pointer"
+                                >
+                                  <option value="received">Received</option>
+                                  <option value="preparing">Preparing</option>
+                                  <option value="ready">Ready</option>
+                                  <option value="served">Served</option>
+                                  <option value="cancelled">Cancelled</option>
+                                </select>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   )}
                 </div>
-              </div>
 
-              {/* Form Fields Grid */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="sm:col-span-2">
-                  <label className="block text-xs font-bold text-stone-700 mb-1">Restaurant Name</label>
-                  <input
-                    type="text"
-                    required
-                    value={profile.name}
-                    onChange={(e) => setProfile((p) => ({ ...p, name: e.target.value }))}
-                    className="w-full px-3.5 py-2 text-xs rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-orange-500 font-semibold"
-                  />
+                {/* Right Col: Waiter Calls & Quick Terminal Shortcuts */}
+                <div className="space-y-6">
+                  {/* Waiter Calls Quick Card */}
+                  <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-200/80 dark:border-stone-800 shadow-xs p-5">
+                    <div className="flex items-center justify-between pb-3 border-b border-stone-100 dark:border-stone-800">
+                      <div className="flex items-center gap-2">
+                        <Bell className="w-4 h-4 text-rose-500" />
+                        <h4 className="font-extrabold text-sm text-stone-900 dark:text-white">Floor Waiter Calls</h4>
+                      </div>
+                      <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400">
+                        {pendingWaiterCallsCount} Pending
+                      </span>
+                    </div>
+
+                    <div className="mt-3 space-y-2.5 max-h-56 overflow-y-auto">
+                      {waiterCalls.filter((w) => w.status === 'pending').length === 0 ? (
+                        <div className="text-center py-6 text-stone-400 text-xs">
+                          <CheckCircle className="w-8 h-8 mx-auto mb-1 text-emerald-500/40" />
+                          No pending waiter calls
+                        </div>
+                      ) : (
+                        waiterCalls
+                          .filter((w) => w.status === 'pending')
+                          .slice(0, 4)
+                          .map((call) => (
+                            <div
+                              key={call.id}
+                              className="p-2.5 rounded-xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200/60 dark:border-stone-700/60 flex items-center justify-between gap-2"
+                            >
+                              <div>
+                                <div className="font-bold text-xs text-stone-900 dark:text-white">
+                                  Table #{formatSeqId(call.table_no)}
+                                </div>
+                                <div className="text-[10px] text-stone-500 dark:text-stone-400">
+                                  {call.notes || 'Service requested'}
+                                </div>
+                              </div>
+                              <button
+                                onClick={() => handleResolveWaiterCall(call.id)}
+                                className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[10px] font-bold transition"
+                              >
+                                Resolve
+                              </button>
+                            </div>
+                          ))
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Terminal Quick Actions */}
+                  <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-200/80 dark:border-stone-800 shadow-xs p-5">
+                    <h4 className="font-extrabold text-sm text-stone-900 dark:text-white mb-3">
+                      Terminal Shortcuts
+                    </h4>
+                    <div className="grid grid-cols-2 gap-2 text-xs font-bold">
+                      <button
+                        onClick={() => setActiveTab('menu')}
+                        className="p-3 rounded-xl bg-stone-50 dark:bg-stone-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 text-stone-700 dark:text-stone-300 hover:text-emerald-700 dark:hover:text-emerald-400 border border-stone-200/60 dark:border-stone-700/60 flex flex-col items-center gap-1.5 transition text-center"
+                      >
+                        <UtensilsCrossed className="w-4 h-4" />
+                        <span>Add Dish</span>
+                      </button>
+
+                      <button
+                        onClick={() => setActiveTab('qr')}
+                        className="p-3 rounded-xl bg-stone-50 dark:bg-stone-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 text-stone-700 dark:text-stone-300 hover:text-emerald-700 dark:hover:text-emerald-400 border border-stone-200/60 dark:border-stone-700/60 flex flex-col items-center gap-1.5 transition text-center"
+                      >
+                        <QrCode className="w-4 h-4" />
+                        <span>Print QRs</span>
+                      </button>
+
+                      <a
+                        href="/kitchen"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="p-3 rounded-xl bg-stone-50 dark:bg-stone-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 text-stone-700 dark:text-stone-300 hover:text-emerald-700 dark:hover:text-emerald-400 border border-stone-200/60 dark:border-stone-700/60 flex flex-col items-center gap-1.5 transition text-center"
+                      >
+                        <ChefHat className="w-4 h-4" />
+                        <span>KDS Screen</span>
+                      </a>
+
+                      <button
+                        onClick={() => setActiveTab('profile')}
+                        className="p-3 rounded-xl bg-stone-50 dark:bg-stone-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 text-stone-700 dark:text-stone-300 hover:text-emerald-700 dark:hover:text-emerald-400 border border-stone-200/60 dark:border-stone-700/60 flex flex-col items-center gap-1.5 transition text-center"
+                      >
+                        <Store className="w-4 h-4" />
+                        <span>Edit Hours</span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
+              </div>
+            </div>
+          )}
 
+          {/* ==================================================================== */}
+          {/* TAB 2: ORDERS MODULE */}
+          {/* ==================================================================== */}
+          {activeTab === 'orders' && (
+            <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-200/80 dark:border-stone-800 shadow-xs p-5 sm:p-6 space-y-5">
+              <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-stone-700 mb-1">Phone Number</label>
-                  <input
-                    type="text"
-                    value={profile.phone}
-                    onChange={(e) => setProfile((p) => ({ ...p, phone: e.target.value }))}
-                    placeholder="+92 313 88 88 458"
-                    className="w-full px-3.5 py-2 text-xs rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-orange-500"
-                  />
+                  <h3 className="font-extrabold text-base text-stone-900 dark:text-white">
+                    Live Dine-In Orders ({filteredOrders.length})
+                  </h3>
+                  <p className="text-xs text-stone-500 dark:text-stone-400">
+                    Real-time order feed with customer details and kitchen status advancement
+                  </p>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-stone-700 mb-1">Opening Hours</label>
-                  <input
-                    type="text"
-                    value={profile.opening_hours}
-                    onChange={(e) => setProfile((p) => ({ ...p, opening_hours: e.target.value }))}
-                    placeholder="12:00 PM - 02:00 AM"
-                    className="w-full px-3.5 py-2 text-xs rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-orange-500"
-                  />
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label className="block text-xs font-bold text-stone-700 mb-1">Address</label>
-                  <input
-                    type="text"
-                    value={profile.address}
-                    onChange={(e) => setProfile((p) => ({ ...p, address: e.target.value }))}
-                    placeholder="North Circular Road Near Fowara Chowk, D.I Khan"
-                    className="w-full px-3.5 py-2 text-xs rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-orange-500"
-                  />
-                </div>
-
-                <div className="sm:col-span-2">
-                  <label className="block text-xs font-bold text-stone-700 mb-1">About / Description</label>
-                  <textarea
-                    rows={3}
-                    value={profile.description}
-                    onChange={(e) => setProfile((p) => ({ ...p, description: e.target.value }))}
-                    placeholder="Authentic Shinwari Karahi, Dum Pukht, BBQ & Traditional Namak Mandi Flavors."
-                    className="w-full px-3.5 py-2 text-xs rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-orange-500"
-                  />
+                {/* Status Filter Tabs */}
+                <div className="flex flex-wrap items-center gap-1.5 bg-stone-100 dark:bg-stone-800 p-1 rounded-xl text-xs font-semibold">
+                  {['ALL', 'received', 'preparing', 'ready', 'served', 'cancelled'].map((st) => (
+                    <button
+                      key={st}
+                      onClick={() => setOrderFilter(st)}
+                      className={`px-3 py-1 rounded-lg capitalize transition ${
+                        orderFilter === st
+                          ? 'bg-white dark:bg-stone-700 text-stone-900 dark:text-white font-bold shadow-xs'
+                          : 'text-stone-500 hover:text-stone-900 dark:hover:text-stone-200'
+                      }`}
+                    >
+                      {st}
+                    </button>
+                  ))}
                 </div>
               </div>
 
-              <div className="flex items-center justify-end pt-4 border-t border-stone-200">
-                <button
-                  type="submit"
-                  disabled={profileSaving}
-                  className="px-6 py-2.5 bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs rounded-xl shadow-md transition active:scale-95 disabled:opacity-50 flex items-center gap-2"
-                >
-                  <Check className="w-4 h-4" />
-                  {profileSaving ? 'Saving Changes...' : 'Save Profile Changes'}
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
+              {filteredOrders.length === 0 ? (
+                <div className="text-center py-16 text-stone-400">
+                  <ShoppingBag className="w-12 h-12 mx-auto mb-2 opacity-30" />
+                  <p className="font-bold text-sm">No orders matching filter</p>
+                  <p className="text-xs">Incoming dine-in orders will appear here automatically.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-stone-50 dark:bg-stone-800/60 text-stone-500 dark:text-stone-400 font-bold uppercase tracking-wider border-b border-stone-200 dark:border-stone-800">
+                      <tr>
+                        <th className="py-3 px-4">Order #</th>
+                        <th className="py-3 px-4">Table</th>
+                        <th className="py-3 px-4">Customer</th>
+                        <th className="py-3 px-4">Ordered Items</th>
+                        <th className="py-3 px-4">Total</th>
+                        <th className="py-3 px-4">Status & Sync</th>
+                        <th className="py-3 px-4">Time</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
+                      {filteredOrders.map((ord) => {
+                        let parsedItems = [];
+                        try {
+                          parsedItems = typeof ord.notes === 'string' ? JSON.parse(ord.notes) : ord.notes || [];
+                        } catch (e) {
+                          parsedItems = [];
+                        }
 
-        {/* ==================================================================== */}
-        {/* TAB 2: MENU MANAGEMENT MODULE (CRUD) */}
-        {/* ==================================================================== */}
-        {activeTab === 'menu' && (
-          <div className="bg-white rounded-3xl shadow-sm border border-stone-200 overflow-hidden">
-            <div className="p-5 border-b border-stone-200 flex flex-wrap items-center justify-between gap-4 bg-gradient-to-r from-orange-50 to-white">
-              <div>
-                <h2 className="text-lg font-black text-stone-900">Menu Items & Stock Control</h2>
-                <p className="text-xs text-stone-500">
-                  Add, edit, or delete dishes. Manage prices, sizes, units, and availability in real time.
-                </p>
-              </div>
+                        return (
+                          <tr key={ord.id} className="hover:bg-stone-50/80 dark:hover:bg-stone-800/40 transition">
+                            <td className="py-3.5 px-4 font-mono font-bold text-emerald-600 dark:text-emerald-400 text-xs sm:text-sm">
+                              {ord.order_no}
+                            </td>
+                            <td className="py-3.5 px-4 font-bold text-stone-900 dark:text-white">
+                              Table #{formatSeqId(ord.table_no)}
+                            </td>
+                            <td className="py-3.5 px-4">
+                              <div className="font-bold text-stone-900 dark:text-white">{ord.customer_name || 'Guest'}</div>
+                              <div className="text-stone-400 font-mono text-[11px]">{ord.customer_phone || '—'}</div>
+                            </td>
+                            <td className="py-3.5 px-4">
+                              <div className="space-y-0.5">
+                                {parsedItems.map((itm, i) => (
+                                  <div key={i} className="text-stone-700 dark:text-stone-300">
+                                    <span className="font-bold text-stone-900 dark:text-white">{itm.quantity}x</span> {itm.name}
+                                  </div>
+                                ))}
+                              </div>
+                            </td>
+                            <td className="py-3.5 px-4 font-mono font-bold text-stone-900 dark:text-white text-xs sm:text-sm">
+                              PKR {Number(ord.total).toLocaleString()}
+                            </td>
+                            <td className="py-3.5 px-4">
+                              <select
+                                value={ord.status || 'received'}
+                                onChange={(e) => handleUpdateOrderStatus(ord.id, e.target.value)}
+                                className={`px-2.5 py-1 rounded-lg text-xs font-bold border border-stone-200 dark:border-stone-700 cursor-pointer ${
+                                  ord.status === 'received'
+                                    ? 'bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300'
+                                    : ord.status === 'preparing'
+                                    ? 'bg-blue-50 text-blue-800 dark:bg-blue-950/40 dark:text-blue-300'
+                                    : ord.status === 'ready'
+                                    ? 'bg-purple-50 text-purple-800 dark:bg-purple-950/40 dark:text-purple-300'
+                                    : ord.status === 'served'
+                                    ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
+                                    : 'bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-300'
+                                }`}
+                              >
+                                <option value="received">Received</option>
+                                <option value="preparing">Preparing</option>
+                                <option value="ready">Ready</option>
+                                <option value="served">Served</option>
+                                <option value="cancelled">Cancelled</option>
+                              </select>
+                            </td>
+                            <td className="py-3.5 px-4 text-stone-400 font-mono text-[11px]">
+                              {new Date(ord.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
 
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="relative w-full sm:w-64">
-                  <Search className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          {/* ==================================================================== */}
+          {/* TAB 3: MENU MANAGEMENT MODULE */}
+          {/* ==================================================================== */}
+          {activeTab === 'menu' && (
+            <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-200/80 dark:border-stone-800 shadow-xs p-5 sm:p-6 space-y-5">
+              {/* Search & Category Filter Toolbar */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="relative flex-1 max-w-md">
+                  <Search className="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
                   <input
                     type="text"
-                    placeholder="Search by name, #, or ID..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-9 pr-4 py-2 text-xs rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
+                    placeholder="Search dishes by name, ID (#01) or number..."
+                    className="w-full pl-9 pr-4 py-2 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white placeholder:text-stone-400 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
 
-                <button
-                  onClick={() => handleOpenItemModal()}
-                  className="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs rounded-xl shadow flex items-center gap-1.5 transition active:scale-95"
-                >
-                  <Plus className="w-4 h-4" />
-                  Add Food Item
-                </button>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-stone-500 font-semibold hidden sm:inline">Category:</span>
+                  <select
+                    value={selectedCatFilter}
+                    onChange={(e) => setSelectedCatFilter(e.target.value)}
+                    className="px-3 py-2 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-800 dark:text-stone-200 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                  >
+                    <option value="ALL">All Categories ({menuItems.length})</option>
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        #{c.display_id} {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
-            </div>
 
-            {/* Category Filter Pills */}
-            <div className="px-5 py-3 border-b border-stone-200 bg-stone-50/60 flex items-center gap-2 overflow-x-auto">
-              <button
-                onClick={() => setSelectedCatFilter('ALL')}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition ${
-                  selectedCatFilter === 'ALL'
-                    ? 'bg-stone-900 text-white shadow-xs'
-                    : 'bg-white text-stone-600 hover:bg-stone-200'
-                }`}
-              >
-                All Items ({menuItems.length})
-              </button>
-              {categories.map((c) => (
+              {/* Category Filter Pills */}
+              <div className="flex items-center gap-1.5 overflow-x-auto pb-2 scrollbar-none">
                 <button
-                  key={c.id}
-                  onClick={() => setSelectedCatFilter(c.id)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition ${
-                    selectedCatFilter === c.id
-                      ? 'bg-orange-600 text-white shadow-xs'
-                      : 'bg-white text-stone-600 hover:bg-stone-200'
+                  onClick={() => setSelectedCatFilter('ALL')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition ${
+                    selectedCatFilter === 'ALL'
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : 'bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-400 hover:bg-stone-200'
                   }`}
                 >
-                  #{c.display_id} {c.name}
+                  All ({menuItems.length})
                 </button>
-              ))}
-            </div>
-
-            {/* Menu Items Table */}
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-stone-50 text-stone-600 font-bold uppercase tracking-wider border-b border-stone-200">
-                  <tr>
-                    <th className="py-3 px-4">Sequential ID</th>
-                    <th className="py-3 px-4">Dish Details</th>
-                    <th className="py-3 px-4">Category</th>
-                    <th className="py-3 px-4">Price & Unit</th>
-                    <th className="py-3 px-4 text-center">Status</th>
-                    <th className="py-3 px-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-stone-200">
-                  {filteredItems.map((item) => (
-                    <tr key={item.id} className="hover:bg-stone-50/80 transition">
-                      <td className="py-3 px-4">
-                        <span className="font-mono font-bold text-xs bg-stone-100 text-stone-800 px-2 py-0.5 rounded-md border border-stone-200">
-                          #{formatSeqId(item.display_id || item.item_number)}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4">
-                        <div className="flex items-center gap-3">
-                          {item.photo_url ? (
-                            <img
-                              src={item.photo_url}
-                              alt={item.name}
-                              className="w-10 h-10 rounded-xl object-cover border border-stone-200 shrink-0"
-                            />
-                          ) : (
-                            <div className="w-10 h-10 rounded-xl bg-orange-100 text-orange-600 font-bold flex items-center justify-center shrink-0">
-                              🍗
-                            </div>
-                          )}
-                          <div>
-                            <div className="font-bold text-stone-900 text-xs sm:text-sm">{item.name}</div>
-                            {item.description && (
-                              <div className="text-[11px] text-stone-500 line-clamp-1">{item.description}</div>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="py-3 px-4 text-stone-600 font-medium">
-                        {getCatName(item.category_id)}
-                      </td>
-                      <td className="py-3 px-4">
-                        {item.has_sizes && item.sizes ? (
-                          <div className="space-y-0.5">
-                            <span className="text-[11px] block font-mono text-stone-700">
-                              Half: <b>PKR {Number(item.sizes.half?.price || 0).toLocaleString()}</b>
-                            </span>
-                            <span className="text-[11px] block font-mono text-orange-700 font-bold">
-                              Full: <b>PKR {Number(item.sizes.full?.price || 0).toLocaleString()}</b>
-                            </span>
-                          </div>
-                        ) : (
-                          <div>
-                            <span className="font-mono font-bold text-orange-600 text-xs sm:text-sm">
-                              PKR {Number(item.price).toLocaleString()}
-                            </span>
-                            <span className="text-[10px] text-stone-500 block">per {item.unit || 'Portion'}</span>
-                          </div>
-                        )}
-                      </td>
-                      <td className="py-3 px-4 text-center">
-                        <span
-                          className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
-                            item.is_available ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
-                          }`}
-                        >
-                          {item.is_available ? 'Available' : 'Out of Stock'}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <button
-                            onClick={() => handleToggleAvailability(item)}
-                            className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition active:scale-95 ${
-                              item.is_available
-                                ? 'bg-stone-200 text-stone-700 hover:bg-stone-300'
-                                : 'bg-emerald-600 text-white hover:bg-emerald-700'
-                            }`}
-                          >
-                            {item.is_available ? 'Set Out' : 'Set Avail'}
-                          </button>
-                          <button
-                            onClick={() => handleOpenItemModal(item)}
-                            className="p-1.5 text-stone-600 hover:text-stone-900 hover:bg-stone-100 rounded-lg transition"
-                            title="Edit Item"
-                          >
-                            <Edit2 className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteItem(item.id)}
-                            className="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition"
-                            title="Delete Item"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {/* ==================================================================== */}
-        {/* TAB 3: CATEGORIES MANAGEMENT MODULE */}
-        {/* ==================================================================== */}
-        {activeTab === 'categories' && (
-          <div className="max-w-4xl mx-auto bg-white rounded-3xl shadow-sm border border-stone-200 overflow-hidden">
-            <div className="p-5 border-b border-stone-200 flex flex-wrap items-center justify-between gap-4 bg-gradient-to-r from-orange-50 to-white">
-              <div>
-                <h2 className="text-lg font-black text-stone-900">Categories Management</h2>
-                <p className="text-xs text-stone-500">
-                  Organize food categories, adjust sequence order, and manage active visibility.
-                </p>
+                {categories.map((cat) => {
+                  const count = menuItems.filter((i) => i.category_id === cat.id || i.category === cat.id).length;
+                  return (
+                    <button
+                      key={cat.id}
+                      onClick={() => setSelectedCatFilter(cat.id)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition flex items-center gap-1.5 ${
+                        selectedCatFilter === cat.id
+                          ? 'bg-emerald-600 text-white shadow-xs'
+                          : 'bg-stone-100 dark:bg-stone-800 text-stone-600 dark:text-stone-400 hover:bg-stone-200'
+                      }`}
+                    >
+                      <span>#{cat.display_id} {cat.name}</span>
+                      <span className="text-[10px] opacity-75">({count})</span>
+                    </button>
+                  );
+                })}
               </div>
 
-              <button
-                onClick={() => handleOpenCatModal()}
-                className="px-4 py-2 bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs rounded-xl shadow flex items-center gap-1.5 transition active:scale-95"
-              >
-                <Plus className="w-4 h-4" />
-                Add Category
-              </button>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs">
-                <thead className="bg-stone-50 text-stone-600 font-bold uppercase tracking-wider border-b border-stone-200">
-                  <tr>
-                    <th className="py-3 px-4">Sequential ID</th>
-                    <th className="py-3 px-4">Category Name</th>
-                    <th className="py-3 px-4">Display Order</th>
-                    <th className="py-3 px-4">Assigned Dishes</th>
-                    <th className="py-3 px-4 text-center">Status</th>
-                    <th className="py-3 px-4 text-right">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-stone-200">
-                  {categories.map((cat, idx) => {
-                    const assignedCount = menuItems.filter(
-                      (i) => i.category_id === cat.id || i.category === cat.slug
-                    ).length;
-
-                    return (
-                      <tr key={cat.id} className="hover:bg-stone-50/80 transition">
-                        <td className="py-3 px-4">
-                          <span className="font-mono font-bold text-xs bg-stone-100 text-stone-800 px-2 py-0.5 rounded-md border border-stone-200">
-                            #{formatSeqId(cat.display_id || cat.display_order || idx + 1)}
+              {/* Menu Items Table */}
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="bg-stone-50 dark:bg-stone-800/60 text-stone-500 dark:text-stone-400 font-bold uppercase tracking-wider border-b border-stone-200 dark:border-stone-800">
+                    <tr>
+                      <th className="py-3 px-4">Sequential ID</th>
+                      <th className="py-3 px-4">Food Item</th>
+                      <th className="py-3 px-4">Category</th>
+                      <th className="py-3 px-4">Unit</th>
+                      <th className="py-3 px-4">Price (PKR)</th>
+                      <th className="py-3 px-4">Availability</th>
+                      <th className="py-3 px-4 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
+                    {filteredItems.map((item) => (
+                      <tr key={item.id} className="hover:bg-stone-50/80 dark:hover:bg-stone-800/40 transition">
+                        <td className="py-3.5 px-4 font-mono font-bold text-stone-900 dark:text-white">
+                          #{item.display_id}
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <div className="flex items-center gap-3">
+                            {item.photo_url ? (
+                              <img
+                                src={item.photo_url}
+                                alt={item.name}
+                                className="w-9 h-9 rounded-xl object-cover border border-stone-200 dark:border-stone-700 shrink-0"
+                              />
+                            ) : (
+                              <div className="w-9 h-9 rounded-xl bg-stone-100 dark:bg-stone-800 flex items-center justify-center text-stone-400 shrink-0">
+                                <UtensilsCrossed className="w-4 h-4" />
+                              </div>
+                            )}
+                            <div>
+                              <div className="font-extrabold text-stone-900 dark:text-white text-xs sm:text-sm">
+                                {item.name}
+                              </div>
+                              {item.description && (
+                                <div className="text-[11px] text-stone-400 line-clamp-1 max-w-xs">
+                                  {item.description}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-4">
+                          <span className="px-2 py-0.5 rounded-lg bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 font-semibold text-[11px]">
+                            {getCatName(item.category_id)}
                           </span>
                         </td>
-                        <td className="py-3 px-4 font-bold text-stone-900 text-xs sm:text-sm">
-                          {cat.name}
+                        <td className="py-3.5 px-4 text-stone-600 dark:text-stone-400 font-medium">
+                          {item.unit || 'Portion'}
                         </td>
-                        <td className="py-3 px-4 font-mono font-semibold text-stone-600">
-                          {cat.display_order}
+                        <td className="py-3.5 px-4 font-mono font-bold text-stone-900 dark:text-white">
+                          {item.has_sizes && item.sizes ? (
+                            <div className="text-[11px] space-y-0.5">
+                              <div>Half: PKR {item.sizes.half?.price?.toLocaleString()}</div>
+                              <div>Full: PKR {item.sizes.full?.price?.toLocaleString()}</div>
+                            </div>
+                          ) : (
+                            <span>PKR {Number(item.price).toLocaleString()}</span>
+                          )}
                         </td>
-                        <td className="py-3 px-4">
-                          <span className="px-2 py-0.5 rounded-md bg-orange-50 text-orange-700 font-bold text-[11px] border border-orange-200">
-                            {assignedCount} items
-                          </span>
-                        </td>
-                        <td className="py-3 px-4 text-center">
+                        <td className="py-3.5 px-4">
                           <button
-                            onClick={() => handleToggleCategoryActive(cat)}
-                            className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold transition ${
-                              cat.is_active ? 'bg-emerald-100 text-emerald-800' : 'bg-stone-200 text-stone-600'
+                            onClick={() => handleToggleAvailability(item)}
+                            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold transition ${
+                              item.is_available
+                                ? 'bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300'
+                                : 'bg-stone-200 text-stone-500 dark:bg-stone-800 dark:text-stone-400'
                             }`}
                           >
-                            {cat.is_active ? 'Active' : 'Disabled'}
+                            <span className={`w-1.5 h-1.5 rounded-full ${item.is_available ? 'bg-emerald-500' : 'bg-stone-400'}`} />
+                            {item.is_available ? 'Available' : 'Out of Stock'}
                           </button>
                         </td>
-                        <td className="py-3 px-4 text-right">
+                        <td className="py-3.5 px-4 text-right">
                           <div className="flex items-center justify-end gap-1.5">
                             <button
-                              onClick={() => handleOpenCatModal(cat)}
-                              className="p-1.5 text-stone-600 hover:text-stone-900 hover:bg-stone-100 rounded-lg transition"
-                              title="Edit Category"
+                              onClick={() => handleOpenItemModal(item)}
+                              className="p-1.5 text-stone-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 rounded-lg transition"
+                              title="Edit Item"
                             >
-                              <Edit2 className="w-4 h-4" />
+                              <Edit2 className="w-3.5 h-3.5" />
                             </button>
                             <button
-                              onClick={() => handleDeleteCategory(cat.id)}
-                              className="p-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition"
-                              title="Delete Category"
+                              onClick={() => handleDeleteItem(item.id)}
+                              className="p-1.5 text-stone-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition"
+                              title="Delete Item"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         </td>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {/* ==================================================================== */}
-        {/* TAB 4: TABLE QR CODE GENERATOR */}
-        {/* ==================================================================== */}
-        {activeTab === 'qr' && (
-          <div className="max-w-2xl mx-auto bg-white rounded-3xl shadow-sm border border-stone-200 p-6 sm:p-8">
-            <div className="text-center mb-6">
-              <h2 className="text-xl font-black text-stone-900">Printable Table QR Placards</h2>
-              <p className="text-xs text-stone-500 mt-1">
-                Select a table number to generate a QR code linking directly to the guest chat.
-              </p>
-            </div>
-
-            {/* Table Selector */}
-            <div className="flex flex-wrap items-center justify-center gap-2 mb-8">
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
-                <button
-                  key={num}
-                  onClick={() => setSelectedTableForQr(num)}
-                  className={`px-4 py-2 rounded-xl font-bold text-xs transition ${
-                    selectedTableForQr === num
-                      ? 'bg-orange-600 text-white shadow-lg'
-                      : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
-                  }`}
-                >
-                  Table {formatSeqId(num)}
-                </button>
-              ))}
-            </div>
-
-            {/* Printable Card Area */}
-            <div
-              id="printable-card"
-              className="border-4 border-stone-900 rounded-3xl p-8 bg-gradient-to-b from-orange-50 to-white text-center shadow-lg max-w-sm mx-auto"
-            >
-              {profile.logo_url ? (
-                <img
-                  src={profile.logo_url}
-                  alt="Logo"
-                  className="w-16 h-16 mx-auto mb-2 rounded-2xl object-cover border-2 border-orange-500 shadow"
-                />
-              ) : (
-                <div className="w-14 h-14 mx-auto mb-2 rounded-2xl bg-orange-600 flex items-center justify-center text-white text-2xl shadow-md">
-                  🍖
+          {/* ==================================================================== */}
+          {/* TAB 4: CATEGORIES MANAGEMENT MODULE */}
+          {/* ==================================================================== */}
+          {activeTab === 'categories' && (
+            <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-200/80 dark:border-stone-800 shadow-xs p-5 sm:p-6 space-y-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="font-extrabold text-base text-stone-900 dark:text-white">
+                    Food Categories ({categories.length})
+                  </h3>
+                  <p className="text-xs text-stone-500 dark:text-stone-400">
+                    Sequence order, assigned dishes count, and menu visibility controls
+                  </p>
                 </div>
-              )}
-              <h3 className="text-xl font-black tracking-tight text-stone-900 uppercase">{profile.name}</h3>
-              <p className="text-[11px] font-bold text-orange-700 uppercase tracking-widest mb-6">
-                Dine-In • AI Chat Ordering
-              </p>
-
-              <div className="bg-white p-4 rounded-2xl shadow-inner border border-stone-200 inline-block mb-4">
-                <QRCodeSVG value={qrUrl} size={180} level="H" includeMargin={true} />
+                <button
+                  onClick={() => handleOpenCatModal()}
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition active:scale-95"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add Category</span>
+                </button>
               </div>
 
-              <div className="mt-2">
-                <span className="inline-block px-5 py-1.5 rounded-full bg-stone-900 text-white font-black text-lg font-mono">
-                  TABLE #{formatSeqId(selectedTableForQr)}
-                </span>
-                <p className="text-xs text-stone-600 mt-3 font-medium">
-                  Scan QR with your phone camera to order via chat!
-                </p>
-              </div>
-            </div>
-
-            <div className="mt-8 text-center">
-              <button
-                onClick={handlePrintQr}
-                className="px-6 py-3 bg-stone-900 hover:bg-stone-800 text-white font-bold text-xs rounded-xl shadow-lg flex items-center gap-2 mx-auto active:scale-95 transition"
-              >
-                <Printer className="w-4 h-4" />
-                Print Table #{formatSeqId(selectedTableForQr)} Placard
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* ==================================================================== */}
-        {/* TAB 5: RECENT ORDERS AUDIT */}
-        {/* ==================================================================== */}
-        {activeTab === 'orders' && (
-          <div className="bg-white rounded-3xl shadow-sm border border-stone-200 p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-lg font-black text-stone-900">Live Dine-In Orders ({orders.length})</h2>
-                <p className="text-xs text-stone-500">Realtime order stream with customer details and status sync.</p>
-              </div>
-              <button
-                onClick={fetchOrders}
-                className="px-3 py-1.5 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold text-xs flex items-center gap-1.5 transition"
-              >
-                Refresh Orders
-              </button>
-            </div>
-
-            {orders.length === 0 ? (
-              <div className="text-center py-12 text-stone-400">
-                <FileText className="w-12 h-12 mx-auto mb-2 text-stone-300" />
-                <p className="font-semibold text-sm">No orders yet</p>
-                <p className="text-xs">New dine-in orders placed through the chatbot will appear here in real time.</p>
-              </div>
-            ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-stone-50 text-stone-600 font-bold uppercase tracking-wider border-b border-stone-200">
+                  <thead className="bg-stone-50 dark:bg-stone-800/60 text-stone-500 dark:text-stone-400 font-bold uppercase tracking-wider border-b border-stone-200 dark:border-stone-800">
                     <tr>
-                      <th className="py-3 px-4">Order #</th>
-                      <th className="py-3 px-4">Table</th>
-                      <th className="py-3 px-4">Customer</th>
-                      <th className="py-3 px-4">Items Ordered</th>
-                      <th className="py-3 px-4">Total</th>
-                      <th className="py-3 px-4">Status & Sync</th>
-                      <th className="py-3 px-4">Time</th>
+                      <th className="py-3 px-4">Sequential ID</th>
+                      <th className="py-3 px-4">Category Name</th>
+                      <th className="py-3 px-4">Display Order</th>
+                      <th className="py-3 px-4">Assigned Dishes</th>
+                      <th className="py-3 px-4">Status</th>
+                      <th className="py-3 px-4 text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-stone-200">
-                    {orders.map((ord) => {
-                      let parsedItems = [];
-                      try {
-                        parsedItems = typeof ord.notes === 'string' ? JSON.parse(ord.notes) : ord.notes || [];
-                      } catch (e) {
-                        parsedItems = [];
-                      }
-
+                  <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
+                    {categories.map((cat) => {
+                      const itemCount = menuItems.filter((i) => i.category_id === cat.id || i.category === cat.id).length;
                       return (
-                        <tr key={ord.id} className="hover:bg-stone-50 transition">
-                          <td className="py-3 px-4 font-mono font-bold text-orange-600 text-xs sm:text-sm">
-                            {ord.order_no}
+                        <tr key={cat.id} className="hover:bg-stone-50/80 dark:hover:bg-stone-800/40 transition">
+                          <td className="py-3.5 px-4 font-mono font-bold text-stone-900 dark:text-white">
+                            #{cat.display_id}
                           </td>
-                          <td className="py-3 px-4 font-bold text-stone-900">
-                            Table #{formatSeqId(ord.table_no)}
+                          <td className="py-3.5 px-4 font-extrabold text-stone-900 dark:text-white text-xs sm:text-sm">
+                            {cat.name}
                           </td>
-                          <td className="py-3 px-4">
-                            <div className="font-bold text-stone-900">{ord.customer_name || 'Guest'}</div>
-                            <div className="text-stone-500 font-mono text-[11px]">{ord.customer_phone}</div>
+                          <td className="py-3.5 px-4 font-mono text-stone-600 dark:text-stone-400">
+                            {cat.display_order}
                           </td>
-                          <td className="py-3 px-4">
-                            <div className="space-y-0.5">
-                              {parsedItems.map((itm, i) => (
-                                <div key={i} className="text-stone-700">
-                                  {itm.quantity}x {itm.name}
-                                </div>
-                              ))}
-                            </div>
+                          <td className="py-3.5 px-4">
+                            <span className="px-2 py-0.5 rounded-lg bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 font-semibold text-[11px]">
+                              {itemCount} items
+                            </span>
                           </td>
-                          <td className="py-3 px-4 font-mono font-bold text-stone-900 text-xs sm:text-sm">
-                            PKR {Number(ord.total).toLocaleString()}
-                          </td>
-                          <td className="py-3 px-4">
-                            <select
-                              value={ord.status || 'received'}
-                              onChange={(e) => handleUpdateOrderStatus(ord.id, e.target.value)}
-                              className="px-2.5 py-1 rounded-lg text-xs font-bold border border-stone-300 bg-white"
+                          <td className="py-3.5 px-4">
+                            <button
+                              onClick={() => handleToggleCategoryActive(cat)}
+                              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold transition ${
+                                cat.is_active !== false
+                                  ? 'bg-emerald-500/10 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300'
+                                  : 'bg-stone-200 text-stone-500 dark:bg-stone-800 dark:text-stone-400'
+                              }`}
                             >
-                              <option value="received">Received</option>
-                              <option value="preparing">Preparing</option>
-                              <option value="ready">Ready</option>
-                              <option value="served">Served</option>
-                              <option value="cancelled">Cancelled</option>
-                            </select>
+                              <span className={`w-1.5 h-1.5 rounded-full ${cat.is_active !== false ? 'bg-emerald-500' : 'bg-stone-400'}`} />
+                              {cat.is_active !== false ? 'Active' : 'Hidden'}
+                            </button>
                           </td>
-                          <td className="py-3 px-4 text-stone-400 font-mono text-[11px]">
-                            {new Date(ord.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          <td className="py-3.5 px-4 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                onClick={() => handleOpenCatModal(cat)}
+                                className="p-1.5 text-stone-500 hover:text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 rounded-lg transition"
+                                title="Edit Category"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteCategory(cat.id)}
+                                className="p-1.5 text-stone-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg transition"
+                                title="Delete Category"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );
@@ -1227,9 +1600,536 @@ export default function AdminPanel() {
                   </tbody>
                 </table>
               </div>
-            )}
-          </div>
-        )}
+            </div>
+          )}
+
+          {/* ==================================================================== */}
+          {/* TAB 5: RESTAURANT PROFILE MODULE */}
+          {/* ==================================================================== */}
+          {activeTab === 'profile' && (
+            <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-200/80 dark:border-stone-800 shadow-xs p-5 sm:p-6 space-y-6">
+              <div className="flex items-center justify-between pb-4 border-b border-stone-100 dark:border-stone-800">
+                <div>
+                  <h3 className="font-extrabold text-base text-stone-900 dark:text-white">
+                    Restaurant Profile & Identity
+                  </h3>
+                  <p className="text-xs text-stone-500 dark:text-stone-400">
+                    Configure restaurant branding, address, operating hours, and customer chat headers
+                  </p>
+                </div>
+                <button
+                  onClick={handleQuickStatusToggle}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold shadow-xs transition ${
+                    profile.is_open ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'
+                  }`}
+                >
+                  <Power className="w-3.5 h-3.5" />
+                  {profile.is_open ? 'STATUS: OPEN' : 'STATUS: CLOSED'}
+                </button>
+              </div>
+
+              {profileSuccessMsg && (
+                <div className="p-3.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs font-semibold flex items-center gap-2">
+                  <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>{profileSuccessMsg}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleSaveProfile} className="space-y-6">
+                {/* Logo Section */}
+                <div className="p-4 rounded-xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200/60 dark:border-stone-700/60 flex flex-wrap items-center justify-between gap-4">
+                  <div className="flex items-center gap-4">
+                    {profile.logo_url ? (
+                      <img
+                        src={profile.logo_url}
+                        alt="Logo Preview"
+                        className="w-16 h-16 rounded-2xl object-cover border-2 border-emerald-500 shadow-xs"
+                      />
+                    ) : (
+                      <div className="w-16 h-16 rounded-2xl bg-stone-200 dark:bg-stone-700 border-2 border-dashed border-stone-300 dark:border-stone-600 flex items-center justify-center text-stone-400">
+                        <ImageIcon className="w-6 h-6" />
+                      </div>
+                    )}
+                    <div>
+                      <h4 className="font-bold text-xs text-stone-900 dark:text-white">Restaurant Logo</h4>
+                      <p className="text-[11px] text-stone-500 dark:text-stone-400">Appears on customer chatbot header & placards (PNG/JPG, max 2MB)</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <label className="cursor-pointer px-3.5 py-1.5 bg-stone-900 hover:bg-stone-800 dark:bg-stone-700 dark:hover:bg-stone-600 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition">
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>Upload Logo</span>
+                      <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
+                    </label>
+                    {profile.logo_url && (
+                      <button
+                        type="button"
+                        onClick={handleDeleteLogo}
+                        className="px-3 py-1.5 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-xl text-xs font-bold transition"
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Form Fields Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-1">
+                      Restaurant Name *
+                    </label>
+                    <input
+                      type="text"
+                      value={profile.name}
+                      onChange={(e) => setProfile((prev) => ({ ...prev, name: e.target.value }))}
+                      required
+                      className="w-full px-3.5 py-2 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-1">
+                      Contact Phone Number
+                    </label>
+                    <input
+                      type="text"
+                      value={profile.phone}
+                      onChange={(e) => setProfile((prev) => ({ ...prev, phone: e.target.value }))}
+                      className="w-full px-3.5 py-2 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-1">
+                      Operating Hours
+                    </label>
+                    <input
+                      type="text"
+                      value={profile.opening_hours}
+                      onChange={(e) => setProfile((prev) => ({ ...prev, opening_hours: e.target.value }))}
+                      className="w-full px-3.5 py-2 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-1">
+                      Physical Restaurant Address
+                    </label>
+                    <input
+                      type="text"
+                      value={profile.address}
+                      onChange={(e) => setProfile((prev) => ({ ...prev, address: e.target.value }))}
+                      className="w-full px-3.5 py-2 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    />
+                  </div>
+
+                  <div className="sm:col-span-2">
+                    <label className="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-1">
+                      About & Specialty Description
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={profile.description}
+                      onChange={(e) => setProfile((prev) => ({ ...prev, description: e.target.value }))}
+                      className="w-full px-3.5 py-2 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                <div className="pt-4 border-t border-stone-100 dark:border-stone-800 flex justify-end">
+                  <button
+                    type="submit"
+                    disabled={profileSaving}
+                    className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs transition active:scale-95 disabled:opacity-50"
+                  >
+                    {profileSaving ? 'Saving...' : 'Save Profile Changes'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
+          {/* ==================================================================== */}
+          {/* TAB 6: TABLE & QR MANAGEMENT MODULE */}
+          {/* ==================================================================== */}
+          {activeTab === 'qr' && (
+            <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-200/80 dark:border-stone-800 shadow-xs p-5 sm:p-6 space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-stone-100 dark:border-stone-800">
+                <div>
+                  <h3 className="font-extrabold text-base text-stone-900 dark:text-white">
+                    Contactless Table QR Placards
+                  </h3>
+                  <p className="text-xs text-stone-500 dark:text-stone-400">
+                    Each QR code directs customer phones to the table-specific ordering chat
+                  </p>
+                </div>
+                <button
+                  onClick={handlePrintQr}
+                  className="px-4 py-2 bg-stone-900 hover:bg-stone-800 dark:bg-stone-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-2 transition"
+                >
+                  <Printer className="w-4 h-4" />
+                  Print Placard
+                </button>
+              </div>
+
+              {/* Table Selector Grid */}
+              <div>
+                <label className="block text-xs font-bold text-stone-700 dark:text-stone-300 mb-2">
+                  Select Table Number:
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
+                    <button
+                      key={num}
+                      onClick={() => setSelectedTableForQr(num)}
+                      className={`px-4 py-2 rounded-xl text-xs font-bold transition ${
+                        selectedTableForQr === num
+                          ? 'bg-emerald-600 text-white shadow-xs'
+                          : 'bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300 hover:bg-stone-200'
+                      }`}
+                    >
+                      Table #{formatSeqId(num)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Printable Table Tent Placard Preview */}
+              <div className="max-w-sm mx-auto p-8 rounded-3xl bg-white text-stone-900 border-2 border-stone-200 shadow-lg text-center my-6 print:border-none print:shadow-none">
+                {profile.logo_url ? (
+                  <img
+                    src={profile.logo_url}
+                    alt="Logo"
+                    className="w-16 h-16 mx-auto mb-2 rounded-2xl object-cover border border-emerald-500 shadow-xs"
+                  />
+                ) : (
+                  <div className="w-16 h-16 mx-auto mb-2 rounded-2xl bg-emerald-600 flex items-center justify-center text-white text-2xl shadow-xs">
+                    🍖
+                  </div>
+                )}
+                <h3 className="text-base font-black tracking-tight text-stone-900 uppercase">
+                  {profile.name}
+                </h3>
+                <p className="text-[10px] font-bold text-emerald-700 uppercase tracking-widest mb-5">
+                  Dine-In • AI Chat Ordering
+                </p>
+
+                <div className="bg-stone-50 p-4 rounded-2xl border border-stone-200 inline-block mb-4 shadow-inner">
+                  <QRCodeSVG value={qrUrl} size={180} level="H" includeMargin={true} />
+                </div>
+
+                <div className="mt-2">
+                  <span className="inline-block px-5 py-1.5 rounded-full bg-stone-900 text-white font-black text-base font-mono">
+                    TABLE #{formatSeqId(selectedTableForQr)}
+                  </span>
+                  <p className="text-xs text-stone-600 mt-2 font-semibold">
+                    Scan with camera to order via chat!
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ==================================================================== */}
+          {/* TAB 7: KITCHEN MANAGEMENT MODULE */}
+          {/* ==================================================================== */}
+          {activeTab === 'kitchen' && (
+            <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-200/80 dark:border-stone-800 shadow-xs p-5 sm:p-6 space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-stone-100 dark:border-stone-800">
+                <div>
+                  <h3 className="font-extrabold text-base text-stone-900 dark:text-white">
+                    Kitchen Display System (KDS) Queue
+                  </h3>
+                  <p className="text-xs text-stone-500 dark:text-stone-400">
+                    Live cooking line view for kitchen staff with status timers
+                  </p>
+                </div>
+                <a
+                  href="/kitchen"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-xs flex items-center gap-2 transition"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  Open Fullscreen KDS Screen
+                </a>
+              </div>
+
+              {/* Kitchen In-Flight Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {orders.filter((o) => o.status === 'received' || o.status === 'preparing').length === 0 ? (
+                  <div className="col-span-full py-16 text-center text-stone-400">
+                    <ChefHat className="w-12 h-12 mx-auto mb-2 opacity-30" />
+                    <p className="font-bold text-sm">All Kitchen Orders Cleared!</p>
+                    <p className="text-xs">Incoming tickets will appear here with sound chimes.</p>
+                  </div>
+                ) : (
+                  orders
+                    .filter((o) => o.status === 'received' || o.status === 'preparing')
+                    .map((ord) => {
+                      let items = [];
+                      try {
+                        items = typeof ord.notes === 'string' ? JSON.parse(ord.notes) : ord.notes || [];
+                      } catch (e) {
+                        items = [];
+                      }
+
+                      return (
+                        <div
+                          key={ord.id}
+                          className="p-4 rounded-2xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200/80 dark:border-stone-700/80 shadow-xs flex flex-col justify-between"
+                        >
+                          <div>
+                            <div className="flex items-center justify-between pb-2 border-b border-stone-200/60 dark:border-stone-700/60">
+                              <span className="font-mono font-black text-sm text-emerald-600 dark:text-emerald-400">
+                                {ord.order_no}
+                              </span>
+                              <span className="px-2.5 py-0.5 rounded-full bg-stone-900 text-white font-bold text-xs">
+                                Table #{formatSeqId(ord.table_no)}
+                              </span>
+                            </div>
+
+                            <div className="py-3 space-y-1 text-xs">
+                              {items.map((itm, idx) => (
+                                <div key={idx} className="flex justify-between text-stone-800 dark:text-stone-200">
+                                  <span>{itm.quantity}x {itm.name}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="pt-3 border-t border-stone-200/60 dark:border-stone-700/60 flex items-center justify-between gap-2">
+                            <span className="text-[10px] font-mono text-stone-400">
+                              {new Date(ord.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                            <button
+                              onClick={() => handleUpdateOrderStatus(ord.id, ord.status === 'received' ? 'preparing' : 'ready')}
+                              className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition"
+                            >
+                              {ord.status === 'received' ? 'Mark Preparing ➔' : 'Mark Ready ➔'}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ==================================================================== */}
+          {/* TAB 8: WAITER CALLS MODULE */}
+          {/* ==================================================================== */}
+          {activeTab === 'waiter' && (
+            <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-200/80 dark:border-stone-800 shadow-xs p-5 sm:p-6 space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-stone-100 dark:border-stone-800">
+                <div>
+                  <h3 className="font-extrabold text-base text-stone-900 dark:text-white">
+                    Floor Staff & Waiter Calls ({waiterCalls.length})
+                  </h3>
+                  <p className="text-xs text-stone-500 dark:text-stone-400">
+                    Real-time service buzzer notifications from customer tables
+                  </p>
+                </div>
+                <a
+                  href="/waiter"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-stone-900 rounded-xl text-xs font-bold shadow-xs flex items-center gap-2 transition"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                  Open Floor Waiter Screen
+                </a>
+              </div>
+
+              {waiterCalls.length === 0 ? (
+                <div className="text-center py-16 text-stone-400">
+                  <Bell className="w-12 h-12 mx-auto mb-2 opacity-30 text-amber-500" />
+                  <p className="font-bold text-sm">No Active Waiter Calls</p>
+                  <p className="text-xs">When a guest taps "Waiter Bulao", buzzer alerts will appear here.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {waiterCalls.map((call) => (
+                    <div
+                      key={call.id}
+                      className={`p-4 rounded-2xl border shadow-xs flex items-center justify-between gap-4 ${
+                        call.status === 'pending'
+                          ? 'bg-amber-50/70 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800'
+                          : 'bg-stone-50 dark:bg-stone-800/40 border-stone-200 dark:border-stone-700 opacity-60'
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-black text-sm text-stone-900 dark:text-white">
+                            Table #{formatSeqId(call.table_no)}
+                          </span>
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                              call.status === 'pending' ? 'bg-amber-500 text-white' : 'bg-stone-200 text-stone-600'
+                            }`}
+                          >
+                            {call.status}
+                          </span>
+                        </div>
+                        <p className="text-xs text-stone-600 dark:text-stone-400 mt-1">{call.notes || 'Service call'}</p>
+                        <p className="text-[10px] font-mono text-stone-400 mt-1">
+                          {new Date(call.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+
+                      {call.status === 'pending' && (
+                        <button
+                          onClick={() => handleResolveWaiterCall(call.id)}
+                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition shrink-0"
+                        >
+                          Resolve
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* ==================================================================== */}
+          {/* TAB 9: ANALYTICS MODULE */}
+          {/* ==================================================================== */}
+          {activeTab === 'analytics' && (
+            <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-200/80 dark:border-stone-800 shadow-xs p-5 sm:p-6 space-y-6">
+              <div>
+                <h3 className="font-extrabold text-base text-stone-900 dark:text-white">
+                  Restaurant Performance Analytics
+                </h3>
+                <p className="text-xs text-stone-500 dark:text-stone-400">
+                  Real-time sales velocity, average ticket value, and menu distribution
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="p-4 rounded-xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200/60 dark:border-stone-700/60">
+                  <span className="text-[11px] font-bold uppercase text-stone-400">Average Order Value</span>
+                  <div className="text-xl font-black text-stone-900 dark:text-white font-mono mt-1">
+                    PKR {orders.length > 0 ? Math.round(totalGrossRevenue / orders.length).toLocaleString() : '0'}
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200/60 dark:border-stone-700/60">
+                  <span className="text-[11px] font-bold uppercase text-stone-400">Fulfillment Rate</span>
+                  <div className="text-xl font-black text-emerald-600 dark:text-emerald-400 font-mono mt-1">
+                    {orders.length > 0
+                      ? Math.round((orders.filter((o) => o.status === 'served').length / orders.length) * 100)
+                      : 100}%
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200/60 dark:border-stone-700/60">
+                  <span className="text-[11px] font-bold uppercase text-stone-400">Active Dining Tables</span>
+                  <div className="text-xl font-black text-blue-600 dark:text-blue-400 font-mono mt-1">
+                    {occupiedTables.length} Tables Active
+                  </div>
+                </div>
+              </div>
+
+              {/* Category Breakdown Bar */}
+              <div className="pt-4 border-t border-stone-100 dark:border-stone-800">
+                <h4 className="font-bold text-xs text-stone-700 dark:text-stone-300 mb-3">
+                  Menu Distribution by Category
+                </h4>
+                <div className="space-y-2">
+                  {categories.map((cat) => {
+                    const count = menuItems.filter((i) => i.category_id === cat.id || i.category === cat.id).length;
+                    const pct = menuItems.length > 0 ? Math.round((count / menuItems.length) * 100) : 0;
+                    return (
+                      <div key={cat.id} className="text-xs">
+                        <div className="flex justify-between font-semibold mb-1">
+                          <span className="text-stone-800 dark:text-stone-200">#{cat.display_id} {cat.name}</span>
+                          <span className="text-stone-500 font-mono">{count} items ({pct}%)</span>
+                        </div>
+                        <div className="w-full bg-stone-100 dark:bg-stone-800 h-2 rounded-full overflow-hidden">
+                          <div className="bg-emerald-600 h-full rounded-full" style={{ width: `${pct}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ==================================================================== */}
+          {/* TAB 10: SETTINGS MODULE */}
+          {/* ==================================================================== */}
+          {activeTab === 'settings' && (
+            <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-200/80 dark:border-stone-800 shadow-xs p-5 sm:p-6 space-y-6">
+              <div>
+                <h3 className="font-extrabold text-base text-stone-900 dark:text-white">
+                  Terminal & System Settings
+                </h3>
+                <p className="text-xs text-stone-500 dark:text-stone-400">
+                  Configure hardware alerts, currency, and Supabase integration parameters
+                </p>
+              </div>
+
+              <div className="space-y-4 max-w-xl text-xs">
+                <div className="p-4 rounded-xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200/60 dark:border-stone-700/60 flex items-center justify-between">
+                  <div>
+                    <h5 className="font-bold text-stone-900 dark:text-white">Audio Chimes</h5>
+                    <p className="text-stone-500 text-[11px]">Play chime when customer places an order or rings waiter</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => sound.playNewOrderChime()}
+                      className="px-2.5 py-1 bg-stone-200 dark:bg-stone-700 hover:bg-stone-300 rounded-lg text-[11px] font-semibold"
+                    >
+                      Test Chime
+                    </button>
+                    <button
+                      onClick={() => setSoundEnabled(!soundEnabled)}
+                      className={`px-3 py-1 rounded-lg font-bold text-white transition ${
+                        soundEnabled ? 'bg-emerald-600' : 'bg-stone-400'
+                      }`}
+                    >
+                      {soundEnabled ? 'Enabled' : 'Muted'}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200/60 dark:border-stone-700/60 flex items-center justify-between">
+                  <div>
+                    <h5 className="font-bold text-stone-900 dark:text-white">Terminal Identifier</h5>
+                    <p className="text-stone-500 text-[11px]">Assigned hardware terminal reference for staff</p>
+                  </div>
+                  <span className="font-mono font-bold text-sm text-stone-900 dark:text-white">
+                    Terminal #{profile.display_id || '01'}
+                  </span>
+                </div>
+
+                <div className="p-4 rounded-xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200/60 dark:border-stone-700/60 flex items-center justify-between">
+                  <div>
+                    <h5 className="font-bold text-stone-900 dark:text-white">Currency Format</h5>
+                    <p className="text-stone-500 text-[11px]">Default denomination displayed across guest and admin screens</p>
+                  </div>
+                  <span className="font-mono font-bold text-stone-900 dark:text-white">PKR (Pakistani Rupee)</span>
+                </div>
+
+                <div className="p-4 rounded-xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200/60 dark:border-stone-700/60 flex items-center justify-between">
+                  <div>
+                    <h5 className="font-bold text-stone-900 dark:text-white">Supabase Realtime Sync</h5>
+                    <p className="text-stone-500 text-[11px]">PostgreSQL websocket status for orders & waiter calls</p>
+                  </div>
+                  <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400 font-bold">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    Connected
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </main>
 
       {/* ==================================================================== */}
@@ -1237,77 +2137,76 @@ export default function AdminPanel() {
       {/* ==================================================================== */}
       {catModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 backdrop-blur-xs">
-          <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl border border-stone-200">
-            <div className="flex items-center justify-between pb-4 border-b border-stone-200 mb-4">
-              <h3 className="font-black text-base text-stone-900">
+          <div className="bg-white dark:bg-stone-900 rounded-3xl p-6 w-full max-w-md shadow-2xl border border-stone-200 dark:border-stone-800">
+            <div className="flex items-center justify-between pb-4 border-b border-stone-200 dark:border-stone-800 mb-4">
+              <h3 className="font-black text-base text-stone-900 dark:text-white">
                 {editingCat ? `Edit Category #${editingCat.display_id}` : 'Create New Category'}
               </h3>
               <button
                 onClick={() => setCatModalOpen(false)}
-                className="p-1 rounded-xl text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition"
+                className="p-1 rounded-xl text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 transition"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {catError && (
-              <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold flex items-center gap-2">
+              <div className="mb-4 p-3 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-xs font-semibold flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 shrink-0" />
-                {catError}
+                <span>{catError}</span>
               </div>
             )}
 
-            <form onSubmit={handleSaveCategory} className="space-y-4">
+            <form onSubmit={handleSaveCategory} className="space-y-4 text-xs">
               <div>
-                <label className="block text-xs font-bold text-stone-700 mb-1">Category Name *</label>
+                <label className="block font-bold text-stone-700 dark:text-stone-300 mb-1">Category Name *</label>
                 <input
                   type="text"
-                  required
-                  placeholder="e.g. Seafood & Fish"
                   value={catFormData.name}
                   onChange={(e) => setCatFormData((prev) => ({ ...prev, name: e.target.value }))}
-                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-orange-500 font-semibold"
+                  placeholder="e.g. Seafood & Fish"
+                  required
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-stone-700 mb-1">Display Order Sequence</label>
+                <label className="block font-bold text-stone-700 dark:text-stone-300 mb-1">Display Order Sequence</label>
                 <input
                   type="number"
-                  min="1"
-                  required
                   value={catFormData.display_order}
                   onChange={(e) => setCatFormData((prev) => ({ ...prev, display_order: e.target.value }))}
-                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono"
+                  min="1"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none font-mono"
                 />
               </div>
 
               <div className="flex items-center gap-2 pt-2">
                 <input
                   type="checkbox"
-                  id="cat_active"
+                  id="catActive"
                   checked={catFormData.is_active}
                   onChange={(e) => setCatFormData((prev) => ({ ...prev, is_active: e.target.checked }))}
-                  className="w-4 h-4 text-orange-600 rounded focus:ring-orange-500"
+                  className="w-4 h-4 text-emerald-600 rounded-md focus:ring-emerald-500"
                 />
-                <label htmlFor="cat_active" className="text-xs font-bold text-stone-700 cursor-pointer">
+                <label htmlFor="catActive" className="font-semibold text-stone-700 dark:text-stone-300 cursor-pointer">
                   Category is Active (Visible on Customer Menu)
                 </label>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-4 border-t border-stone-200">
+              <div className="pt-4 border-t border-stone-100 dark:border-stone-800 flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setCatModalOpen(false)}
-                  className="px-4 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold text-xs transition"
+                  className="px-4 py-2 rounded-xl text-stone-600 dark:text-stone-400 font-bold hover:bg-stone-100 dark:hover:bg-stone-800 transition"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs shadow transition active:scale-95"
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold shadow-xs transition"
                 >
-                  {editingCat ? 'Save Changes' : 'Create Category'}
+                  {editingCat ? 'Update Category' : 'Create Category'}
                 </button>
               </div>
             </form>
@@ -1320,85 +2219,46 @@ export default function AdminPanel() {
       {/* ==================================================================== */}
       {itemModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4 backdrop-blur-xs overflow-y-auto">
-          <div className="bg-white rounded-3xl p-6 w-full max-w-xl shadow-2xl border border-stone-200 my-8">
-            <div className="flex items-center justify-between pb-4 border-b border-stone-200 mb-4">
-              <h3 className="font-black text-base text-stone-900">
-                {editingItem ? `Edit Food Item #${formatSeqId(editingItem.display_id || editingItem.item_number)}` : 'Add New Food Item'}
+          <div className="bg-white dark:bg-stone-900 rounded-3xl p-6 w-full max-w-lg shadow-2xl border border-stone-200 dark:border-stone-800 my-8">
+            <div className="flex items-center justify-between pb-4 border-b border-stone-200 dark:border-stone-800 mb-4">
+              <h3 className="font-black text-base text-stone-900 dark:text-white">
+                {editingItem ? `Edit Dish #${editingItem.display_id}` : 'Add New Food Item'}
               </h3>
               <button
                 onClick={() => setItemModalOpen(false)}
-                className="p-1 rounded-xl text-stone-400 hover:text-stone-700 hover:bg-stone-100 transition"
+                className="p-1 rounded-xl text-stone-400 hover:text-stone-700 dark:hover:text-stone-200 hover:bg-stone-100 dark:hover:bg-stone-800 transition"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {itemError && (
-              <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold flex items-center gap-2">
+              <div className="mb-4 p-3 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-xs font-semibold flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 shrink-0" />
-                {itemError}
+                <span>{itemError}</span>
               </div>
             )}
 
-            <form onSubmit={handleSaveMenuItem} className="space-y-4">
-              {/* Dish Photo Upload */}
-              <div className="p-3.5 rounded-2xl bg-stone-50 border border-stone-200 flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  {itemFormData.photo_url ? (
-                    <img
-                      src={itemFormData.photo_url}
-                      alt="Preview"
-                      className="w-12 h-12 rounded-xl object-cover border border-orange-500 shadow"
-                    />
-                  ) : (
-                    <div className="w-12 h-12 rounded-xl bg-stone-200 flex items-center justify-center text-stone-400">
-                      <ImageIcon className="w-5 h-5" />
-                    </div>
-                  )}
-                  <div>
-                    <h5 className="font-bold text-xs text-stone-800">Dish Photo</h5>
-                    <p className="text-[10px] text-stone-500">Upload thumbnail for the customer menu (Max 2MB)</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <label className="cursor-pointer px-3 py-1.5 bg-stone-900 hover:bg-stone-800 text-white text-xs font-bold rounded-xl flex items-center gap-1 shadow transition">
-                    <Upload className="w-3.5 h-3.5" />
-                    Upload
-                    <input type="file" accept="image/*" onChange={handleItemImageUpload} className="hidden" />
-                  </label>
-                  {itemFormData.photo_url && (
-                    <button
-                      type="button"
-                      onClick={() => setItemFormData((p) => ({ ...p, photo_url: '' }))}
-                      className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              </div>
-
-              {/* Dish Name & Category */}
+            <form onSubmit={handleSaveMenuItem} className="space-y-4 text-xs">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="sm:col-span-2">
-                  <label className="block text-xs font-bold text-stone-700 mb-1">Dish Name *</label>
+                  <label className="block font-bold text-stone-700 dark:text-stone-300 mb-1">Dish Name *</label>
                   <input
                     type="text"
-                    required
-                    placeholder="e.g. Mutton Shinwari Karahi"
                     value={itemFormData.name}
-                    onChange={(e) => setItemFormData((p) => ({ ...p, name: e.target.value }))}
-                    className="w-full px-3.5 py-2 text-xs rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-orange-500 font-semibold"
+                    onChange={(e) => setItemFormData((prev) => ({ ...prev, name: e.target.value }))}
+                    placeholder="e.g. Chicken Malai Handi"
+                    required
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-stone-700 mb-1">Category *</label>
+                  <label className="block font-bold text-stone-700 dark:text-stone-300 mb-1">Category *</label>
                   <select
                     value={itemFormData.category_id}
-                    onChange={(e) => setItemFormData((p) => ({ ...p, category_id: e.target.value }))}
-                    className="w-full px-3.5 py-2 text-xs rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white font-semibold"
+                    onChange={(e) => setItemFormData((prev) => ({ ...prev, category_id: e.target.value }))}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                   >
                     {categories.map((c) => (
                       <option key={c.id} value={c.id}>
@@ -1409,127 +2269,137 @@ export default function AdminPanel() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-stone-700 mb-1">Quantity Unit *</label>
+                  <label className="block font-bold text-stone-700 dark:text-stone-300 mb-1">Quantity Unit</label>
                   <select
                     value={itemFormData.unit}
-                    onChange={(e) => {
-                      const u = e.target.value;
-                      let pl = u + 's';
-                      if (u === 'Piece') pl = 'Pieces';
-                      if (u === 'Portion') pl = 'Portions';
-                      if (u === 'Box') pl = 'Boxes';
-                      setItemFormData((p) => ({ ...p, unit: u, unit_plural: pl }));
-                    }}
-                    className="w-full px-3.5 py-2 text-xs rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white font-semibold"
+                    onChange={(e) => setItemFormData((prev) => ({ ...prev, unit: e.target.value }))}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                   >
-                    <option value="Portion">Portion (Karahi, Biryani, Rice)</option>
-                    <option value="Piece">Piece (Roti, Naan, Kabab, Tikka)</option>
-                    <option value="Cup">Cup (Ice Cream, Kheer)</option>
-                    <option value="Bottle">Bottle (Cold Drink, Water)</option>
-                    <option value="Can">Can / Tin (Tin Pack, Diet Can)</option>
-                    <option value="Skewer">Skewer (BBQ Boti, Malai Boti)</option>
-                    <option value="Platter">Platter (Special Deals, Platters)</option>
-                    <option value="Box">Box (Sweets, Cakes)</option>
+                    <option value="Portion">Portion (Karahi / Handi)</option>
+                    <option value="Piece">Piece (Roti / Burger / Sweet)</option>
+                    <option value="Platter">Platter (Special Combos)</option>
+                    <option value="Deal">Deal (Special Deals)</option>
+                    <option value="Skewer">Skewer (BBQ / Tikka)</option>
+                    <option value="Bottle">Bottle (Cold Drinks)</option>
+                    <option value="Can">Can (Beverages)</option>
+                    <option value="Cup">Cup (Ice Cream)</option>
                   </select>
                 </div>
               </div>
 
               {/* Multi-Size Toggle */}
-              <div className="p-3 rounded-xl bg-orange-50 border border-orange-200">
-                <div className="flex items-center gap-2 mb-2">
-                  <input
-                    type="checkbox"
-                    id="has_sizes_checkbox"
-                    checked={itemFormData.has_sizes}
-                    onChange={(e) => setItemFormData((p) => ({ ...p, has_sizes: e.target.checked }))}
-                    className="w-4 h-4 text-orange-600 rounded focus:ring-orange-500"
-                  />
-                  <label htmlFor="has_sizes_checkbox" className="text-xs font-bold text-orange-950 cursor-pointer">
-                    This item has Multiple Portions / Sizes (Half & Full)
-                  </label>
+              <div className="p-3.5 rounded-xl bg-stone-50 dark:bg-stone-800/60 border border-stone-200 dark:border-stone-700">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="hasSizes"
+                      checked={itemFormData.has_sizes}
+                      onChange={(e) => setItemFormData((prev) => ({ ...prev, has_sizes: e.target.checked }))}
+                      className="w-4 h-4 text-emerald-600 rounded-md focus:ring-emerald-500"
+                    />
+                    <label htmlFor="hasSizes" className="font-bold text-stone-800 dark:text-stone-200 cursor-pointer">
+                      Has Half / Full Sizes (Karahi / Handi)
+                    </label>
+                  </div>
                 </div>
 
                 {itemFormData.has_sizes ? (
-                  <div className="grid grid-cols-2 gap-3 mt-3 pt-3 border-t border-orange-200/70">
+                  <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[11px] font-bold text-orange-900 mb-1">Half Price (PKR) *</label>
+                      <label className="block font-semibold text-stone-600 dark:text-stone-400 mb-1">Half Price (PKR)</label>
                       <input
                         type="number"
-                        min="1"
-                        placeholder="e.g. 950"
                         value={itemFormData.size_half_price}
-                        onChange={(e) => setItemFormData((p) => ({ ...p, size_half_price: e.target.value }))}
-                        className="w-full px-3 py-1.5 text-xs rounded-xl border border-orange-300 bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono font-bold"
+                        onChange={(e) => setItemFormData((prev) => ({ ...prev, size_half_price: e.target.value }))}
+                        placeholder="e.g. 950"
+                        className="w-full px-3 py-2 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-white font-mono text-xs"
                       />
                     </div>
                     <div>
-                      <label className="block text-[11px] font-bold text-orange-900 mb-1">Full Price (PKR) *</label>
+                      <label className="block font-semibold text-stone-600 dark:text-stone-400 mb-1">Full Price (PKR)</label>
                       <input
                         type="number"
-                        min="1"
-                        placeholder="e.g. 1799"
                         value={itemFormData.size_full_price}
-                        onChange={(e) => setItemFormData((p) => ({ ...p, size_full_price: e.target.value }))}
-                        className="w-full px-3 py-1.5 text-xs rounded-xl border border-orange-300 bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono font-bold"
+                        onChange={(e) => setItemFormData((prev) => ({ ...prev, size_full_price: e.target.value }))}
+                        placeholder="e.g. 1799"
+                        className="w-full px-3 py-2 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-white font-mono text-xs"
                       />
                     </div>
                   </div>
                 ) : (
                   <div>
-                    <label className="block text-xs font-bold text-stone-700 mb-1">Single Price (PKR) *</label>
+                    <label className="block font-semibold text-stone-600 dark:text-stone-400 mb-1">Dish Price (PKR) *</label>
                     <input
                       type="number"
-                      min="1"
-                      required={!itemFormData.has_sizes}
-                      placeholder="e.g. 900"
                       value={itemFormData.price}
-                      onChange={(e) => setItemFormData((p) => ({ ...p, price: e.target.value }))}
-                      className="w-full px-3.5 py-2 text-xs rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono font-bold bg-white"
+                      onChange={(e) => setItemFormData((prev) => ({ ...prev, price: e.target.value }))}
+                      placeholder="e.g. 850"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 dark:border-stone-700 bg-white dark:bg-stone-800 text-stone-900 dark:text-white font-mono text-xs"
                     />
                   </div>
                 )}
               </div>
 
-              {/* Description */}
               <div>
-                <label className="block text-xs font-bold text-stone-700 mb-1">Description / Details</label>
+                <label className="block font-bold text-stone-700 dark:text-stone-300 mb-1">Dish Description</label>
                 <textarea
                   rows={2}
-                  placeholder="Ingredients, preparation style, or included items (for platters)..."
                   value={itemFormData.description}
-                  onChange={(e) => setItemFormData((p) => ({ ...p, description: e.target.value }))}
-                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                  onChange={(e) => setItemFormData((prev) => ({ ...prev, description: e.target.value }))}
+                  placeholder="Ingredients, spice level, preparation style..."
+                  className="w-full px-3.5 py-2 rounded-xl border border-stone-200 dark:border-stone-700 bg-stone-50 dark:bg-stone-800 text-stone-900 dark:text-white focus:ring-2 focus:ring-emerald-500 focus:outline-none"
                 />
               </div>
 
-              {/* Availability Toggle */}
-              <div className="flex items-center gap-2 pt-1">
+              {/* Photo Upload & Preview */}
+              <div className="flex items-center gap-3">
+                {itemFormData.photo_url ? (
+                  <img
+                    src={itemFormData.photo_url}
+                    alt="Preview"
+                    className="w-12 h-12 rounded-xl object-cover border border-stone-200 dark:border-stone-700"
+                  />
+                ) : (
+                  <div className="w-12 h-12 rounded-xl bg-stone-100 dark:bg-stone-800 flex items-center justify-center text-stone-400">
+                    <ImageIcon className="w-5 h-5" />
+                  </div>
+                )}
+                <div>
+                  <label className="cursor-pointer px-3 py-1.5 bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 text-stone-700 dark:text-stone-300 rounded-xl font-bold flex items-center gap-1.5 transition">
+                    <Upload className="w-3.5 h-3.5" />
+                    <span>Upload Dish Image</span>
+                    <input type="file" accept="image/*" onChange={handleItemImageUpload} className="hidden" />
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
                 <input
                   type="checkbox"
-                  id="item_available"
+                  id="itemAvailable"
                   checked={itemFormData.is_available}
-                  onChange={(e) => setItemFormData((p) => ({ ...p, is_available: e.target.checked }))}
-                  className="w-4 h-4 text-orange-600 rounded focus:ring-orange-500"
+                  onChange={(e) => setItemFormData((prev) => ({ ...prev, is_available: e.target.checked }))}
+                  className="w-4 h-4 text-emerald-600 rounded-md focus:ring-emerald-500"
                 />
-                <label htmlFor="item_available" className="text-xs font-bold text-stone-700 cursor-pointer">
-                  In Stock & Available for Ordering
+                <label htmlFor="itemAvailable" className="font-semibold text-stone-700 dark:text-stone-300 cursor-pointer">
+                  Item is Available for Dine-In Ordering
                 </label>
               </div>
 
-              {/* Modal Buttons */}
-              <div className="flex items-center justify-end gap-2 pt-4 border-t border-stone-200">
+              <div className="pt-4 border-t border-stone-100 dark:border-stone-800 flex justify-end gap-2">
                 <button
                   type="button"
                   onClick={() => setItemModalOpen(false)}
-                  className="px-4 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 font-bold text-xs transition"
+                  className="px-4 py-2 rounded-xl text-stone-600 dark:text-stone-400 font-bold hover:bg-stone-100 dark:hover:bg-stone-800 transition"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold text-xs shadow transition active:scale-95"
+                  className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold shadow-xs transition"
                 >
-                  {editingItem ? 'Save Item Changes' : 'Create Food Item'}
+                  {editingItem ? 'Update Dish' : 'Add Dish'}
                 </button>
               </div>
             </form>
