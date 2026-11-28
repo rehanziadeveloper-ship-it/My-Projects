@@ -1,6 +1,9 @@
 import { supabase } from './supabase';
 
-const ACTION_URL = import.meta.env.VITE_N8N_ACTION_URL;
+const envActionUrl = import.meta.env.VITE_N8N_ACTION_URL;
+const ACTION_URL = (envActionUrl && !envActionUrl.includes('srv1767318'))
+  ? envActionUrl
+  : 'https://n8n-tl5r.srv2209502.hstgr.cloud/webhook/kpk/dashboard-action';
 
 export async function callDashboardAction(action, payload = {}) {
   const { data: { session }, error: sessErr } = await supabase.auth.getSession();
